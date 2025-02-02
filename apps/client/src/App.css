@@ -114,3 +114,7 @@ button {
     background-color: #0f0f0f69;
   }
 }
+
+.message.error {
+  color: #ff4d4f;
+}

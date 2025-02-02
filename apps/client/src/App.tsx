@@ -1,14 +1,42 @@
 import { useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { arch, platform } from "@tauri-apps/plugin-os";
 import "./App.css";
 
+// Map the os platform and architecture to a supported ZKN format
+const getPlatformArch = (): String => {
+  const platArch = `${platform()}-${arch()}`;
+  switch (platArch) {
+    case "linux-aarch64":
+      return "linux-arm64";
+    case "linux-x86_64":
+      return "linux-x64";
+    case "macos-aarch64":
+    case "macos-x86_x64":
+      return "macos";
+    case "windows-x86_x64":
+      return "windows-x64";
+    default:
+      throw new Error(`Unsupported OS: ${platArch}`);
+  }
+};
+
 function App() {
-  const [connectMsg, setConnectMsg] = useState("");
+  const [msg, setMsg] = useState("");
+  const [msgType, setMsgType] = useState(""); // error, info, success
   const [networkId, setNetworkId] = useState("");
 
   async function connect() {
     // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-    setConnectMsg(await invoke("network_connect", { networkId }));
+    try {
+      const platformArch = getPlatformArch();
+      const response = await invoke("network_connect", { networkId });
+      setMsg(`${response}, OS: ${platformArch}`);
+      setMsgType("info");
+    } catch (error: any) {
+      setMsg(`${error}`);
+      setMsgType("error");
+    }
   }
 
   return (
@@ -37,7 +65,7 @@ function App() {
         />
         <button type="submit">Connect</button>
       </form>
-      <p>{connectMsg}</p>
+      <p className={`message ${msgType}`}>{msg}</p>
     </main>
   );
 }

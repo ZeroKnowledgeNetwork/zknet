@@ -6,6 +6,7 @@
   "permissions": [
     "core:default",
     "http:default",
+    "fs:default",
     "opener:default",
     "os:allow-arch",
     "os:allow-platform",

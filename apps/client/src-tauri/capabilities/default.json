@@ -9,6 +9,7 @@
     "opener:default",
     "os:allow-arch",
     "os:allow-platform",
+    "shell:allow-kill",
     "shell:default",
     "upload:default",
     {

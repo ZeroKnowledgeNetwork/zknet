@@ -27,6 +27,24 @@
           "sidecar": false
         }
       ]
+    },
+    {
+      "identifier": "shell:allow-spawn",
+      "allow": [
+        {
+          "name": "walletshield-listen",
+          "cmd": "walletshield",
+          "args": [
+            "-listen",
+            ":7070",
+            "-config",
+            {
+              "validator": "\\S+"
+            }
+          ],
+          "sidecar": false
+        }
+      ]
     }
   ]
 }

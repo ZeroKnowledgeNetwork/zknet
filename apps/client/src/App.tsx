@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import * as path from "@tauri-apps/api/path";
 import { arch, platform } from "@tauri-apps/plugin-os";
 import { download } from "@tauri-apps/plugin-upload";
@@ -8,7 +8,7 @@ import { mkdir, exists } from "@tauri-apps/plugin-fs";
 import "./App.css";
 
 // Map the os platform and architecture to a supported ZKN format
-const getPlatformArch = (): String => {
+const getPlatformArch = (): string => {
   const platArch = `${platform()}-${arch()}`;
   switch (platArch) {
     case "linux-aarch64":
@@ -21,7 +21,7 @@ const getPlatformArch = (): String => {
     case "windows-x86_x64":
       return "windows-x64";
     default:
-      throw new Error(`Unsupported OS: ${platArch}`);
+      throw new Error(`Unsupported Operating System: ${platArch}`);
   }
 };
 
@@ -31,6 +31,19 @@ function App() {
   const [networkId, setNetworkId] = useState("");
   const [dlProgress, setDlProgress] = useState(0);
   const [clientPid, setClientPid] = useState(0);
+  const [platformArch, setPlatformArch] = useState("");
+  const [platformSupported, setPlatformSupported] = useState(false);
+
+  useEffect(() => {
+    try {
+      console.log(`Platform: ${platform()}-${arch()}`);
+      setPlatformArch(getPlatformArch());
+      setPlatformSupported(true);
+    } catch (error: any) {
+      setMsgType("error");
+      setMsg(`${error}`);
+    }
+  }, []);
 
   async function connect() {
     try {
@@ -66,7 +79,6 @@ function App() {
   }
 
   async function clientStart() {
-    const platformArch = getPlatformArch();
     const urlClientCfg = `https://test.net.0kn.io/${networkId}/client.toml`;
     const urlWalletshield = `https://test.net.0kn.io/${networkId}/walletshield-${platformArch}`;
     const appLocalDataDirPath = await path.appLocalDataDir();
@@ -185,36 +197,35 @@ function App() {
         <img src="/zkn.svg" className="logo ZKN" alt="ZKN logo" />
       </div>
 
-      {clientPid === 0 && (
-        <>
-          <p>
-            Enter a <i>network id</i> for access.
-          </p>
-          <form
-            className="row"
-            onSubmit={(e) => {
-              e.preventDefault();
-              connect();
-            }}
-          >
-            <input
-              id="connect-input"
-              onChange={(e) => setNetworkId(e.currentTarget.value)}
-              placeholder="Enter a network_id..."
-            />
-            <button type="submit">Connect</button>
-          </form>
-        </>
-      )}
-
-      {clientPid !== 0 && (
-        <div>
-          <p>
-            <b>{networkId}</b>
-          </p>
-          <button onClick={disconnect}>Disconnect</button>
-        </div>
-      )}
+      {platformSupported &&
+        (clientPid === 0 ? (
+          <>
+            <p>
+              Enter a <i>network id</i> for access.
+            </p>
+            <form
+              className="row"
+              onSubmit={(e) => {
+                e.preventDefault();
+                connect();
+              }}
+            >
+              <input
+                id="connect-input"
+                onChange={(e) => setNetworkId(e.currentTarget.value)}
+                placeholder="Enter a network_id..."
+              />
+              <button type="submit">Connect</button>
+            </form>
+          </>
+        ) : (
+          <div>
+            <p>
+              <b>{networkId}</b>
+            </p>
+            <button onClick={disconnect}>Disconnect</button>
+          </div>
+        ))}
 
       <p className={`message ${msgType}`}>{msg}</p>
     </main>

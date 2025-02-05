@@ -11,6 +11,22 @@
     "os:allow-arch",
     "os:allow-platform",
     "shell:default",
-    "upload:default"
+    "upload:default",
+    {
+      "identifier": "shell:allow-execute",
+      "allow": [
+        {
+          "name": "chmod+x",
+          "cmd": "chmod",
+          "args": [
+            "+x",
+            {
+              "validator": "\\S+"
+            }
+          ],
+          "sidecar": false
+        }
+      ]
+    }
   ]
 }

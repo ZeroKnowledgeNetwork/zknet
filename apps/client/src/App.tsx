@@ -3,7 +3,7 @@ import * as path from "@tauri-apps/api/path";
 import { arch, platform } from "@tauri-apps/plugin-os";
 import { download } from "@tauri-apps/plugin-upload";
 import { fetch } from "@tauri-apps/plugin-http";
-import { Command } from "@tauri-apps/plugin-shell";
+import { Child, Command } from "@tauri-apps/plugin-shell";
 import { mkdir, exists } from "@tauri-apps/plugin-fs";
 import "./App.css";
 
@@ -30,14 +30,38 @@ function App() {
   const [msgType, setMsgType] = useState(""); // error, info, success
   const [networkId, setNetworkId] = useState("");
   const [dlProgress, setDlProgress] = useState(0);
+  const [clientPid, setClientPid] = useState(0);
 
   async function connect() {
     try {
-      await clientStart();
+      const pid = await clientStart();
+      setClientPid(pid);
+      setMsgType("info");
+      setMsg("Network Connected");
     } catch (error: any) {
       console.log(error);
       setMsgType("error");
       setMsg(`${error}`);
+    }
+  }
+
+  async function disconnect() {
+    try {
+      await clientStop();
+      setClientPid(0);
+      setMsgType("info");
+      setMsg("Disconnected from Network");
+    } catch (error: any) {
+      console.log(error);
+      setMsgType("error");
+      setMsg(`${error}`);
+    }
+  }
+
+  async function clientStop() {
+    if (clientPid > 0) {
+      const c = new Child(clientPid);
+      c.kill();
     }
   }
 
@@ -150,7 +174,7 @@ function App() {
     );
 
     const child = await command.spawn();
-    console.log("pid:", child.pid);
+    return child.pid;
   }
 
   return (
@@ -161,24 +185,37 @@ function App() {
         <img src="/zkn.svg" className="logo ZKN" alt="ZKN logo" />
       </div>
 
-      <p>
-        Enter a <i>network id</i> for access.
-      </p>
+      {clientPid === 0 && (
+        <>
+          <p>
+            Enter a <i>network id</i> for access.
+          </p>
+          <form
+            className="row"
+            onSubmit={(e) => {
+              e.preventDefault();
+              connect();
+            }}
+          >
+            <input
+              id="connect-input"
+              onChange={(e) => setNetworkId(e.currentTarget.value)}
+              placeholder="Enter a network_id..."
+            />
+            <button type="submit">Connect</button>
+          </form>
+        </>
+      )}
 
-      <form
-        className="row"
-        onSubmit={(e) => {
-          e.preventDefault();
-          connect();
-        }}
-      >
-        <input
-          id="connect-input"
-          onChange={(e) => setNetworkId(e.currentTarget.value)}
-          placeholder="Enter a network_id..."
-        />
-        <button type="submit">Connect</button>
-      </form>
+      {clientPid !== 0 && (
+        <div>
+          <p>
+            <b>{networkId}</b>
+          </p>
+          <button onClick={disconnect}>Disconnect</button>
+        </div>
+      )}
+
       <p className={`message ${msgType}`}>{msg}</p>
     </main>
   );

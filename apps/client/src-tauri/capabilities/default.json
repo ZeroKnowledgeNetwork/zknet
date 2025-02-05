@@ -12,6 +12,14 @@
     "shell:default",
     "upload:default",
     {
+      "identifier": "fs:allow-exists",
+      "allow": [{ "path": "$APPLOCALDATA/**" }]
+    },
+    {
+      "identifier": "fs:allow-mkdir",
+      "allow": [{ "path": "$APPLOCALDATA/**" }]
+    },
+    {
       "identifier": "http:default",
       "allow": [
         {

@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "zkn-client",
+        "title": "Zero Knowledge Network - Client",
         "width": 800,
         "height": 600
       }

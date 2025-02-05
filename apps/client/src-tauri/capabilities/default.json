@@ -5,13 +5,20 @@
   "windows": ["main"],
   "permissions": [
     "core:default",
-    "http:default",
     "fs:default",
     "opener:default",
     "os:allow-arch",
     "os:allow-platform",
     "shell:default",
     "upload:default",
+    {
+      "identifier": "http:default",
+      "allow": [
+        {
+          "url": "https://test.net.0kn.io/*/client.toml"
+        }
+      ]
+    },
     {
       "identifier": "shell:allow-execute",
       "allow": [

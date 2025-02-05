@@ -125,8 +125,8 @@ function App() {
     setMsgType(() => "info");
     setMsg(() => `Starting network client...`);
     const command = Command.create(
-      "walletshield-probe",
-      ["-probe", "-config", fileClientCfg],
+      "walletshield-listen",
+      ["-listen", ":7070", "-config", fileClientCfg],
       {
         cwd: dirNetwork,
         env: {

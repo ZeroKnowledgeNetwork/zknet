@@ -45,6 +45,23 @@
           "sidecar": false
         }
       ]
+    },
+    {
+      "identifier": "shell:allow-spawn",
+      "allow": [
+        {
+          "name": "walletshield-probe",
+          "cmd": "walletshield",
+          "args": [
+            "-probe",
+            "-config",
+            {
+              "validator": "\\S+"
+            }
+          ],
+          "sidecar": false
+        }
+      ]
     }
   ]
 }

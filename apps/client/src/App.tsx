@@ -16,9 +16,9 @@ const getPlatformArch = (): string => {
     case "linux-x86_64":
       return "linux-x64";
     case "macos-aarch64":
-    case "macos-x86_x64":
+    case "macos-x86_64":
       return "macos";
-    case "windows-x86_x64":
+    case "windows-x86_64":
       return "windows-x64";
     default:
       throw new Error(`Unsupported Operating System: ${platArch}`);

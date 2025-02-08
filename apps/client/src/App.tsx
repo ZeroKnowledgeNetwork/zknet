@@ -108,10 +108,8 @@ function App() {
     // save the network's client.toml in a network-specific directory
     ////////////////////////////////////////////////////////////////////////
     console.log("dirNetwork:", dirNetwork);
-    if (!(await exists(dirNetworks))) {
-      await mkdir(dirNetworks);
-      await mkdir(dirNetwork);
-    }
+    if (!(await exists(dirNetwork)))
+      await mkdir(dirNetwork, { recursive: true });
     await download(urlClientCfg, fileClientCfg);
     setMsgType(() => "success");
     setMsg(() => "Retrieved network client configuration");

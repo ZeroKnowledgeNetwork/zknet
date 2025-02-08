@@ -24,7 +24,7 @@
       "identifier": "http:default",
       "allow": [
         {
-          "url": "https://test.net.0kn.io/*/client.toml"
+          "url": "https://test.net.zknet.io/*/client.toml"
         }
       ]
     },

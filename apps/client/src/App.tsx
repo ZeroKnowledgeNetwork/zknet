@@ -7,6 +7,8 @@ import { Child, Command } from "@tauri-apps/plugin-shell";
 import { mkdir, exists } from "@tauri-apps/plugin-fs";
 import "./App.css";
 
+const urlNetwork = "https://test.net.zknet.io";
+
 // Map the os platform and architecture to a supported ZKN format
 const getPlatformArch = (): string => {
   const platArch = `${platform()}-${arch()}`;
@@ -79,8 +81,8 @@ function App() {
   }
 
   async function clientStart() {
-    const urlClientCfg = `https://test.net.0kn.io/${networkId}/client.toml`;
-    const urlWalletshield = `https://test.net.0kn.io/${networkId}/walletshield-${platformArch}`;
+    const urlClientCfg = `${urlNetwork}/${networkId}/client.toml`;
+    const urlWalletshield = `${urlNetwork}/${networkId}/walletshield-${platformArch}`;
     const appLocalDataDirPath = await path.appLocalDataDir();
     const dirNetworks = await path.join(appLocalDataDirPath, "networks");
     const dirNetwork = await path.join(dirNetworks, networkId);

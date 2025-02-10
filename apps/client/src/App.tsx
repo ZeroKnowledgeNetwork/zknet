@@ -52,7 +52,7 @@ function App() {
       const pid = await clientStart();
       setClientPid(pid);
       setMsgType("info");
-      setMsg("Network Connected");
+      setMsg("");
     } catch (error: any) {
       console.log(error);
       setMsgType("error");
@@ -190,12 +190,10 @@ function App() {
   }
 
   return (
-    <main className="container">
-      <h1>Zero Knowledge Network</h1>
+    <main className="flex flex-col items-center justify-center min-h-screen gap-5">
+      <h1 className="text-3xl font-extrabold">Zero Knowledge Network</h1>
 
-      <div className="row">
-        <img src="/zkn.svg" className="logo ZKN" alt="ZKN logo" />
-      </div>
+      <img src="/zkn.svg" className="logo ZKN" alt="ZKN logo" />
 
       {platformSupported &&
         (clientPid === 0 ? (
@@ -204,30 +202,38 @@ function App() {
               Enter a <i>network id</i> for access.
             </p>
             <form
-              className="row"
+              className="join"
               onSubmit={(e) => {
                 e.preventDefault();
                 connect();
               }}
             >
               <input
-                id="connect-input"
+                className="input focus:outline-none join-item"
                 onChange={(e) => setNetworkId(e.currentTarget.value)}
                 placeholder="Enter a network_id..."
               />
-              <button type="submit">Connect</button>
+              <button className="btn btn-primary join-item" type="submit">
+                Connect
+              </button>
             </form>
           </>
         ) : (
-          <div>
-            <p>
-              <b>{networkId}</b>
-            </p>
-            <button onClick={disconnect}>Disconnect</button>
-          </div>
+          <>
+            <p className="text-lg font-bold">Connected Network: {networkId}</p>
+            <button onClick={disconnect} className="btn btn-secondary">
+              Disconnect
+            </button>
+          </>
         ))}
 
-      <p className={`message ${msgType}`}>{msg}</p>
+      {msg && (
+        <p
+          className={`alert ${msgType === "error" ? "alert-error" : "alert-info"}`}
+        >
+          {msg}
+        </p>
+      )}
     </main>
   );
 }

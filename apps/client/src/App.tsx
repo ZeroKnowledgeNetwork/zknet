@@ -206,6 +206,9 @@ function App() {
               onSubmit={(e) => {
                 e.preventDefault();
                 connect();
+
+                // blur the input field to clear visual artifact
+                e.currentTarget.querySelector("input")?.blur();
               }}
             >
               <input

@@ -28,4 +28,5 @@ tauri-plugin-http = "2"
 tauri-plugin-shell = "2"
 tauri-plugin-fs = "2"
 tauri-plugin-log = "2"
+time = { version = "0.3", features = ["formatting"] }
 

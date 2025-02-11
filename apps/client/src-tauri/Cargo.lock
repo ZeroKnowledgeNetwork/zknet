@@ -5984,6 +5984,7 @@ dependencies = [
  "tauri-plugin-os",
  "tauri-plugin-shell",
  "tauri-plugin-upload",
+ "time",
 ]
 
 [[package]]

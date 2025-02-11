@@ -16,14 +16,21 @@ pub fn run() {
                         "[year]-[month]-[day] [hour]:[minute]:[second]",
                     )
                     .unwrap();
+
+                    let newline = match tauri_plugin_os::platform() {
+                        "windows" => "\r",
+                        _ => "",
+                    };
+
                     out.finish(format_args!(
-                        "[{}][{}] {}",
+                        "[{}][{}] {}{}",
                         tauri_plugin_log::TimezoneStrategy::UseUtc
                             .get_now()
                             .format(&tf)
                             .unwrap(),
                         record.level(),
-                        message
+                        message,
+                        newline
                     ))
                 })
                 .build(),

@@ -5,7 +5,7 @@ import { arch, platform } from "@tauri-apps/plugin-os";
 import { download } from "@tauri-apps/plugin-upload";
 import { fetch } from "@tauri-apps/plugin-http";
 import { Child, Command } from "@tauri-apps/plugin-shell";
-import { mkdir, exists } from "@tauri-apps/plugin-fs";
+import { mkdir, exists, readDir, BaseDirectory } from "@tauri-apps/plugin-fs";
 import "./App.css";
 
 const urlNetwork = "https://test.net.zknet.io";
@@ -28,6 +28,14 @@ const getPlatformArch = (): string => {
   }
 };
 
+// Get networks with previously downloaded assets
+const getNetworks = async () => {
+  const entries = await readDir("networks", {
+    baseDir: BaseDirectory.AppLocalData,
+  });
+  return entries.filter((i) => i.isDirectory).map((i) => i.name);
+};
+
 function App() {
   const [msg, setMsg] = useState("");
   const [msgType, setMsgType] = useState(""); // error, info, success
@@ -36,12 +44,18 @@ function App() {
   const [clientPid, setClientPid] = useState(0);
   const [platformArch, setPlatformArch] = useState("");
   const [platformSupported, setPlatformSupported] = useState(false);
+  const [networks, setNetworks] = useState<string[]>([]);
 
+  // run once on startup (twice in dev mode)
   useEffect(() => {
     try {
       log.info(`Platform: ${platform()}-${arch()}`);
       setPlatformArch(getPlatformArch());
       setPlatformSupported(true);
+
+      (async () => {
+        setNetworks(await getNetworks());
+      })();
     } catch (error: any) {
       log.error(`${error}`);
       setMsgType("error");
@@ -55,6 +69,7 @@ function App() {
       setClientPid(pid);
       setMsgType("info");
       setMsg("");
+      setNetworks(await getNetworks());
     } catch (error: any) {
       log.error(`${error}`);
       setMsgType("error");
@@ -210,7 +225,13 @@ function App() {
                 className="input focus:outline-none join-item"
                 onChange={(e) => setNetworkId(e.currentTarget.value)}
                 placeholder="Enter a network_id..."
+                list="networks"
               />
+              <datalist id="networks">
+                {networks.map((n) => (
+                  <option key={n} value={n} />
+                ))}
+              </datalist>
               <button className="btn btn-primary join-item" type="submit">
                 Connect
               </button>

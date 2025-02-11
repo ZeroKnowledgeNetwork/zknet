@@ -176,9 +176,9 @@ function App() {
       setMsgType(() => "info");
       setMsg(() => `Network client stopped.`);
     });
-    command.on("error", (error) => log.error(`${cmd}: ${error}`));
-    command.stdout.on("data", (line) => log.info(`${cmd}: ${line}`));
-    command.stderr.on("data", (line) => log.error(`${cmd}: ${line}`));
+    command.on("error", (e) => log.error(`${cmd}: ${e.trim()}`));
+    command.stdout.on("data", (d) => log.info(`${cmd}: ${d.trim()}`));
+    command.stderr.on("data", (d) => log.error(`${cmd}: ${d.trim()}`));
 
     const child = await command.spawn();
     return child.pid;

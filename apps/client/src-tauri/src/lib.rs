@@ -7,7 +7,27 @@ fn network_connect(network_id: &str) -> String {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
-        .plugin(tauri_plugin_log::Builder::new().build())
+        .plugin(
+            tauri_plugin_log::Builder::new()
+                // https://tauri.app/plugin/logging/#formatting
+                // https://github.com/tauri-apps/plugins-workspace/blob/v2/plugins/log/src/lib.rs#L278
+                .format(|out, message, record| {
+                    let tf = time::format_description::parse(
+                        "[year]-[month]-[day] [hour]:[minute]:[second]",
+                    )
+                    .unwrap();
+                    out.finish(format_args!(
+                        "[{}][{}] {}",
+                        tauri_plugin_log::TimezoneStrategy::UseUtc
+                            .get_now()
+                            .format(&tf)
+                            .unwrap(),
+                        record.level(),
+                        message
+                    ))
+                })
+                .build(),
+        )
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_http::init())

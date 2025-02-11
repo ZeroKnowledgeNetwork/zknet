@@ -22,6 +22,10 @@
       "allow": [{ "path": "$APPLOCALDATA/**" }]
     },
     {
+      "identifier": "fs:allow-read-dir",
+      "allow": [{ "path": "$APPLOCALDATA/**" }]
+    },
+    {
       "identifier": "http:default",
       "allow": [
         {

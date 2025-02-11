@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import * as log from "@tauri-apps/plugin-log";
 import * as path from "@tauri-apps/api/path";
 import { arch, platform } from "@tauri-apps/plugin-os";
 import { download } from "@tauri-apps/plugin-upload";
@@ -38,10 +39,11 @@ function App() {
 
   useEffect(() => {
     try {
-      console.log(`Platform: ${platform()}-${arch()}`);
+      log.info(`Platform: ${platform()}-${arch()}`);
       setPlatformArch(getPlatformArch());
       setPlatformSupported(true);
     } catch (error: any) {
+      log.error(`${error}`);
       setMsgType("error");
       setMsg(`${error}`);
     }
@@ -54,7 +56,7 @@ function App() {
       setMsgType("info");
       setMsg("");
     } catch (error: any) {
-      console.log(error);
+      log.error(`${error}`);
       setMsgType("error");
       setMsg(`${error}`);
     }
@@ -67,7 +69,7 @@ function App() {
       setMsgType("info");
       setMsg("Disconnected from Network");
     } catch (error: any) {
-      console.log(error);
+      log.error(`${error}`);
       setMsgType("error");
       setMsg(`${error}`);
     }
@@ -102,14 +104,14 @@ function App() {
       connectTimeout: 5000,
     });
     if (!response.ok || response.body === null) {
-      console.log(`Failed to download client config: ${response.statusText}`);
+      log.warn(`Failed to download client config: ${response.statusText}`);
       throw new Error("Invalid network id (or local network error)");
     }
 
     ////////////////////////////////////////////////////////////////////////
     // save the network's client.toml in a network-specific directory
     ////////////////////////////////////////////////////////////////////////
-    console.log("dirNetwork:", dirNetwork);
+    log.debug(`local network directory: ${dirNetwork}`);
     if (!(await exists(dirNetwork)))
       await mkdir(dirNetwork, { recursive: true });
     await download(urlClientCfg, fileClientCfg);
@@ -160,30 +162,23 @@ function App() {
     ////////////////////////////////////////////////////////////////////////
     setMsgType(() => "info");
     setMsg(() => `Starting network client...`);
-    const command = Command.create(
-      "walletshield-listen",
-      ["-listen", ":7070", "-config", fileClientCfg],
-      {
-        cwd: dirNetwork,
-        env: {
-          PATH: dirNetwork,
-        },
+    const cmd = "walletshield";
+    const args = ["-listen", ":7070", "-config", fileClientCfg];
+    const command = Command.create("walletshield-listen", args, {
+      cwd: dirNetwork,
+      env: {
+        PATH: dirNetwork,
       },
-    );
+    });
+    log.debug(`spawning command: ${cmd} ${args.join(" ")}`);
     command.on("close", (data) => {
-      console.log(
-        `command finished with code ${data.code} and signal ${data.signal}`,
-      );
+      log.debug(`closed: ${cmd} code=${data.code} signal=${data.signal}`);
       setMsgType(() => "info");
       setMsg(() => `Network client stopped.`);
     });
-    command.on("error", (error) => console.error(`command error: "${error}"`));
-    command.stdout.on("data", (line) =>
-      console.log(`command stdout: "${line}"`),
-    );
-    command.stderr.on("data", (line) =>
-      console.log(`command stderr: "${line}"`),
-    );
+    command.on("error", (error) => log.error(`${cmd}: ${error}`));
+    command.stdout.on("data", (line) => log.info(`${cmd}: ${line}`));
+    command.stderr.on("data", (line) => log.error(`${cmd}: ${line}`));
 
     const child = await command.spawn();
     return child.pid;

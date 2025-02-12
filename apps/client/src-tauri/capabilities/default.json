@@ -37,14 +37,9 @@
       "identifier": "shell:allow-execute",
       "allow": [
         {
-          "name": "chmod+x",
+          "name": "chmod-walletshield",
           "cmd": "chmod",
-          "args": [
-            "+x",
-            {
-              "validator": "\\S+"
-            }
-          ],
+          "args": ["+x", "walletshield"],
           "sidecar": false
         }
       ]
@@ -55,14 +50,7 @@
         {
           "name": "walletshield-listen",
           "cmd": "walletshield",
-          "args": [
-            "-listen",
-            ":7070",
-            "-config",
-            {
-              "validator": "\\S+"
-            }
-          ],
+          "args": ["-listen", ":7070", "-config", "client.toml"],
           "sidecar": false
         }
       ]

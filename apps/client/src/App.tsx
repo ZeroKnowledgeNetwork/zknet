@@ -166,10 +166,14 @@ function App() {
     // prepare the walletshield binary for execution
     ////////////////////////////////////////////////////////////////////////
     if (platform() === "linux" || platform() === "macos") {
-      const output = await Command.create("chmod+x", [
-        "+x",
-        fileWalletshield,
-      ]).execute();
+      log.debug(`executing command: chmod +x walletshield`);
+      const output = await Command.create(
+        "chmod-walletshield",
+        ["+x", "walletshield"],
+        {
+          cwd: dirNetwork,
+        },
+      ).execute();
       if (output.code !== 0) {
         throw new Error(`Failed to chmod+x walletshield: ${output.stderr}`);
       }
@@ -181,7 +185,7 @@ function App() {
     setMsgType(() => "info");
     setMsg(() => `Starting network client...`);
     const cmd = "walletshield";
-    const args = ["-listen", ":7070", "-config", fileClientCfg];
+    const args = ["-listen", ":7070", "-config", "client.toml"];
     const command = Command.create("walletshield-listen", args, {
       cwd: dirNetwork,
       env: {

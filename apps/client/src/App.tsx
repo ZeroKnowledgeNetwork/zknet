@@ -230,9 +230,12 @@ function App() {
               }}
             >
               <input
-                className="input focus:outline-none join-item"
+                className="input validator focus:outline-none join-item"
                 onChange={(e) => setNetworkId(e.currentTarget.value)}
                 placeholder="Enter a network_id..."
+                maxLength={36}
+                minLength={5}
+                required
                 list="networks"
               />
               <datalist id="networks">

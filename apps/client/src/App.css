@@ -49,6 +49,18 @@
   will-change: filter;
 }
 
-.logo.ZKN:hover {
-  filter: drop-shadow(0 0 2em #00d400);
+@keyframes pulse-shadow {
+  0% {
+    filter: drop-shadow(0 0 0.25em #00d400);
+  }
+  50% {
+    filter: drop-shadow(0 0 1.75em #00d400);
+  }
+  100% {
+    filter: drop-shadow(0 0 0.25em #00d400);
+  }
+}
+
+.pulsing {
+  animation: pulse-shadow 2s infinite ease-in-out;
 }

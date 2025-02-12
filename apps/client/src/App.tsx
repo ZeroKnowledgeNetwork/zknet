@@ -45,6 +45,7 @@ function App() {
   const [platformArch, setPlatformArch] = useState("");
   const [platformSupported, setPlatformSupported] = useState(false);
   const [networks, setNetworks] = useState<string[]>([]);
+  const [isConnected, setIsConnected] = useState(false);
 
   // run once on startup (twice in dev mode)
   useEffect(() => {
@@ -69,6 +70,7 @@ function App() {
       setClientPid(pid);
       setMsgType("info");
       setMsg("");
+      setIsConnected(true);
       setNetworks(await getNetworks());
     } catch (error: any) {
       log.error(`${error}`);
@@ -83,6 +85,7 @@ function App() {
       setClientPid(0);
       setMsgType("info");
       setMsg("Disconnected from Network");
+      setIsConnected(false);
     } catch (error: any) {
       log.error(`${error}`);
       setMsgType("error");
@@ -203,7 +206,12 @@ function App() {
     <main className="flex flex-col items-center justify-center min-h-screen gap-5">
       <h1 className="text-3xl font-extrabold">Zero Knowledge Network</h1>
 
-      <img src="/zkn.svg" className="logo ZKN" alt="ZKN logo" />
+      <img
+        src="/zkn.svg"
+        alt="ZKN"
+        onClick={() => isConnected && disconnect()}
+        className={`logo ${isConnected ? "pulsing" : ""}`}
+      />
 
       {platformSupported &&
         (clientPid === 0 ? (

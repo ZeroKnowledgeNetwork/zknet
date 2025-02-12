@@ -216,9 +216,7 @@ function App() {
       {platformSupported &&
         (clientPid === 0 ? (
           <>
-            <p>
-              Enter a <i>network id</i> for access.
-            </p>
+            <p>Enter a network identifier for access.</p>
             <form
               className="join"
               onSubmit={(e) => {
@@ -232,7 +230,7 @@ function App() {
               <input
                 className="input validator focus:outline-none join-item"
                 onChange={(e) => setNetworkId(e.currentTarget.value)}
-                placeholder="Enter a network_id..."
+                placeholder="Enter a network id..."
                 maxLength={36}
                 minLength={5}
                 required

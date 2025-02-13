@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import * as app from "@tauri-apps/api/app";
 import * as log from "@tauri-apps/plugin-log";
 import * as path from "@tauri-apps/api/path";
 import { arch, platform } from "@tauri-apps/plugin-os";
@@ -42,6 +43,7 @@ function App() {
   const [networkId, setNetworkId] = useState("");
   const [dlProgress, setDlProgress] = useState(0);
   const [clientPid, setClientPid] = useState(0);
+  const [appVersion, setAppVersion] = useState("");
   const [platformArch, setPlatformArch] = useState("");
   const [platformSupported, setPlatformSupported] = useState(false);
   const [networks, setNetworks] = useState<string[]>([]);
@@ -50,11 +52,14 @@ function App() {
   // run once on startup (twice in dev mode)
   useEffect(() => {
     try {
-      log.info(`Platform: ${platform()}-${arch()}`);
-      setPlatformArch(getPlatformArch());
-      setPlatformSupported(true);
-
       (async () => {
+        const name = await app.getName();
+        const v = "v" + (await app.getVersion());
+        log.info(`Starting ${name} ${v} on ${platform()}-${arch()}`);
+
+        setAppVersion(v);
+        setPlatformArch(getPlatformArch());
+        setPlatformSupported(true);
         setNetworks(await getNetworks());
       })();
     } catch (error: any) {

@@ -211,8 +211,8 @@ function App() {
     return child.pid;
   }
 
-  return (
-    <main className="flex flex-col items-center justify-center min-h-screen gap-5">
+  const Main = () => (
+    <main className="flex flex-col flex-grow items-center justify-center gap-5">
       <h1 className="text-3xl font-extrabold">Zero Knowledge Network</h1>
 
       <img
@@ -272,6 +272,12 @@ function App() {
         </p>
       )}
     </main>
+  );
+
+  return (
+    <div className="flex flex-col min-h-screen">
+      <Main />
+    </div>
   );
 }
 

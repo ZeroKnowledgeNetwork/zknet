@@ -274,9 +274,22 @@ function App() {
     </main>
   );
 
+  const Footer = () => (
+    <footer className="footer footer-center bg-base-200 text-base-content/30 p-4">
+      <div className="flex flex-row">
+        <span>ZKNetwork Client</span>
+        <span className="mx-2">|</span>
+        <span>Version: {appVersion}</span>
+        <span className="mx-2">|</span>
+        <span>Platform: {platformArch}</span>
+      </div>
+    </footer>
+  );
+
   return (
     <div className="flex flex-col min-h-screen">
       <Main />
+      <Footer />
     </div>
   );
 }

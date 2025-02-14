@@ -211,69 +211,6 @@ function App() {
     return child.pid;
   }
 
-  const Main = () => (
-    <main className="flex flex-col flex-grow items-center justify-center gap-5">
-      <h1 className="text-3xl font-extrabold">Zero Knowledge Network</h1>
-
-      <img
-        src="/zkn.svg"
-        alt="ZKN"
-        onClick={() => isConnected && disconnect()}
-        className={`logo ${isConnected ? "pulsing" : ""}`}
-      />
-
-      {platformSupported &&
-        (clientPid === 0 ? (
-          <>
-            <p>Enter a network identifier for access.</p>
-            <form
-              className="join"
-              onSubmit={(e) => {
-                e.preventDefault();
-                connect();
-
-                // blur the input field to clear visual artifact
-                e.currentTarget.querySelector("input")?.blur();
-              }}
-            >
-              <input
-                className="input validator focus:outline-none join-item"
-                onChange={(e) => setNetworkId(e.currentTarget.value)}
-                placeholder="Enter a network id..."
-                maxLength={36}
-                minLength={5}
-                required
-                list="networks"
-              />
-              <datalist id="networks">
-                {networks.map((n) => (
-                  <option key={n} value={n} />
-                ))}
-              </datalist>
-              <button className="btn btn-primary join-item" type="submit">
-                Connect
-              </button>
-            </form>
-          </>
-        ) : (
-          <>
-            <p className="text-lg font-bold">Connected Network: {networkId}</p>
-            <button onClick={disconnect} className="btn btn-secondary">
-              Disconnect
-            </button>
-          </>
-        ))}
-
-      {msg && (
-        <p
-          className={`alert ${msgType === "error" ? "alert-error" : "alert-info"}`}
-        >
-          {msg}
-        </p>
-      )}
-    </main>
-  );
-
   const Footer = () => (
     <footer className="footer footer-center bg-base-200 text-base-content/30 p-4">
       <div className="flex flex-row">
@@ -288,7 +225,68 @@ function App() {
 
   return (
     <div className="flex flex-col min-h-screen">
-      <Main />
+      <main className="flex flex-col flex-grow items-center justify-center gap-5">
+        <h1 className="text-3xl font-extrabold">Zero Knowledge Network</h1>
+
+        <img
+          src="/zkn.svg"
+          alt="ZKN"
+          onClick={() => isConnected && disconnect()}
+          className={`logo ${isConnected ? "pulsing" : ""}`}
+        />
+
+        {platformSupported &&
+          (clientPid === 0 ? (
+            <>
+              <p>Enter a network identifier for access.</p>
+              <form
+                className="join"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  connect();
+
+                  // blur the input field to clear visual artifact
+                  e.currentTarget.querySelector("input")?.blur();
+                }}
+              >
+                <input
+                  className="input validator focus:outline-none join-item"
+                  onChange={(e) => setNetworkId(e.currentTarget.value)}
+                  placeholder="Enter a network id..."
+                  maxLength={36}
+                  minLength={5}
+                  required
+                  list="networks"
+                />
+                <datalist id="networks">
+                  {networks.map((n) => (
+                    <option key={n} value={n} />
+                  ))}
+                </datalist>
+                <button className="btn btn-primary join-item" type="submit">
+                  Connect
+                </button>
+              </form>
+            </>
+          ) : (
+            <>
+              <p className="text-lg font-bold">
+                Connected Network: {networkId}
+              </p>
+              <button onClick={disconnect} className="btn btn-secondary">
+                Disconnect
+              </button>
+            </>
+          ))}
+
+        {msg && (
+          <p
+            className={`alert ${msgType === "error" ? "alert-error" : "alert-info"}`}
+          >
+            {msg}
+          </p>
+        )}
+      </main>
       <Footer />
     </div>
   );

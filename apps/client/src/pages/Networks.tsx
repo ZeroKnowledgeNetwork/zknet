@@ -10,17 +10,20 @@ import { useStore } from "../store";
 import { getNetworks, urlNetwork } from "../utils";
 
 export function Networks() {
-  const [clientPid, setClientPid] = useState(0);
   const [dlProgress, setDlProgress] = useState(0);
   const [networkId, setNetworkId] = useState("");
 
+  const clientPid = useStore((s) => s.clientPid);
   const isConnected = useStore((s) => s.isConnected);
   const isPlatformSupported = useStore((s) => s.isPlatformSupported);
+  const networkConnected = useStore((s) => s.networkConnected);
   const networks = useStore((s) => s.networks);
   const platformArch = useStore((s) => s.platformArch);
 
+  const setClientPid = useStore((s) => s.setClientPid);
   const setIsConnected = useStore((s) => s.setIsConnected);
   const setMessage = useStore((s) => s.setMessage);
+  const setNetworkConnected = useStore((s) => s.setNetworkConnected);
   const setNetworks = useStore((s) => s.setNetworks);
 
   async function connect() {
@@ -29,6 +32,7 @@ export function Networks() {
       setClientPid(pid);
       setMessage("info", "");
       setIsConnected(true);
+      setNetworkConnected(networkId);
       setNetworks(await getNetworks());
     } catch (error: any) {
       log.error(`${error}`);
@@ -42,6 +46,7 @@ export function Networks() {
       setClientPid(0);
       setMessage("info", "Disconnected from Network");
       setIsConnected(false);
+      setNetworkConnected("");
     } catch (error: any) {
       log.error(`${error}`);
       setMessage("error", `${error}`);
@@ -202,7 +207,9 @@ export function Networks() {
           </>
         ) : (
           <>
-            <p className="text-lg font-bold">Connected Network: {networkId}</p>
+            <p className="text-lg font-bold">
+              Connected Network: {networkConnected}
+            </p>
             <button onClick={disconnect} className="btn btn-secondary">
               Disconnect
             </button>

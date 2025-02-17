@@ -6,38 +6,11 @@ import { arch, platform } from "@tauri-apps/plugin-os";
 import { download } from "@tauri-apps/plugin-upload";
 import { fetch } from "@tauri-apps/plugin-http";
 import { Child, Command } from "@tauri-apps/plugin-shell";
-import { mkdir, exists, readDir, BaseDirectory } from "@tauri-apps/plugin-fs";
+import { mkdir, exists } from "@tauri-apps/plugin-fs";
 import { Footer } from "./components";
 import { useStore } from "./store";
+import { getNetworks, getPlatformArch, urlNetwork } from "./utils";
 import "./App.css";
-
-const urlNetwork = "https://test.net.zknet.io";
-
-// Map the os platform and architecture to a supported ZKN format
-const getPlatformArch = (): string => {
-  const platArch = `${platform()}-${arch()}`;
-  switch (platArch) {
-    case "linux-aarch64":
-      return "linux-arm64";
-    case "linux-x86_64":
-      return "linux-x64";
-    case "macos-aarch64":
-    case "macos-x86_64":
-      return "macos";
-    case "windows-x86_64":
-      return "windows-x64";
-    default:
-      throw new Error(`Unsupported Operating System: ${platArch}`);
-  }
-};
-
-// Get networks with previously downloaded assets
-const getNetworks = async () => {
-  const entries = await readDir("networks", {
-    baseDir: BaseDirectory.AppLocalData,
-  });
-  return entries.filter((i) => i.isDirectory).map((i) => i.name);
-};
 
 function App() {
   const [msg, setMsg] = useState("");

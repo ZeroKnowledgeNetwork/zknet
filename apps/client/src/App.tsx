@@ -7,6 +7,7 @@ import { download } from "@tauri-apps/plugin-upload";
 import { fetch } from "@tauri-apps/plugin-http";
 import { Child, Command } from "@tauri-apps/plugin-shell";
 import { mkdir, exists, readDir, BaseDirectory } from "@tauri-apps/plugin-fs";
+import { Footer } from "./components";
 import { useStore } from "./store";
 import "./App.css";
 
@@ -45,7 +46,6 @@ function App() {
   const [dlProgress, setDlProgress] = useState(0);
   const [clientPid, setClientPid] = useState(0);
 
-  const appVersion = useStore((s) => s.appVersion);
   const isConnected = useStore((s) => s.isConnected);
   const isPlatformSupported = useStore((s) => s.isPlatformSupported);
   const networks = useStore((s) => s.networks);
@@ -218,18 +218,6 @@ function App() {
     const child = await command.spawn();
     return child.pid;
   }
-
-  const Footer = () => (
-    <footer className="footer footer-center bg-base-200 text-base-content/30 p-4">
-      <div className="flex flex-row">
-        <span>ZKNetwork Client</span>
-        <span className="mx-2">|</span>
-        <span>Version: {appVersion}</span>
-        <span className="mx-2">|</span>
-        <span>Platform: {platformArch}</span>
-      </div>
-    </footer>
-  );
 
   return (
     <div className="flex flex-col min-h-screen">

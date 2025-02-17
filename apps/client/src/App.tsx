@@ -7,6 +7,7 @@ import { download } from "@tauri-apps/plugin-upload";
 import { fetch } from "@tauri-apps/plugin-http";
 import { Child, Command } from "@tauri-apps/plugin-shell";
 import { mkdir, exists, readDir, BaseDirectory } from "@tauri-apps/plugin-fs";
+import { useStore } from "./store";
 import "./App.css";
 
 const urlNetwork = "https://test.net.zknet.io";
@@ -43,11 +44,18 @@ function App() {
   const [networkId, setNetworkId] = useState("");
   const [dlProgress, setDlProgress] = useState(0);
   const [clientPid, setClientPid] = useState(0);
-  const [appVersion, setAppVersion] = useState("");
-  const [platformArch, setPlatformArch] = useState("");
-  const [platformSupported, setPlatformSupported] = useState(false);
-  const [networks, setNetworks] = useState<string[]>([]);
-  const [isConnected, setIsConnected] = useState(false);
+
+  const appVersion = useStore((s) => s.appVersion);
+  const isConnected = useStore((s) => s.isConnected);
+  const isPlatformSupported = useStore((s) => s.isPlatformSupported);
+  const networks = useStore((s) => s.networks);
+  const platformArch = useStore((s) => s.platformArch);
+
+  const setAppVersion = useStore((s) => s.setAppVersion);
+  const setIsConnected = useStore((s) => s.setIsConnected);
+  const setIsPlatformSupported = useStore((s) => s.setIsPlatformSupported);
+  const setNetworks = useStore((s) => s.setNetworks);
+  const setPlatformArch = useStore((s) => s.setPlatformArch);
 
   // run once on startup (twice in dev mode)
   useEffect(() => {
@@ -59,7 +67,7 @@ function App() {
 
         setAppVersion(v);
         setPlatformArch(getPlatformArch());
-        setPlatformSupported(true);
+        setIsPlatformSupported(true);
         setNetworks(await getNetworks());
       })();
     } catch (error: any) {
@@ -235,7 +243,7 @@ function App() {
           className={`logo ${isConnected ? "pulsing" : ""}`}
         />
 
-        {platformSupported &&
+        {isPlatformSupported &&
           (clientPid === 0 ? (
             <>
               <p>Enter a network identifier for access.</p>

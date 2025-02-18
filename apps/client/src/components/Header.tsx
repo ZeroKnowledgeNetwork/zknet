@@ -1,11 +1,25 @@
+import { useRef } from "react";
 import { Link } from "react-router";
 import { IconBars3 } from ".";
 
 export function Header() {
+  const drawerRef = useRef<HTMLInputElement>(null);
+
+  const closeDrawer = () => {
+    if (drawerRef.current) {
+      drawerRef.current.checked = false;
+    }
+  };
+
   // https://v5.daisyui.com/components/drawer/#drawer-that-opens-from-right-side-of-page
   const SideBar = () => (
     <div className="drawer">
-      <input id="my-drawer" type="checkbox" className="drawer-toggle" />
+      <input
+        id="my-drawer"
+        type="checkbox"
+        className="drawer-toggle"
+        ref={drawerRef}
+      />
       <div className="drawer-content">
         <label
           htmlFor="my-drawer"
@@ -23,7 +37,9 @@ export function Header() {
         ></label>
         <ul className="menu bg-base-200 text-base-content min-h-full w-40 p-4">
           <li>
-            <Link to="/">Networks</Link>
+            <Link to="/" onClick={closeDrawer}>
+              Networks
+            </Link>
           </li>
         </ul>
       </div>

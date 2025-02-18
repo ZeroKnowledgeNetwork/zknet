@@ -13,6 +13,7 @@ export const useStore = create(
       networkConnected: "",
       networks: [] as string[],
       platformArch: "",
+      walletshieldListenAddress: "",
     },
     (set) => ({
       setAppVersion: (appVersion: string) => set({ appVersion }),
@@ -28,6 +29,8 @@ export const useStore = create(
         set({ networkConnected }),
       setNetworks: (networks: string[]) => set({ networks }),
       setPlatformArch: (platformArch: string) => set({ platformArch }),
+      setWalletshieldListenAddress: (walletshieldListenAddress: string) =>
+        set({ walletshieldListenAddress }),
     }),
   ),
 );

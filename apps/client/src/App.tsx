@@ -3,8 +3,8 @@ import { MemoryRouter, Route, Routes } from "react-router";
 import * as app from "@tauri-apps/api/app";
 import * as log from "@tauri-apps/plugin-log";
 import { arch, platform } from "@tauri-apps/plugin-os";
-import { Networks } from "./pages";
 import { Footer, Header, Message } from "./components";
+import { Networks, Settings } from "./pages";
 import { useStore } from "./store";
 import { getNetworks, getPlatformArch } from "./utils";
 import "./App.css";
@@ -42,6 +42,7 @@ function App() {
         <main className="flex-grow mt-10">
           <Routes>
             <Route path="/" element={<Networks />} />
+            <Route path="/settings" element={<Settings />} />
           </Routes>
         </main>
         <Message />

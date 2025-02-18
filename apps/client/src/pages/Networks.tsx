@@ -19,6 +19,9 @@ export function Networks() {
   const networkConnected = useStore((s) => s.networkConnected);
   const networks = useStore((s) => s.networks);
   const platformArch = useStore((s) => s.platformArch);
+  const walletshieldListenAddress = useStore(
+    (s) => s.walletshieldListenAddress,
+  );
 
   const setClientPid = useStore((s) => s.setClientPid);
   const setIsConnected = useStore((s) => s.setIsConnected);
@@ -141,7 +144,8 @@ export function Networks() {
     ////////////////////////////////////////////////////////////////////////
     setMessage("info", "Starting network client...");
     const cmd = "walletshield";
-    const args = ["-listen", ":7070", "-config", "client.toml"];
+    const listen = walletshieldListenAddress ?? ":7070";
+    const args = ["-listen", listen, "-config", "client.toml"];
     const command = Command.create("walletshield-listen", args, {
       cwd: dirNetwork,
       env: {

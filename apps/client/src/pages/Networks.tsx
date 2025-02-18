@@ -162,9 +162,7 @@ export function Networks() {
   }
 
   return (
-    <div className="flex flex-col items-center justify-center gap-5 mt-10">
-      <h1 className="text-3xl font-extrabold">Zero Knowledge Network</h1>
-
+    <div className="flex flex-col items-center justify-center gap-5">
       <img
         src="/zkn.svg"
         alt="ZKN"

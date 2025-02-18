@@ -1,15 +1,41 @@
 import { useRef } from "react";
 import { Link } from "react-router";
-import { IconBars3 } from ".";
+import { IconBars3, IconGlobe } from ".";
+import { useStore } from "../store";
 
 export function Header() {
   const drawerRef = useRef<HTMLInputElement>(null);
+
+  const setMessage = useStore((s) => s.setMessage);
 
   const closeDrawer = () => {
     if (drawerRef.current) {
       drawerRef.current.checked = false;
     }
   };
+
+  const handleLink = () => {
+    closeDrawer();
+    setMessage("info", ""); // clear any messages
+  };
+
+  // SideBar nav item
+  const NavItem = ({
+    to,
+    icon,
+    label,
+  }: {
+    to: string;
+    icon: JSX.Element;
+    label: string;
+  }) => (
+    <li>
+      <Link to={to} onClick={handleLink}>
+        <span className="text-primary">{icon}</span>
+        {label}
+      </Link>
+    </li>
+  );
 
   // https://v5.daisyui.com/components/drawer/#drawer-that-opens-from-right-side-of-page
   const SideBar = () => (
@@ -36,11 +62,7 @@ export function Header() {
           className="drawer-overlay"
         ></label>
         <ul className="menu bg-base-200 text-base-content min-h-full w-40 p-4">
-          <li>
-            <Link to="/" onClick={closeDrawer}>
-              Networks
-            </Link>
-          </li>
+          <NavItem to="/" label="Networks" icon={<IconGlobe />} />
         </ul>
       </div>
     </div>

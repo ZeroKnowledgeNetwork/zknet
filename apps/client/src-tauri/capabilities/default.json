@@ -12,6 +12,7 @@
     "os:allow-platform",
     "shell:allow-kill",
     "shell:default",
+    "store:default",
     "upload:default",
     {
       "identifier": "fs:allow-exists",

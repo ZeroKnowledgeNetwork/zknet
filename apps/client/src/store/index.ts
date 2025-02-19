@@ -1,5 +1,8 @@
+import { LazyStore } from "@tauri-apps/plugin-store";
 import { create } from "zustand";
 import { combine } from "zustand/middleware";
+
+const store = new LazyStore("settings.json");
 
 export const useStore = create(
   combine(
@@ -29,8 +32,22 @@ export const useStore = create(
         set({ networkConnected }),
       setNetworks: (networks: string[]) => set({ networks }),
       setPlatformArch: (platformArch: string) => set({ platformArch }),
-      setWalletshieldListenAddress: (walletshieldListenAddress: string) =>
-        set({ walletshieldListenAddress }),
+
+      setWalletshieldListenAddress: async (
+        walletshieldListenAddress: string,
+      ) => {
+        set({ walletshieldListenAddress });
+        await store.set("walletshieldListenAddress", walletshieldListenAddress);
+        await store.save();
+      },
+
+      loadPersistedSettings: async () => {
+        const wla = await store.get<string>("walletshieldListenAddress");
+        if (wla) set({ walletshieldListenAddress: wla });
+      },
     }),
   ),
 );
+
+// Load persisted settings on app start
+useStore.getState().loadPersistedSettings();

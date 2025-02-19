@@ -7,7 +7,11 @@ import { platform } from "@tauri-apps/plugin-os";
 import { Child, Command } from "@tauri-apps/plugin-shell";
 import { download } from "@tauri-apps/plugin-upload";
 import { useStore } from "../store";
-import { getNetworks, urlNetwork } from "../utils";
+import {
+  defaultWalletshieldListenAddress,
+  getNetworks,
+  urlNetwork,
+} from "../utils";
 
 export function Networks() {
   const [dlProgress, setDlProgress] = useState(0);
@@ -144,8 +148,8 @@ export function Networks() {
     ////////////////////////////////////////////////////////////////////////
     setMessage("info", "Starting network client...");
     const cmd = "walletshield";
-    const listen = walletshieldListenAddress ?? ":7070";
-    const args = ["-listen", listen, "-config", "client.toml"];
+    const wla = walletshieldListenAddress ?? defaultWalletshieldListenAddress;
+    const args = ["-listen", wla, "-config", "client.toml"];
     const command = Command.create("walletshield-listen", args, {
       cwd: dirNetwork,
       env: {

@@ -1,6 +1,8 @@
 import { BaseDirectory, readDir } from "@tauri-apps/plugin-fs";
 import { arch, platform } from "@tauri-apps/plugin-os";
 
+export const defaultWalletshieldListenAddress = ":7070";
+
 export const urlNetwork = "https://test.net.zknet.io";
 
 // Map the os platform and architecture to a supported ZKN format

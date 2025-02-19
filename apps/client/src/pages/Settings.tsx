@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useStore } from "../store";
+import { defaultWalletshieldListenAddress } from "../utils";
 
 export function Settings() {
   const [listenAddress, setListenAddress] = useState("");
@@ -43,7 +44,7 @@ export function Settings() {
           <input
             type="text"
             className="input validator"
-            placeholder=":7070"
+            placeholder={defaultWalletshieldListenAddress}
             value={listenAddress}
             onChange={(e) => setListenAddress(e.target.value)}
             pattern="^((\d{1,3}\.){3}\d{1,3}|[a-zA-Z0-9.-]+)?:(\d{1,5})$"

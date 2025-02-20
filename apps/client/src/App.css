@@ -44,6 +44,18 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
+/*
+ * Set scrollbar-gutter to prevent sidebar-induced layout shift on Windows
+ * https://github.com/saadeghi/daisyui/issues/2859#issuecomment-2383862183
+ * https://github.com/saadeghi/daisyui/discussions/3246#discussioncomment-11738876
+ */
+html {
+  scrollbar-gutter: auto !important;
+}
+html:has(body.content-overflow-y) {
+  scrollbar-gutter: stable !important;
+}
+
 .logo {
   @apply h-48 p-6 transition duration-1000;
   will-change: filter;

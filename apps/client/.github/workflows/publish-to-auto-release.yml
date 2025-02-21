@@ -29,6 +29,9 @@ jobs:
     runs-on: ${{ matrix.platform }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
 
       - name: setup node
         uses: actions/setup-node@v4
@@ -61,13 +64,23 @@ jobs:
         run: |
           perl -pi -e 's/^version = ".*"/version = "${{ env.VERSION }}"/' src-tauri/Cargo.toml
 
+      - name: install git-cliff
+        run: cargo install git-cliff || true
+
+      - name: generate changelog
+        id: changelog
+        run: |
+          echo 'changelog<<EOF' >> $GITHUB_OUTPUT
+          git-cliff --latest --strip all --use-branch-tags >> $GITHUB_OUTPUT
+          echo 'EOF' >> $GITHUB_OUTPUT
+
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tagName: v${{ env.VERSION }}
           releaseName: v${{ env.VERSION }}
-          releaseBody: "See the assets to download this version and install."
+          releaseBody: "${{ steps.changelog.outputs.changelog }}"
           releaseDraft: true
           prerelease: true
           args: ${{ matrix.args }}

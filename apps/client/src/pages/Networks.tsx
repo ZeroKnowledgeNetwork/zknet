@@ -148,7 +148,7 @@ export function Networks() {
     ////////////////////////////////////////////////////////////////////////
     setMessage("info", "Starting network client...");
     const cmd = "walletshield";
-    const wla = walletshieldListenAddress ?? defaultWalletshieldListenAddress;
+    const wla = walletshieldListenAddress || defaultWalletshieldListenAddress;
     const args = ["-listen", wla, "-config", "client.toml"];
     const command = Command.create("walletshield-listen", args, {
       cwd: dirNetwork,

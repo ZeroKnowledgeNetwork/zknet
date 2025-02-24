@@ -1,3 +1,5 @@
+use tauri::Manager;
+
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 #[tauri::command]
 fn network_connect(network_id: &str) -> String {
@@ -7,7 +9,23 @@ fn network_connect(network_id: &str) -> String {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
-        .plugin(tauri_plugin_single_instance::init())
+        // NOTE: Currently, plugins run in the order they were added in to the builder,
+        // so `tauri_plugin_single_instance` needs to be registered first.
+        // See: https://github.com/tauri-apps/plugins-workspace/tree/v2/plugins/single-instance
+        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+            #[cfg(desktop)]
+            {
+                let windows = app.webview_windows();
+                for (name, window) in windows {
+                    if name == "main" {
+                        window.show().unwrap();
+                        window.unminimize().unwrap();
+                        window.set_focus().unwrap();
+                        break;
+                    }
+                }
+            }
+        }))
         .plugin(tauri_plugin_store::Builder::new().build())
         .plugin(
             tauri_plugin_log::Builder::new()

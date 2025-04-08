@@ -71,7 +71,7 @@ export function Header() {
 
   // https://v5.daisyui.com/components/navbar/#navbar-with-dropdown-center-logo-and-icon
   return (
-    <div className="navbar bg-base-200 shadow-sm">
+    <div className="navbar bg-base-200 shadow-sm border-b border-base-300">
       <div className="navbar-start">
         <SideBar />
       </div>

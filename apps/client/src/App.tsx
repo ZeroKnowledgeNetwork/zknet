@@ -37,15 +37,15 @@ function App() {
 
   return (
     <MemoryRouter>
-      <div className="flex flex-col min-h-screen">
+      <div className="flex flex-col min-h-screen gap-y-4">
         <Header />
-        <main className="flex-grow mt-10">
+        <main className="flex-grow flex flex-col gap-y-4">
           <Routes>
             <Route path="/" element={<Networks />} />
             <Route path="/settings" element={<Settings />} />
           </Routes>
+          <Message />
         </main>
-        <Message />
         <Footer />
       </div>
     </MemoryRouter>

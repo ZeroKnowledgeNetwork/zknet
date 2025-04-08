@@ -9,6 +9,8 @@ export const useStore = create(
     {
       appVersion: "",
       clientPid: 0,
+      consoleLines: [] as string[],
+      consoleLinesLimit: 100,
       isConnected: false,
       isPlatformSupported: false,
       message: "",
@@ -19,6 +21,12 @@ export const useStore = create(
       walletshieldListenAddress: "",
     },
     (set) => ({
+      consoleAddLine: (line: string) =>
+        set(({ consoleLines, consoleLinesLimit }) => {
+          const next = [line, ...consoleLines].slice(0, consoleLinesLimit);
+          return { consoleLines: next };
+        }),
+
       setAppVersion: (appVersion: string) => set({ appVersion }),
       setClientPid: (clientPid: number) => set({ clientPid }),
       setIsConnected: (isConnected: boolean) => set({ isConnected }),

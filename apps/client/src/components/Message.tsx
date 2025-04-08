@@ -14,7 +14,7 @@ export function Message() {
   return (
     <>
       {msg && (
-        <div className="flex justify-center my-5">
+        <div className="flex justify-center">
           <p className={`alert ${msgClass}`}>{msg}</p>
         </div>
       )}

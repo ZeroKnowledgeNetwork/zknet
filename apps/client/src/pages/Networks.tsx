@@ -51,10 +51,7 @@ export function Networks() {
   async function disconnect() {
     try {
       await clientStop();
-      setClientPid(0);
       setMessage("info", "Disconnected from Network");
-      setIsConnected(false);
-      setNetworkConnected("");
     } catch (error: any) {
       log.error(`${error}`);
       setMessage("error", `${error}`);
@@ -160,9 +157,17 @@ export function Networks() {
     const o = (d: string) => `${d.trim()}`;
     log.debug(`spawning command: ${cmd} ${args.join(" ")}`);
     command.on("close", (data) => {
+      // normal: code=null signal=9
+      // error: code=2 signal=null
       log.debug(`closed: ${cmd} code=${data.code} signal=${data.signal}`);
-      setMessage("info", "Network client stopped.");
+      if (data.code !== null) {
+        setMessage("error", "Error: Network connection failed.");
+      }
+      setClientPid(0);
+      setIsConnected(false);
+      setNetworkConnected("");
     });
+
     command.on("error", (e) => log.error(o(e)));
 
     command.stdout.on("data", (d) => {

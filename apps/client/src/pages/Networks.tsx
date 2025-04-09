@@ -36,6 +36,7 @@ export function Networks() {
 
   async function connect() {
     try {
+      consoleAddLine(`Connecting to network: ${networkId}`);
       const pid = await clientStart();
       setClientPid(pid);
       setMessage("info", "");
@@ -45,6 +46,7 @@ export function Networks() {
     } catch (error: any) {
       log.error(`${error}`);
       setMessage("error", `${error}`);
+      consoleAddLine(`${error}`);
     }
   }
 
@@ -52,6 +54,7 @@ export function Networks() {
     try {
       await clientStop();
       setMessage("info", "Disconnected from Network");
+      consoleAddLine(`Disconnected from network: ${networkId}`);
     } catch (error: any) {
       log.error(`${error}`);
       setMessage("error", `${error}`);
@@ -156,12 +159,14 @@ export function Networks() {
     });
     const o = (d: string) => `${d.trim()}`;
     log.debug(`spawning command: ${cmd} ${args.join(" ")}`);
+
     command.on("close", (data) => {
       // normal: code=null signal=9
       // error: code=2 signal=null
       log.debug(`closed: ${cmd} code=${data.code} signal=${data.signal}`);
       if (data.code !== null) {
         setMessage("error", "Error: Network connection failed.");
+        consoleAddLine(`Network connection failed: ${networkId}`);
       }
       setClientPid(0);
       setIsConnected(false);

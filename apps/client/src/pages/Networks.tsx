@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useState } from "react";
 import * as log from "@tauri-apps/plugin-log";
 import * as path from "@tauri-apps/api/path";
 import { exists, mkdir } from "@tauri-apps/plugin-fs";
@@ -14,7 +14,6 @@ import {
 } from "../utils";
 
 export function Networks() {
-  const isStoppingRef = useRef(false);
   const [dlProgress, setDlProgress] = useState(0);
   const [networkId, setNetworkId] = useState("");
 
@@ -31,6 +30,7 @@ export function Networks() {
   const consoleAddLine = useStore((s) => s.consoleAddLine);
   const setClientPid = useStore((s) => s.setClientPid);
   const setIsConnected = useStore((s) => s.setIsConnected);
+  const setIsStopping = useStore((s) => s.setIsStopping);
   const setMessage = useStore((s) => s.setMessage);
   const setNetworkConnected = useStore((s) => s.setNetworkConnected);
   const setNetworks = useStore((s) => s.setNetworks);
@@ -53,7 +53,7 @@ export function Networks() {
 
   async function disconnect() {
     try {
-      isStoppingRef.current = true;
+      setIsStopping(true);
       await clientStop();
       setMessage("info", "Disconnected from Network");
     } catch (error: any) {
@@ -163,14 +163,15 @@ export function Networks() {
 
     command.on("close", (data) => {
       log.debug(`closed: ${cmd} code=${data.code} signal=${data.signal}`);
-      if (!isStoppingRef.current) {
+      const isStopping = useStore.getState().isStopping;
+      if (isStopping !== true) {
         setMessage("error", "Error: Network connection failed.");
         consoleAddLine(`Network connection failed: ${networkId}`);
       }
-      isStoppingRef.current = false;
       consoleAddLine(`Disconnected from network: ${networkId}`);
       setClientPid(0);
       setIsConnected(false);
+      setIsStopping(false);
       setNetworkConnected("");
     });
 

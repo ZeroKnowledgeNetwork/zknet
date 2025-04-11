@@ -12,6 +12,7 @@ export const useStore = create(
       consoleLines: [] as string[],
       consoleLinesLimit: 100,
       isConnected: false,
+      isStopping: false,
       isPlatformSupported: false,
       message: "",
       messageType: "",
@@ -30,6 +31,7 @@ export const useStore = create(
       setAppVersion: (appVersion: string) => set({ appVersion }),
       setClientPid: (clientPid: number) => set({ clientPid }),
       setIsConnected: (isConnected: boolean) => set({ isConnected }),
+      setIsStopping: (isStopping: boolean) => set({ isStopping }),
       setIsPlatformSupported: (isPlatformSupported: boolean) =>
         set({ isPlatformSupported }),
       setMessage: (

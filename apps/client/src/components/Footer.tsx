@@ -1,10 +1,7 @@
-import { useState } from "react";
 import { useStore } from "../store";
 import { IconCommandLine } from ".";
 
 export function Footer() {
-  const [collapsed, setCollapsed] = useState(true as boolean);
-
   const appVersion = useStore((s) => s.appVersion);
   const platformArch = useStore((s) => s.platformArch);
   const consoleLines = useStore((s) => s.consoleLines);
@@ -12,13 +9,9 @@ export function Footer() {
   return (
     <footer
       tabIndex={0}
-      className="collapse-arrow collapse bg-base-200 text-base-content/30 border-t border-base-300 rounded-none"
+      className="collapse collapse-arrow bg-base-200 text-base-content/30 border-t border-base-300 rounded-none"
     >
-      <input
-        type="checkbox"
-        checked={!collapsed}
-        onChange={() => setCollapsed(!collapsed)}
-      />
+      <input type="checkbox" />
       <div className="collapse-title flex w-full items-center">
         <IconCommandLine />
         <div className="mx-auto flex gap-x-4 text-sm">

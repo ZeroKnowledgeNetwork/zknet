@@ -4,6 +4,17 @@ import { combine } from "zustand/middleware";
 
 const store = new LazyStore("settings.json");
 
+type UpdateStatus =
+  | ""
+  | "error"
+  | "checking"
+  | "checked-current"
+  | "checked-updatable"
+  | "starting"
+  | "downloading"
+  | "downloaded"
+  | "installed";
+
 export const useStore = create(
   combine(
     {
@@ -19,6 +30,7 @@ export const useStore = create(
       networkConnected: "",
       networks: [] as string[],
       platformArch: "",
+      updateStatus: "" as UpdateStatus,
       walletshieldListenAddress: "",
     },
     (set) => ({
@@ -42,6 +54,7 @@ export const useStore = create(
         set({ networkConnected }),
       setNetworks: (networks: string[]) => set({ networks }),
       setPlatformArch: (platformArch: string) => set({ platformArch }),
+      setUpdateStatus: (updateStatus: UpdateStatus) => set({ updateStatus }),
 
       setWalletshieldListenAddress: async (
         walletshieldListenAddress: string,

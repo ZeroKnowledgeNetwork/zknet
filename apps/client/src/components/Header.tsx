@@ -55,7 +55,7 @@ export function Header() {
           <IconBars3 />
         </label>
       </div>
-      <div className="drawer-side">
+      <div className="drawer-side z-50">
         <label
           htmlFor="my-drawer"
           aria-label="close sidebar"

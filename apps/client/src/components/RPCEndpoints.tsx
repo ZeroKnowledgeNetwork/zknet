@@ -1,16 +1,19 @@
 import { useState, useMemo, useEffect } from "react";
 import { useStore } from "../store";
+import { writeText } from "@tauri-apps/plugin-clipboard-manager";
 import * as log from "@tauri-apps/plugin-log";
 import {
   defaultWalletshieldListenAddress,
   NetworkServices,
   readNetworkAssetFile,
 } from "../utils";
+import { IconClipboard } from "./icons";
 
 export function RPCEndpoints() {
   const [includeTestnets, setIncludeTestnets] = useState(true);
   const [search, setSearch] = useState("");
   const [services, setServices] = useState<NetworkServices | null>();
+  const [copied, setCopied] = useState("");
 
   const networkConnected = useStore((s) => s.networkConnected);
   const setMessage = useStore((s) => s.setMessage);
@@ -39,6 +42,11 @@ export function RPCEndpoints() {
       setMessage("error", `${error}`);
     }
   }, []);
+
+  const handleCopy = async (rpcPath: string) => {
+    await writeText(`${BASE_URL}${rpcPath}`);
+    setCopied(rpcPath);
+  };
 
   const filtered = useMemo(() => {
     if (!services) return [];
@@ -106,7 +114,16 @@ export function RPCEndpoints() {
                 <td>{n.chain}</td>
                 <td>{n.network}</td>
                 <td>{n.chainId ?? ""}</td>
-                <td>{`${BASE_URL}${n.rpcPath}`}</td>
+                <td
+                  className="flex items-center gap-x-1 hover:cursor-pointer"
+                  onClick={() => handleCopy(n.rpcPath)}
+                >
+                  <IconClipboard
+                    className="size-5"
+                    withCheck={copied === n.rpcPath}
+                  />
+                  {`${BASE_URL}${n.rpcPath}`}
+                </td>
               </tr>
             ))}
           </tbody>

@@ -1,4 +1,5 @@
-import { BaseDirectory, readDir } from "@tauri-apps/plugin-fs";
+import { BaseDirectory, readDir, readTextFile } from "@tauri-apps/plugin-fs";
+import { path } from "@tauri-apps/api";
 import { arch, platform } from "@tauri-apps/plugin-os";
 
 export const defaultWalletshieldListenAddress = ":7070";
@@ -29,4 +30,22 @@ export const getNetworks = async () => {
     baseDir: BaseDirectory.AppLocalData,
   });
   return entries.filter((i) => i.isDirectory).map((i) => i.name);
+};
+
+export const readNetworkAssetFile = async (
+  networkId: string,
+  asset: string,
+) => {
+  const filePath = await path.join("networks", networkId, asset);
+  return await readTextFile(filePath, { baseDir: BaseDirectory.AppLocalData });
+};
+
+export type NetworkServices = {
+  RPCEndpoints: {
+    chain: string;
+    network: string;
+    chainId: number | null;
+    rpcPath: string;
+    isTestnet: boolean;
+  }[];
 };

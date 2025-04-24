@@ -71,11 +71,13 @@ export function Networks() {
 
   async function clientStart() {
     const urlClientCfg = `${urlNetwork}/${networkId}/client.toml`;
+    const urlServices = `${urlNetwork}/${networkId}/services.json`;
     const urlWalletshield = `${urlNetwork}/${networkId}/walletshield-${platformArch}`;
     const appLocalDataDirPath = await path.appLocalDataDir();
     const dirNetworks = await path.join(appLocalDataDirPath, "networks");
     const dirNetwork = await path.join(dirNetworks, networkId);
     const fileClientCfg = await path.join(dirNetwork, "client.toml");
+    const fileServices = await path.join(dirNetwork, "services.json");
     const fileWalletshield =
       (await path.join(dirNetwork, "walletshield")) +
       (platform() === "windows" ? ".exe" : "");
@@ -95,13 +97,14 @@ export function Networks() {
     }
 
     ////////////////////////////////////////////////////////////////////////
-    // save the network's client.toml in a network-specific directory
+    // save the network's assets in a network-specific directory
     ////////////////////////////////////////////////////////////////////////
     log.debug(`local network directory: ${dirNetwork}`);
     if (!(await exists(dirNetwork)))
       await mkdir(dirNetwork, { recursive: true });
     await download(urlClientCfg, fileClientCfg);
-    setMessage("info", "Retrieved network client configuration");
+    await download(urlServices, fileServices);
+    setMessage("info", "Retrieved network assets");
 
     ////////////////////////////////////////////////////////////////////////
     // save the network's walletshield binary

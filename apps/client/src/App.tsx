@@ -4,7 +4,7 @@ import * as app from "@tauri-apps/api/app";
 import * as log from "@tauri-apps/plugin-log";
 import { arch, platform } from "@tauri-apps/plugin-os";
 import { Footer, Header, Message } from "./components";
-import { Networks, Settings } from "./pages";
+import { Networks, Settings, WalletShield } from "./pages";
 import { useStore } from "./store";
 import { getNetworks, getPlatformArch } from "./utils";
 import "./App.css";
@@ -43,6 +43,7 @@ function App() {
           <Routes>
             <Route path="/" element={<Networks />} />
             <Route path="/settings" element={<Settings />} />
+            <Route path="/walletshield" element={<WalletShield />} />
           </Routes>
           <Message />
         </main>

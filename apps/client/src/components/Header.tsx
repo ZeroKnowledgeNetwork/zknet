@@ -1,6 +1,6 @@
 import { useRef } from "react";
 import { Link } from "react-router";
-import { IconBars3, IconCog, IconGlobe } from ".";
+import { IconBars3, IconCog, IconGlobe, IconShieldCheck } from ".";
 import { useStore } from "../store";
 
 export function Header() {
@@ -64,6 +64,11 @@ export function Header() {
         <ul className="menu bg-base-200 text-base-content min-h-full w-40 p-4">
           <NavItem to="/" label="Networks" icon={<IconGlobe />} />
           <NavItem to="/settings" label="Settings" icon={<IconCog />} />
+          <NavItem
+            to="/walletshield"
+            label="WalletShield"
+            icon={<IconShieldCheck />}
+          />
         </ul>
       </div>
     </div>

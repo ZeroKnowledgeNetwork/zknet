@@ -27,6 +27,10 @@
       "allow": [{ "path": "$APPLOCALDATA/**" }]
     },
     {
+      "identifier": "fs:allow-read-text-file",
+      "allow": [{ "path": "$APPLOCALDATA/networks/**" }]
+    },
+    {
       "identifier": "http:default",
       "allow": [
         {

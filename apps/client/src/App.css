@@ -44,6 +44,14 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
+#root {
+  /* force WebKit to promote into its compositor and repaint reliably (fix macos issue) */
+  -webkit-transform: translate3d(0, 0, 0);
+  transform: translate3d(0, 0, 0);
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+}
+
 /*
  * Set scrollbar-gutter to prevent sidebar-induced layout shift on Windows
  * https://github.com/saadeghi/daisyui/issues/2859#issuecomment-2383862183

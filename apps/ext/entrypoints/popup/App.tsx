@@ -8,7 +8,7 @@ function App() {
 
   return (
     <>
-      <div>
+      <div className="flex justify-center">
         <a href="https://wxt.dev" target="_blank">
           <img src={wxtLogo} className="logo" alt="WXT logo" />
         </a>
@@ -17,13 +17,18 @@ function App() {
         </a>
       </div>
       <h1>WXT + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
-        </p>
+      <div className="card card-border bg-base-200">
+        <div className="card-body">
+          <button
+            className="btn"
+            onClick={() => setCount((count) => count + 1)}
+          >
+            count is {count}
+          </button>
+          <p>
+            Edit <code>src/App.tsx</code> and save to test HMR
+          </p>
+        </div>
       </div>
       <p className="read-the-docs">
         Click on the WXT and React logos to learn more

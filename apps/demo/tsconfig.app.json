@@ -21,7 +21,17 @@
     "noUnusedParameters": true,
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true,
-    "noUncheckedSideEffectImports": true
+    "noUncheckedSideEffectImports": true,
+
+    "paths": {
+      "@zknet/sdk": ["../../packages/sdk/src/index.ts"],
+      "@zknet/sdk/*": ["../../packages/sdk/src/*"]
+    }
   },
-  "include": ["src"]
+  "include": ["src"],
+  "references": [
+    {
+      "path": "../../packages/sdk/tsconfig.lib.json"
+    }
+  ]
 }

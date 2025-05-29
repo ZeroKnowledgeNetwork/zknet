@@ -5,6 +5,15 @@ import tailwindcss from '@tailwindcss/vite';
 export default defineConfig({
   modules: ['@wxt-dev/module-react'],
 
+  manifest: {
+    web_accessible_resources: [
+      {
+        resources: ['injected.js'],
+        matches: ['*://*/*'],
+      },
+    ],
+  },
+
   vite: () => ({
     plugins: [tailwindcss()],
   }),

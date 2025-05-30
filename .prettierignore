@@ -1,7 +1,8 @@
 # Add files here to ignore them from prettier formatting
 .output
 .wxt
-/dist
+dist
+out-tsc
 /coverage
 /.nx/cache
 /.nx/workspace-data

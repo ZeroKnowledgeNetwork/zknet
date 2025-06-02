@@ -15,6 +15,12 @@
         "format": ["esm"],
         "declarationRootDir": "packages/sdk/src"
       }
+    },
+    "format": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "prettier --check packages/sdk"
+      }
     }
   }
 }

@@ -16,4 +16,6 @@ export default defineUnlistedScript(async () => {
       return unpackFetchResponse(p);
     },
   };
+
+  window.dispatchEvent(new Event('zknet#initialized'));
 });

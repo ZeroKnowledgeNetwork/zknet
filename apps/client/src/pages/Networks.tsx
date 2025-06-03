@@ -7,11 +7,7 @@ import { platform } from "@tauri-apps/plugin-os";
 import { Child, Command } from "@tauri-apps/plugin-shell";
 import { download } from "@tauri-apps/plugin-upload";
 import { useStore } from "../store";
-import {
-  defaultWalletshieldListenAddress,
-  getNetworks,
-  urlNetwork,
-} from "../utils";
+import { getNetworks, getZKNetClientCfg } from "../utils";
 
 export function Networks() {
   const [dlProgress, setDlProgress] = useState(0);
@@ -70,6 +66,9 @@ export function Networks() {
   }
 
   async function clientStart() {
+    const { urlNetwork, defaultWalletshieldListenAddress } =
+      await getZKNetClientCfg();
+
     const urlClientCfg = `${urlNetwork}/${networkId}/client.toml`;
     const urlServices = `${urlNetwork}/${networkId}/services.json`;
     const urlWalletshield = `${urlNetwork}/${networkId}/walletshield-${platformArch}`;

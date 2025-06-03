@@ -40,7 +40,9 @@
       ]
     },
     "zknet": {
-      "apiListenAddress": "127.0.0.1:7000"
+      "apiListenAddress": "127.0.0.1:7000",
+      "defaultWalletshieldListenAddress": ":7070",
+      "urlNetwork": "https://test.net.zknet.io"
     }
   }
 }

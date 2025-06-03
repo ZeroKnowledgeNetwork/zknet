@@ -3,8 +3,8 @@ import { useStore } from "../store";
 import { writeText } from "@tauri-apps/plugin-clipboard-manager";
 import * as log from "@tauri-apps/plugin-log";
 import {
-  defaultWalletshieldListenAddress,
   NetworkServices,
+  getZKNetClientCfg,
   readNetworkAssetFile,
 } from "../utils";
 import { IconClipboard } from "./icons";
@@ -14,6 +14,10 @@ export function RPCEndpoints() {
   const [search, setSearch] = useState("");
   const [services, setServices] = useState<NetworkServices | null>();
   const [copied, setCopied] = useState("");
+  const [
+    defaultWalletshieldListenAddress,
+    setDefaultWalletshieldListenAddress,
+  ] = useState("");
 
   const networkConnected = useStore((s) => s.networkConnected);
   const setMessage = useStore((s) => s.setMessage);
@@ -27,6 +31,11 @@ export function RPCEndpoints() {
   useEffect(() => {
     try {
       (async () => {
+        const cfg = await getZKNetClientCfg();
+        setDefaultWalletshieldListenAddress(
+          cfg.defaultWalletshieldListenAddress,
+        );
+
         // read services file of the connected network
         if (networkConnected) {
           const f = await readNetworkAssetFile(

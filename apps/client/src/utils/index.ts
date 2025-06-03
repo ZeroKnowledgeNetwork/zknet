@@ -3,14 +3,13 @@ import { path } from "@tauri-apps/api";
 import { arch, platform } from "@tauri-apps/plugin-os";
 import { invoke } from "@tauri-apps/api/core";
 
-export const defaultWalletshieldListenAddress = ":7070";
-
 // This matches exactly what is in tauri.conf.json:plugins.zknet.
 export interface ZKNetClientCfg {
   apiListenAddress: string;
+  defaultWalletshieldListenAddress: string;
+  urlNetwork: string;
 }
 
-export const urlNetwork = "https://test.net.zknet.io";
 export const getZKNetClientCfg = async (): Promise<ZKNetClientCfg> => {
   return invoke<ZKNetClientCfg>("cfg");
 };

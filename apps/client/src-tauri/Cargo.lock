@@ -6431,6 +6431,7 @@ dependencies = [
  "tauri-plugin-updater",
  "tauri-plugin-upload",
  "time",
+ "tokio",
 ]
 
 [[package]]

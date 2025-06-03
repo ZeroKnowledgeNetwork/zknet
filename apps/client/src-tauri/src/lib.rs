@@ -1,5 +1,7 @@
 use tauri::Manager;
 
+mod ws_server;
+
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 #[tauri::command]
 fn network_connect(network_id: &str) -> String {
@@ -63,7 +65,16 @@ pub fn run() {
         .plugin(tauri_plugin_os::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_clipboard_manager::init())
-        .invoke_handler(tauri::generate_handler![network_connect])
+        .manage(ws_server::ConnMap::default())
+        .setup(|app| {
+            let api_listen_addr = "127.0.0.1:9000";
+            ws_server::start(&app.handle(), api_listen_addr);
+            Ok(())
+        })
+        .invoke_handler(tauri::generate_handler![
+            network_connect,
+            ws_server::api_reply,
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

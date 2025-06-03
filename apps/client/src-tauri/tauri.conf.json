@@ -38,6 +38,9 @@
       "endpoints": [
         "https://github.com/ZeroKnowledgeNetwork/client/releases/latest/download/latest.json"
       ]
+    },
+    "zknet": {
+      "apiListenAddress": "127.0.0.1:7000"
     }
   }
 }

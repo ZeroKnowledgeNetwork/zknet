@@ -1,10 +1,19 @@
 import { BaseDirectory, readDir, readTextFile } from "@tauri-apps/plugin-fs";
 import { path } from "@tauri-apps/api";
 import { arch, platform } from "@tauri-apps/plugin-os";
+import { invoke } from "@tauri-apps/api/core";
 
 export const defaultWalletshieldListenAddress = ":7070";
 
+// This matches exactly what is in tauri.conf.json:plugins.zknet.
+export interface ZKNetClientCfg {
+  apiListenAddress: string;
+}
+
 export const urlNetwork = "https://test.net.zknet.io";
+export const getZKNetClientCfg = async (): Promise<ZKNetClientCfg> => {
+  return invoke<ZKNetClientCfg>("cfg");
+};
 
 // Map the os platform and architecture to a supported ZKN format
 export const getPlatformArch = (): string => {

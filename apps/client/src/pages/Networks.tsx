@@ -7,7 +7,11 @@ import { platform } from "@tauri-apps/plugin-os";
 import { Child, Command } from "@tauri-apps/plugin-shell";
 import { download } from "@tauri-apps/plugin-upload";
 import { useStore } from "../store";
-import { getNetworks, getZKNetClientCfg } from "../utils";
+import {
+  getNetworks,
+  getWalletshieldListenAddress,
+  getZKNetClientCfg,
+} from "../utils";
 
 export function Networks() {
   const [dlProgress, setDlProgress] = useState(0);
@@ -19,9 +23,6 @@ export function Networks() {
   const networkConnected = useStore((s) => s.networkConnected);
   const networks = useStore((s) => s.networks);
   const platformArch = useStore((s) => s.platformArch);
-  const walletshieldListenAddress = useStore(
-    (s) => s.walletshieldListenAddress,
-  );
 
   const consoleAddLine = useStore((s) => s.consoleAddLine);
   const setClientPid = useStore((s) => s.setClientPid);
@@ -66,8 +67,7 @@ export function Networks() {
   }
 
   async function clientStart() {
-    const { urlNetwork, defaultWalletshieldListenAddress } =
-      await getZKNetClientCfg();
+    const { urlNetwork } = await getZKNetClientCfg();
 
     const urlClientCfg = `${urlNetwork}/${networkId}/client.toml`;
     const urlServices = `${urlNetwork}/${networkId}/services.json`;
@@ -152,7 +152,7 @@ export function Networks() {
     ////////////////////////////////////////////////////////////////////////
     setMessage("info", "Starting network client...");
     const cmd = "walletshield";
-    const wla = walletshieldListenAddress || defaultWalletshieldListenAddress;
+    const wla = await getWalletshieldListenAddress();
     const args = ["-listen", wla, "-config", "client.toml"];
     const command = Command.create("walletshield-listen", args, {
       cwd: dirNetwork,

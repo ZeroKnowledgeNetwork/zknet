@@ -6,6 +6,8 @@ export default defineConfig({
   modules: ['@wxt-dev/module-react'],
 
   manifest: {
+    host_permissions: ['http://127.0.0.1/*'],
+
     web_accessible_resources: [
       {
         resources: ['injected.js'],

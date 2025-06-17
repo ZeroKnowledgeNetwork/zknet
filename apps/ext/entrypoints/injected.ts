@@ -1,14 +1,6 @@
 import { unpackFetchResponse } from '@/src/fetch-wire';
 import { eventMsgr } from '@/src/messaging/event';
-
-export interface ZKNetLink {
-  fetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response>;
-
-  client: {
-    isAvailable(): Promise<boolean>;
-    isConnected(): Promise<boolean>;
-  };
-}
+import type { ZKNetLink } from '@zknet/sdk';
 
 declare global {
   interface Window {

@@ -5,6 +5,11 @@ export function sdk(): string {
 // the object the ZKNet extension injects into the page
 export interface ZKNetLink {
   fetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response>;
+
+  client: {
+    isAvailable(): Promise<boolean>;
+    isConnected(): Promise<boolean>;
+  };
 }
 
 declare global {
@@ -34,7 +39,7 @@ function detectExtension(timeoutMs = 2_000): Promise<ZKNetLink> {
 
     const timer = setTimeout(() => {
       window.removeEventListener('zknet#initialized', onReady);
-      reject(new Error('ZKNet extension not detected'));
+      reject(new Error('ZKNetwork extension not found'));
     }, timeoutMs);
 
     function onReady() {
@@ -59,4 +64,12 @@ export class ZKNetSDK {
     console.log('ZKNetSDK Options:', this.opts); // TODO: remove this after use opts
     return this.link.fetch(input, init);
   }
+
+  client = {
+    isAvailable: async (): Promise<boolean> =>
+      await this.link.client.isAvailable(),
+
+    isConnected: async (): Promise<boolean> =>
+      await this.link.client.isConnected(),
+  };
 }

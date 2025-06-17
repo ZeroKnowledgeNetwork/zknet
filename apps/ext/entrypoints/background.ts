@@ -53,4 +53,11 @@ export default defineBackground(() => {
       return await packFetchResponse(err as Error);
     }
   });
+
+  extensionMsgr.onMessage('zknet.client.isAvailable', () => rpc.isConnected());
+
+  extensionMsgr.onMessage(
+    'zknet.client.isConnected',
+    () => clientStatus?.network.isConnected ?? false
+  );
 });

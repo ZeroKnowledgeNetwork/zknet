@@ -5,6 +5,10 @@ declare global {
   interface Window {
     zknet: {
       fetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response>;
+      client: {
+        isAvailable?(): Promise<boolean>;
+        isConnected?(): Promise<boolean>;
+      };
     };
   }
 }
@@ -14,6 +18,13 @@ export default defineUnlistedScript(async () => {
     fetch: async (input: RequestInfo | URL, init?: RequestInit) => {
       const p = await eventMsgr.sendMessage('zknet.fetch', { input, init });
       return unpackFetchResponse(p);
+    },
+    client: {
+      isAvailable: () =>
+        eventMsgr.sendMessage('zknet.client.isAvailable', undefined),
+
+      isConnected: () =>
+        eventMsgr.sendMessage('zknet.client.isConnected', undefined),
     },
   };
 

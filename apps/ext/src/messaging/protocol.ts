@@ -6,4 +6,10 @@ export interface ProtocolMap {
     input: RequestInfo | URL;
     init?: RequestInit;
   }): Promise<PackedFetchResponse>;
+
+  // is the ZKNetwork Client Application running locally
+  'zknet.client.isAvailable'(): boolean;
+
+  // is the ZKNetwork Client Application connected to a network
+  'zknet.client.isConnected'(): boolean;
 }

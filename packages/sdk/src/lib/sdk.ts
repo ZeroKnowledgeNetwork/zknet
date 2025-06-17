@@ -53,11 +53,17 @@ function detectExtension(timeoutMs = 2_000): Promise<ZKNetLink> {
 }
 
 export class ZKNetSDK {
+  // singleton instance of the SDK
+  private static _ready: Promise<ZKNetSDK> | null = null;
+
   private constructor(private link: ZKNetLink, private opts: ZKNetSDKOptions) {}
 
-  static async init(options: ZKNetSDKOptions = {}): Promise<ZKNetSDK> {
-    const link = await detectExtension(options.detectExtensionTimeout);
-    return new ZKNetSDK(link, options);
+  // Initializes the SDK, waiting for the ZKNet extension to be ready.
+  static async init(opts: ZKNetSDKOptions = {}): Promise<ZKNetSDK> {
+    // init or reuse the existing singleton instance
+    return (this._ready ??= detectExtension(opts.detectExtensionTimeout).then(
+      (link) => new ZKNetSDK(link, opts)
+    ));
   }
 
   fetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {

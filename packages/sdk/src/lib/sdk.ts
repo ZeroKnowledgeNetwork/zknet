@@ -1,15 +1,7 @@
+import { ZKNetLink } from './types.js';
+
 export function sdk(): string {
   return 'sdk';
-}
-
-// the object the ZKNet extension injects into the page
-export interface ZKNetLink {
-  fetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response>;
-
-  client: {
-    isAvailable(): Promise<boolean>;
-    isConnected(): Promise<boolean>;
-  };
 }
 
 declare global {

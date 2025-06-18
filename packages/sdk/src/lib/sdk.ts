@@ -1,4 +1,4 @@
-import { ZKNetLink } from './types.js';
+import { ClientState, ZKNetLink } from './types.js';
 
 export function sdk(): string {
   return 'sdk';
@@ -64,10 +64,7 @@ export class ZKNetSDK {
   }
 
   client = {
-    isAvailable: async (): Promise<boolean> =>
-      await this.link.client.isAvailable(),
-
-    isConnected: async (): Promise<boolean> =>
-      await this.link.client.isConnected(),
+    getState: async (): Promise<ClientState> =>
+      await this.link.client.getState(),
   };
 }

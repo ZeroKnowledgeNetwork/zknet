@@ -15,11 +15,7 @@ export default defineUnlistedScript(async () => {
       return unpackFetchResponse(p);
     },
     client: {
-      isAvailable: () =>
-        eventMsgr.sendMessage('zknet.client.isAvailable', undefined),
-
-      isConnected: () =>
-        eventMsgr.sendMessage('zknet.client.isConnected', undefined),
+      getState: () => eventMsgr.sendMessage('zknet.client.getState', undefined),
     },
   };
 

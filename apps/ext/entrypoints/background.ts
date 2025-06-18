@@ -75,10 +75,4 @@ export default defineBackground(() => {
 
   extensionMsgr.onMessage('zknet.client.getState', () => getClientState());
 
-  extensionMsgr.onMessage('zknet.client.isAvailable', () => rpc.isConnected());
-
-  extensionMsgr.onMessage(
-    'zknet.client.isConnected',
-    () => clientStatus?.network.isConnected ?? false
-  );
 });

@@ -1,5 +1,8 @@
 export type ClientState = {
+  // is the ZKNetwork Client Application running locally
   isAvailable: boolean;
+
+  // is the ZKNetwork Client Application connected to a network
   isConnected: boolean;
 };
 

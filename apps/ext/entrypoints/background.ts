@@ -1,34 +1,35 @@
 import config from '@/src/config';
 import { packFetchResponse } from '@/src/fetch-wire';
 import { extensionMsgr } from '@/src/messaging/extension';
+import { RemoteClientStatus } from '@/src/types';
 import { JsonRpcWebSocket } from '@/src/ws-rpc-client';
-
-type ZKNetClientStatus = {
-  app: {
-    version: string;
-  };
-  network: {
-    isConnected: boolean;
-  };
-  settings: {
-    walletshield: {
-      listenAddress: string;
-    };
-  };
-};
 
 const extractPort = (s: string): string | null =>
   s.match(/:(\d{1,5})(?=$|[/?#])/)?.[1] ?? null;
 
 export default defineBackground(() => {
-  let clientStatus: ZKNetClientStatus | null = null;
+  let clientStatus: RemoteClientStatus | null = null;
+
+  const getClientState = () => ({
+    isAvailable: (clientStatus && rpc.isConnected()) ?? false,
+    isConnected: clientStatus?.network.isConnected ?? false,
+  });
+
+  const setClientStatus = (status: RemoteClientStatus | null) => {
+    try {
+      clientStatus = status;
+      extensionMsgr.sendMessage('zknet.client.state', getClientState());
+    } catch (err) {
+      // ignore errors, including if no message listeners yet
+    }
+  };
 
   const url = `http://${config.ZKNET_CLIENT_HOST}:${config.ZKNET_CLIENT_PORT}`;
   const rpc = new JsonRpcWebSocket(url, {
     onNotification: (method, params) => {
       switch (method) {
         case 'status':
-          clientStatus = params;
+          setClientStatus(params);
           break;
 
         default:
@@ -38,14 +39,15 @@ export default defineBackground(() => {
 
     onOpen: async (ws) => {
       try {
-        clientStatus = await ws.call('getStatus');
+        const status = await ws.call('getStatus');
+        setClientStatus(status);
       } catch (err) {
-        // ignore errors here
+        // ignore errors
       }
     },
 
     onClose: () => {
-      clientStatus = null;
+      setClientStatus(null);
     },
   });
 
@@ -70,6 +72,8 @@ export default defineBackground(() => {
       return await packFetchResponse(err as Error);
     }
   });
+
+  extensionMsgr.onMessage('zknet.client.getState', () => getClientState());
 
   extensionMsgr.onMessage('zknet.client.isAvailable', () => rpc.isConnected());
 

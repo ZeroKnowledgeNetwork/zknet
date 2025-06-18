@@ -1,4 +1,5 @@
 import { PackedFetchResponse } from '../fetch-wire';
+import { ClientState } from '../types';
 
 // https://webext-core.aklinker1.io/messaging/protocol-maps
 export interface ProtocolMap {
@@ -12,4 +13,10 @@ export interface ProtocolMap {
 
   // is the ZKNetwork Client Application connected to a network
   'zknet.client.isConnected'(): boolean;
+
+  // get the ZKNetwork Client Application status
+  'zknet.client.getState'(): ClientState;
+
+  // report the ZKNetwork Client Application status
+  'zknet.client.state'(state: ClientState): void;
 }

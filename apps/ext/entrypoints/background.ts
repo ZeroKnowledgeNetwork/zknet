@@ -16,12 +16,12 @@ export default defineBackground(() => {
   });
 
   const setClientStatus = (status: RemoteClientStatus | null) => {
-    try {
-      clientStatus = status;
-      extensionMsgr.sendMessage('zknet.client.state', getClientState());
-    } catch (err) {
-      // ignore errors, including if no message listeners yet
-    }
+    clientStatus = status;
+    extensionMsgr
+      .sendMessage('zknet.client.state', getClientState())
+      .catch(() => {
+        // ignore errors, including if no message listeners yet
+      });
   };
 
   const url = `http://${config.ZKNET_CLIENT_HOST}:${config.ZKNET_CLIENT_PORT}`;

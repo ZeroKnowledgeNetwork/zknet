@@ -74,5 +74,4 @@ export default defineBackground(() => {
   });
 
   extensionMsgr.onMessage('zknet.client.getState', () => getClientState());
-
 });

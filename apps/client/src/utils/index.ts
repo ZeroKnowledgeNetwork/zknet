@@ -66,3 +66,36 @@ export type NetworkServices = {
     isTestnet: boolean;
   }[];
 };
+
+export type ZKNetClientStatus = {
+  app: {
+    version: string;
+  };
+  network: {
+    isConnected: boolean;
+  };
+  settings: {
+    walletshield: {
+      listenAddress: string;
+    };
+  };
+};
+
+export const getClientStatus = async (): Promise<ZKNetClientStatus> => {
+  const s = useStore.getState();
+  const wla = await getWalletshieldListenAddress();
+
+  return {
+    app: {
+      version: s.appVersion,
+    },
+    network: {
+      isConnected: s.isConnected,
+    },
+    settings: {
+      walletshield: {
+        listenAddress: wla,
+      },
+    },
+  };
+};

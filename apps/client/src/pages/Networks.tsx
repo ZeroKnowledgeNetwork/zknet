@@ -7,6 +7,7 @@ import { platform } from "@tauri-apps/plugin-os";
 import { Child, Command } from "@tauri-apps/plugin-shell";
 import { download } from "@tauri-apps/plugin-upload";
 import { useStore } from "../store";
+import { notifyAPIClientsOfStatusChange } from "../services/api";
 import {
   getNetworks,
   getWalletshieldListenAddress,
@@ -41,6 +42,7 @@ export function Networks() {
       setIsConnected(true);
       setNetworkConnected(networkId);
       setNetworks(await getNetworks());
+      notifyAPIClientsOfStatusChange();
     } catch (error: any) {
       log.error(`${error}`);
       setMessage("error", `${error}`);
@@ -175,6 +177,7 @@ export function Networks() {
       setIsConnected(false);
       setIsStopping(false);
       setNetworkConnected("");
+      notifyAPIClientsOfStatusChange();
     });
 
     command.on("error", (e) => log.error(o(e)));

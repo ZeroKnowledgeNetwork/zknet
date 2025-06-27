@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useStore } from "../store";
 import { getZKNetClientCfg } from "../utils";
+import { notifyAPIClientsOfStatusChange } from "../services/api";
 
 export function Settings() {
   const [listenAddress, setListenAddress] = useState("");
@@ -29,11 +30,13 @@ export function Settings() {
   const handleReset = () => {
     setListenAddress("");
     setWalletshieldListenAddress("");
+    notifyAPIClientsOfStatusChange();
     setMessage("success", "Settings reset to default.");
   };
 
   const handleApply = () => {
     setWalletshieldListenAddress(listenAddress);
+    notifyAPIClientsOfStatusChange();
     setMessage("success", "Settings saved.");
   };
 

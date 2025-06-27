@@ -1,8 +1,23 @@
 import { listen } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
+import { getClientStatus } from "../utils";
 
 // connected API clients
 const clients = new Set<number>();
+
+// Notify all connected API clients of a method call with parameters.
+export const notifyAPIClients = async (method: string, params: any) => {
+  const data = JSON.stringify({ jsonrpc: "2.0", method, params });
+  clients.forEach(async (connId) => {
+    await invoke("api_reply", { connId, data });
+  });
+};
+
+// Notify all connected API clients of a status change.
+export const notifyAPIClientsOfStatusChange = async () => {
+  const params = await getClientStatus();
+  await notifyAPIClients("status", params);
+};
 
 listen<number>("api_conn_open", (e) => {
   clients.add(e.payload);

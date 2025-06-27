@@ -1,4 +1,4 @@
-export type ClientState = {
+export type ZKNetClientState = {
   // is the ZKNetwork Client Application running locally
   isAvailable: boolean;
 
@@ -9,7 +9,7 @@ export type ClientState = {
 // the object the ZKNet extension injects into the page
 export interface ZKNetLink {
   client: {
-    getState(): Promise<ClientState>;
+    getState(): Promise<ZKNetClientState>;
   };
   fetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response>;
 }

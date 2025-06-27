@@ -1,8 +1,18 @@
 import { listen } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
 
-listen<number>("api_conn_open", (e) => console.log("peer joined", e.payload));
-listen<number>("api_conn_close", (e) => console.log("peer left", e.payload));
+// connected API clients
+const clients = new Set<number>();
+
+listen<number>("api_conn_open", (e) => {
+  clients.add(e.payload);
+  console.log("API client joined", e.payload);
+});
+
+listen<number>("api_conn_close", (e) => {
+  clients.delete(e.payload);
+  console.log("API client left", e.payload);
+});
 
 listen<{ conn_id: number; data: string }>(
   "api_request",

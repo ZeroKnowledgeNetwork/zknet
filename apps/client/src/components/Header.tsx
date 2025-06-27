@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { ReactElement, useRef } from "react";
 import { Link } from "react-router";
 import { IconBars3, IconCog, IconGlobe, IconShieldCheck } from ".";
 import { useStore } from "../store";
@@ -26,7 +26,7 @@ export function Header() {
     label,
   }: {
     to: string;
-    icon: JSX.Element;
+    icon: ReactElement;
     label: string;
   }) => (
     <li>

@@ -5,7 +5,7 @@ export default [
   ...nx.configs['flat/typescript'],
   ...nx.configs['flat/javascript'],
   {
-    ignores: ['**/dist', '**/.output', '**/.wxt'],
+    ignores: ['**/dist', '**/.output', '**/.wxt', '**/src-tauri/target'],
   },
   {
     files: ['**/*.ts', '**/*.tsx', '**/*.js', '**/*.jsx'],

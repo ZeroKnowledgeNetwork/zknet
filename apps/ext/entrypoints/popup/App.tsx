@@ -21,7 +21,7 @@ function App() {
 
     // Subscribe to state updates
     const unwatch = extensionMsgr.onMessage('zknet.client.state', ({ data }) =>
-      setClientState(data)
+      setClientState(data),
     );
 
     return unwatch;

@@ -48,7 +48,7 @@ export class JsonRpcWebSocket {
 
       // automatically connect immediately (default true)
       autoConnect?: boolean;
-    }
+    },
   ) {
     this.url = url;
     this.notifyCb = opts?.onNotification;

@@ -1,4 +1,4 @@
-import { RPCEndpoints } from "../components";
+import { RPCEndpoints } from '../components';
 
 export function WalletShield() {
   return (

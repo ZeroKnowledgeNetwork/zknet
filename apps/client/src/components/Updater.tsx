@@ -1,8 +1,8 @@
-import { useEffect, useRef, useState } from "react";
-import { check, Update } from "@tauri-apps/plugin-updater";
-import * as log from "@tauri-apps/plugin-log";
-import { useStore } from "../store";
-import { IconArrowPath } from "./icons";
+import { useEffect, useRef, useState } from 'react';
+import { check, Update } from '@tauri-apps/plugin-updater';
+import * as log from '@tauri-apps/plugin-log';
+import { useStore } from '../store';
+import { IconArrowPath } from './icons';
 
 export function Updater() {
   const dlProgress = useRef(0);
@@ -23,20 +23,20 @@ export function Updater() {
 
   const checkForUpdates = async () => {
     try {
-      setStatus("checking");
+      setStatus('checking');
       const u = await check({ timeout: 10000 });
       setUpdate(u);
       if (u) {
-        setStatus("checked-updatable");
+        setStatus('checked-updatable');
         const o = `Update available: ${u.currentVersion} => ${u.version}`;
         log.info(o);
         consoleAddLine(o);
       } else {
-        setStatus("checked-current");
-        consoleAddLine("App is up to date.");
+        setStatus('checked-current');
+        consoleAddLine('App is up to date.');
       }
     } catch (error: any) {
-      setStatus("error");
+      setStatus('error');
       setError(`${error}`);
       log.error(`update: ${error}`);
     }
@@ -45,34 +45,34 @@ export function Updater() {
   const handleUpdate = async () => {
     if (!update) return;
 
-    setStatus("starting");
+    setStatus('starting');
     setDlPercent(0);
     dlProgress.current = 0;
     dlTotal.current = 0;
 
     await update.downloadAndInstall((event) => {
       switch (event.event) {
-        case "Started":
-          setStatus("downloading");
+        case 'Started':
+          setStatus('downloading');
           dlTotal.current = event.data.contentLength ?? 0;
           log.info(`Update started: Downloading ${dlTotal.current} bytes.`);
           break;
 
-        case "Progress":
+        case 'Progress':
           dlProgress.current += event.data.chunkLength;
           setDlPercent(
             Math.floor((dlProgress.current / dlTotal.current) * 100),
           );
           break;
 
-        case "Finished":
-          setStatus("downloaded");
+        case 'Finished':
+          setStatus('downloaded');
           log.info(`Update download finished.`);
           break;
       }
     });
 
-    setStatus("installed");
+    setStatus('installed');
   };
 
   const updateStates: Record<
@@ -84,20 +84,20 @@ export function Updater() {
       max?: number;
     }
   > = {
-    "": {},
+    '': {},
     error: {},
     checking: {
-      msg: "Checking for updates...",
+      msg: 'Checking for updates...',
       progress: true,
     },
-    "checked-current": {
-      msg: "Up to date.",
+    'checked-current': {
+      msg: 'Up to date.',
     },
-    "checked-updatable": {
+    'checked-updatable': {
       msg: `An update is available: ${update?.version}`,
     },
     starting: {
-      msg: "Starting update...",
+      msg: 'Starting update...',
       progress: true,
     },
     downloading: {
@@ -107,11 +107,11 @@ export function Updater() {
       max: 100,
     },
     downloaded: {
-      msg: "Update downloaded. Installing...",
+      msg: 'Update downloaded. Installing...',
       progress: true,
     },
     installed: {
-      msg: "Update installed. Restart the app to ensure changes.",
+      msg: 'Update installed. Restart the app to ensure changes.',
     },
   };
 
@@ -128,7 +128,7 @@ export function Updater() {
           <div className="flex flex-col gap-y-4">
             <span className="flex items-center gap-x-4">
               {msg}
-              {status === "checked-updatable" && (
+              {status === 'checked-updatable' && (
                 <button
                   onClick={handleUpdate}
                   className="btn btn-sm btn-soft btn-accent mx-auto"

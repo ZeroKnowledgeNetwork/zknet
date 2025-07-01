@@ -1,10 +1,10 @@
 # https://github.com/tauri-apps/tauri-action/blob/dev/examples/publish-to-auto-release.yml
-name: "publish"
+name: 'publish'
 
 on:
   push:
     tags:
-      - "v*"
+      - 'v*'
 
 # This is the example from the readme.
 # On each push to the `release` branch it will create or update a GitHub release, build your app, and upload the artifacts to the release.
@@ -17,14 +17,14 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - platform: "macos-latest" # for Arm based macs (M1 and above).
-            args: "--target aarch64-apple-darwin"
-          - platform: "macos-latest" # for Intel based macs.
-            args: "--target x86_64-apple-darwin"
-          - platform: "ubuntu-22.04" # for Tauri v1 you could replace this with ubuntu-20.04.
-            args: ""
-          - platform: "windows-latest"
-            args: ""
+          - platform: 'macos-latest' # for Arm based macs (M1 and above).
+            args: '--target aarch64-apple-darwin'
+          - platform: 'macos-latest' # for Intel based macs.
+            args: '--target x86_64-apple-darwin'
+          - platform: 'ubuntu-22.04' # for Tauri v1 you could replace this with ubuntu-20.04.
+            args: ''
+          - platform: 'windows-latest'
+            args: ''
 
     runs-on: ${{ matrix.platform }}
     steps:
@@ -82,7 +82,7 @@ jobs:
         with:
           tagName: v${{ env.VERSION }}
           releaseName: v${{ env.VERSION }}
-          releaseBody: "${{ steps.changelog.outputs.changelog }}"
+          releaseBody: '${{ steps.changelog.outputs.changelog }}'
           releaseDraft: true
           prerelease: true
           args: ${{ matrix.args }}

@@ -1,20 +1,20 @@
-import { useState, useMemo, useEffect } from "react";
-import { useStore } from "../store";
-import { writeText } from "@tauri-apps/plugin-clipboard-manager";
-import * as log from "@tauri-apps/plugin-log";
+import { useState, useMemo, useEffect } from 'react';
+import { useStore } from '../store';
+import { writeText } from '@tauri-apps/plugin-clipboard-manager';
+import * as log from '@tauri-apps/plugin-log';
 import {
   NetworkServices,
   getWalletshieldListenAddress,
   readNetworkAssetFile,
-} from "../utils";
-import { IconClipboard } from "./icons";
+} from '../utils';
+import { IconClipboard } from './icons';
 
 export function RPCEndpoints() {
   const [includeTestnets, setIncludeTestnets] = useState(true);
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState('');
   const [services, setServices] = useState<NetworkServices | null>();
-  const [copied, setCopied] = useState("");
-  const [walletshieldListenAddr, setWalletshieldListenAddr] = useState("");
+  const [copied, setCopied] = useState('');
+  const [walletshieldListenAddr, setWalletshieldListenAddr] = useState('');
 
   const networkConnected = useStore((s) => s.networkConnected);
   const setMessage = useStore((s) => s.setMessage);
@@ -30,7 +30,7 @@ export function RPCEndpoints() {
         if (networkConnected) {
           const f = await readNetworkAssetFile(
             networkConnected,
-            "services.json",
+            'services.json',
           );
           const s = JSON.parse(f) as NetworkServices;
           setServices(s);
@@ -38,7 +38,7 @@ export function RPCEndpoints() {
       })();
     } catch (error: any) {
       log.error(`${error}`);
-      setMessage("error", `${error}`);
+      setMessage('error', `${error}`);
     }
   }, []);
 
@@ -112,7 +112,7 @@ export function RPCEndpoints() {
               <tr key={idx}>
                 <td>{n.chain}</td>
                 <td>{n.network}</td>
-                <td>{n.chainId ?? ""}</td>
+                <td>{n.chainId ?? ''}</td>
                 <td
                   className="flex items-center gap-x-1 hover:cursor-pointer"
                   onClick={() => handleCopy(n.rpcPath)}

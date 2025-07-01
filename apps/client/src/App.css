@@ -1,13 +1,13 @@
-@import "tailwindcss";
+@import 'tailwindcss';
 @plugin "daisyui" {
   themes: zkn-dark, light;
 }
 
 @plugin "daisyui/theme" {
-  name: "zkn-dark";
+  name: 'zkn-dark';
   default: true;
   prefersdark: true;
-  color-scheme: "dark";
+  color-scheme: 'dark';
   --color-base-100: oklch(22% 0.021 267);
   --color-base-200: oklch(20% 0.021 267);
   --color-base-300: oklch(18% 0.021 267);

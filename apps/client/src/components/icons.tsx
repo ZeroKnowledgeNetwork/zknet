@@ -1,7 +1,7 @@
 // https://heroicons.com/
 
 export const IconArrowPath = ({
-  className = "size-6",
+  className = 'size-6',
 }: {
   className?: string;
 }) => (
@@ -35,7 +35,7 @@ export const IconBars3 = () => (
 );
 
 export const IconCheckBadge = ({
-  className = "size-6",
+  className = 'size-6',
 }: {
   className?: string;
 }) => (
@@ -56,7 +56,7 @@ export const IconCheckBadge = ({
 );
 
 export const IconClipboard = ({
-  className = "size-6",
+  className = 'size-6',
   withCheck = false,
 }: {
   className?: string;
@@ -125,7 +125,7 @@ export const IconGlobe = () => (
 );
 
 export const IconShieldCheck = ({
-  className = "size-6",
+  className = 'size-6',
 }: {
   className?: string;
 }) => (

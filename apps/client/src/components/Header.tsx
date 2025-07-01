@@ -1,7 +1,7 @@
-import { ReactElement, useRef } from "react";
-import { Link } from "react-router";
-import { IconBars3, IconCog, IconGlobe, IconShieldCheck } from ".";
-import { useStore } from "../store";
+import { ReactElement, useRef } from 'react';
+import { Link } from 'react-router';
+import { IconBars3, IconCog, IconGlobe, IconShieldCheck } from '.';
+import { useStore } from '../store';
 
 export function Header() {
   const drawerRef = useRef<HTMLInputElement>(null);
@@ -16,7 +16,7 @@ export function Header() {
 
   const handleLink = () => {
     closeDrawer();
-    setMessage("info", ""); // clear any messages
+    setMessage('info', ''); // clear any messages
   };
 
   // SideBar nav item

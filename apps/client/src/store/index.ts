@@ -1,37 +1,37 @@
-import { LazyStore } from "@tauri-apps/plugin-store";
-import { create } from "zustand";
-import { combine } from "zustand/middleware";
+import { LazyStore } from '@tauri-apps/plugin-store';
+import { create } from 'zustand';
+import { combine } from 'zustand/middleware';
 
-const store = new LazyStore("settings.json");
+const store = new LazyStore('settings.json');
 
 type UpdateStatus =
-  | ""
-  | "error"
-  | "checking"
-  | "checked-current"
-  | "checked-updatable"
-  | "starting"
-  | "downloading"
-  | "downloaded"
-  | "installed";
+  | ''
+  | 'error'
+  | 'checking'
+  | 'checked-current'
+  | 'checked-updatable'
+  | 'starting'
+  | 'downloading'
+  | 'downloaded'
+  | 'installed';
 
 export const useStore = create(
   combine(
     {
-      appVersion: "",
+      appVersion: '',
       clientPid: 0,
       consoleLines: [] as string[],
       consoleLinesLimit: 100,
       isConnected: false,
       isStopping: false,
       isPlatformSupported: false,
-      message: "",
-      messageType: "",
-      networkConnected: "",
+      message: '',
+      messageType: '',
+      networkConnected: '',
       networks: [] as string[],
-      platformArch: "",
-      updateStatus: "" as UpdateStatus,
-      walletshieldListenAddress: "",
+      platformArch: '',
+      updateStatus: '' as UpdateStatus,
+      walletshieldListenAddress: '',
     },
     (set) => ({
       consoleAddLine: (line: string) =>
@@ -47,7 +47,7 @@ export const useStore = create(
       setIsPlatformSupported: (isPlatformSupported: boolean) =>
         set({ isPlatformSupported }),
       setMessage: (
-        messageType: "error" | "info" | "success",
+        messageType: 'error' | 'info' | 'success',
         message: string,
       ) => set({ message, messageType }),
       setNetworkConnected: (networkConnected: string) =>
@@ -60,12 +60,12 @@ export const useStore = create(
         walletshieldListenAddress: string,
       ) => {
         set({ walletshieldListenAddress });
-        await store.set("walletshieldListenAddress", walletshieldListenAddress);
+        await store.set('walletshieldListenAddress', walletshieldListenAddress);
         await store.save();
       },
 
       loadPersistedSettings: async () => {
-        const wla = await store.get<string>("walletshieldListenAddress");
+        const wla = await store.get<string>('walletshieldListenAddress');
         if (wla) set({ walletshieldListenAddress: wla });
       },
     }),

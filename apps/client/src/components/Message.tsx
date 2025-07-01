@@ -1,4 +1,4 @@
-import { useStore } from "../store";
+import { useStore } from '../store';
 
 export function Message() {
   const msg = useStore((s) => s.message);
@@ -6,10 +6,10 @@ export function Message() {
 
   const msgClass =
     {
-      error: "alert-error",
-      info: "alert-info",
-      success: "alert-success",
-    }[msgType] ?? "";
+      error: 'alert-error',
+      info: 'alert-info',
+      success: 'alert-success',
+    }[msgType] ?? '';
 
   return (
     <>

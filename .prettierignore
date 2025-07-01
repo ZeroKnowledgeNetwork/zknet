@@ -6,3 +6,5 @@ out-tsc
 /coverage
 /.nx/cache
 /.nx/workspace-data
+**/src-tauri/target
+**/src-tauri/gen

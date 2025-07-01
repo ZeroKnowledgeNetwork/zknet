@@ -12,12 +12,6 @@
       "options": {
         "script": "tauri dev"
       }
-    },
-    "format": {
-      "executor": "nx:run-commands",
-      "options": {
-        "command": "prettier --check apps/client"
-      }
     }
   }
 }

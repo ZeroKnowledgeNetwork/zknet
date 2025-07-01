@@ -6,12 +6,6 @@
   "targets": {
     "build": {
       "outputs": ["{projectRoot}/.output"]
-    },
-    "format": {
-      "executor": "nx:run-commands",
-      "options": {
-        "command": "prettier --check apps/ext"
-      }
     }
   }
 }

@@ -6,12 +6,6 @@
   "targets": {
     "build": {
       "outputs": ["{projectRoot}/.dist"]
-    },
-    "format": {
-      "executor": "nx:run-commands",
-      "options": {
-        "command": "prettier --check apps/demo"
-      }
     }
   }
 }

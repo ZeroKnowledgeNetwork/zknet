@@ -4,6 +4,9 @@
   "projectType": "application",
   "tags": [],
   "targets": {
+    "build": {
+      "outputs": ["{projectRoot}/.output"]
+    },
     "format": {
       "executor": "nx:run-commands",
       "options": {

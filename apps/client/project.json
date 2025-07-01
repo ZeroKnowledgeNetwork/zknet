@@ -4,6 +4,9 @@
   "projectType": "application",
   "tags": [],
   "targets": {
+    "build": {
+      "outputs": ["{projectRoot}/.dist"]
+    },
     "dev": {
       "executor": "nx:run-script",
       "options": {

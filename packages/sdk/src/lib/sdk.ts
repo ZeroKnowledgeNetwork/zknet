@@ -48,13 +48,16 @@ export class ZKNetSDK {
   // singleton instance of the SDK
   private static _ready: Promise<ZKNetSDK> | null = null;
 
-  private constructor(private link: ZKNetLink, private opts: ZKNetSDKOptions) {}
+  private constructor(
+    private link: ZKNetLink,
+    private opts: ZKNetSDKOptions,
+  ) {}
 
   // Initializes the SDK, waiting for the ZKNet extension to be ready.
   static async init(opts: ZKNetSDKOptions = {}): Promise<ZKNetSDK> {
     // init or reuse the existing singleton instance
     return (this._ready ??= detectExtension(opts.detectExtensionTimeout).then(
-      (link) => new ZKNetSDK(link, opts)
+      (link) => new ZKNetSDK(link, opts),
     ));
   }
 

@@ -2,7 +2,9 @@
 @plugin "@tailwindcss/typography";
 
 @plugin "daisyui" {
-  themes: light, dark --default --prefersdark;
+  themes:
+    light,
+    dark --default --prefersdark;
 }
 
 body {

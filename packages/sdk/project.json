@@ -15,6 +15,11 @@
         "format": ["esm", "cjs"],
         "declarationRootDir": "packages/sdk/src"
       }
+    },
+    "clean": {
+      "options": {
+        "commands": ["rm -vrf ./dist"]
+      }
     }
   }
 }

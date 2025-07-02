@@ -1,0 +1,96 @@
+# https://wxt.dev/guide/essentials/publishing.html#github-action
+name: Release Browser Extension
+
+on:
+  push:
+    tags:
+      - 'ext@*'
+
+permissions:
+  contents: write
+
+jobs:
+  release-extension:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'pnpm'
+
+      - run: pnpm install --frozen-lockfile
+      - uses: nrwl/nx-set-shas@v4
+
+      - name: Extract version from tag
+        run: echo "VERSION=${GITHUB_REF#refs/tags/ext@}" >> $GITHUB_ENV
+        shell: bash
+
+      - name: Update the extension version with tag version
+        run: |
+          perl -pi -e 's/"version": ".*"/"version": "${{ env.VERSION }}"/' apps/ext/package.json
+
+      - name: Lint and build extension
+        run: pnpm exec nx run-many -t lint,build -p @zknet/ext
+
+      - name: Zip extensions
+        run: |
+          pnpm exec nx run @zknet/ext:zip
+          pnpm exec nx run @zknet/ext:zip:firefox
+
+      - name: Install git-cliff
+        run: cargo install git-cliff || true
+
+      - name: Generate changelog
+        id: changelog
+        shell: bash
+        run: |
+          {
+            echo 'changelog<<EOF'
+            git-cliff \
+              --latest \
+              --strip all \
+              --use-branch-tags \
+              --tag-pattern 'ext@*' \
+              --include-path "apps/ext/**/*" \
+            | sed -E \
+                -e 's/^-[[:space:]]*\*\(ext\)\*[[:space:]]*/- /' \
+                -e 's/^-[[:space:]]*\*\(ext\//- *(/'
+            echo 'EOF'
+          } >> $GITHUB_OUTPUT
+
+      - name: Create GitHub Release (draft)
+        uses: softprops/action-gh-release@v2
+        with:
+          draft: true
+          body: '${{ steps.changelog.outputs.changelog }}'
+          fail_on_unmatched_files: true
+          files: |
+            apps/ext/.output/*-chrome.zip
+            apps/ext/.output/*-firefox.zip
+            apps/ext/.output/*-sources.zip
+            LICENSE
+
+      # - name: Submit to stores
+      #   run: |
+      #     pnpm wxt submit \
+      #       --chrome-zip apps/ext/.output/*-chrome.zip \
+      #       --firefox-zip apps/ext/.output/*-firefox.zip \
+      #       --firefox-sources-zip apps/ext/.output/*-sources.zip
+      #   env:
+      #     CHROME_EXTENSION_ID: ${{ secrets.CHROME_EXTENSION_ID }}
+      #     CHROME_CLIENT_ID: ${{ secrets.CHROME_CLIENT_ID }}
+      #     CHROME_CLIENT_SECRET: ${{ secrets.CHROME_CLIENT_SECRET }}
+      #     CHROME_REFRESH_TOKEN: ${{ secrets.CHROME_REFRESH_TOKEN }}
+      #     FIREFOX_EXTENSION_ID: ${{ secrets.FIREFOX_EXTENSION_ID }}
+      #     FIREFOX_JWT_ISSUER: ${{ secrets.FIREFOX_JWT_ISSUER }}
+      #     FIREFOX_JWT_SECRET: ${{ secrets.FIREFOX_JWT_SECRET }}

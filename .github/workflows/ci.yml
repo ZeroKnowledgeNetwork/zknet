@@ -11,7 +11,7 @@ permissions:
   contents: read
 
 jobs:
-  main:
+  nx-ci:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

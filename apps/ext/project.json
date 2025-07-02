@@ -6,6 +6,11 @@
   "targets": {
     "build": {
       "outputs": ["{projectRoot}/.output"]
+    },
+    "clean": {
+      "options": {
+        "commands": ["rm -vrf ./.output"]
+      }
     }
   }
 }

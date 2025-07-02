@@ -53,6 +53,13 @@
     "build": {
       "cache": true
     },
+    "clean": {
+      "cache": false,
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "{projectRoot}"
+      }
+    },
     "test": {
       "dependsOn": ["^build"]
     },

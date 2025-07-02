@@ -7,6 +7,15 @@
     "build": {
       "outputs": ["{projectRoot}/.dist"]
     },
+    "clean": {
+      "options": {
+        "commands": [
+          "rm -vrf ./dist",
+          "rm -vrf ./src-tauri/gen/schemas",
+          "rm -vrf ./src-tauri/target"
+        ]
+      }
+    },
     "dev": {
       "executor": "nx:run-script",
       "options": {

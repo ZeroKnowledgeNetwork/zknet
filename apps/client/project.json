@@ -5,7 +5,7 @@
   "tags": [],
   "targets": {
     "build": {
-      "outputs": ["{projectRoot}/.dist"]
+      "outputs": ["{projectRoot}/dist"]
     },
     "clean": {
       "options": {

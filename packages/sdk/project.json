@@ -18,7 +18,7 @@
     },
     "clean": {
       "options": {
-        "commands": ["rm -vrf ./dist"]
+        "commands": ["rm -vrf ./dist", "rm -vrf ./out-tsc"]
       }
     }
   }

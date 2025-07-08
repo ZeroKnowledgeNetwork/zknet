@@ -37,6 +37,19 @@
   "nx": {
     "includedScripts": [],
     "targets": {
+      "clean": {
+        "executor": "nx:run-commands",
+        "options": {
+          "commands": []
+        },
+        "configurations": {
+          "very": {
+            "commands": [
+              "rm -vrf ./node_modules"
+            ]
+          }
+        }
+      },
       "local-registry": {
         "executor": "@nx/js:verdaccio",
         "options": {

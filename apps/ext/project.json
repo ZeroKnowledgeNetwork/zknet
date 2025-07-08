@@ -10,6 +10,11 @@
     "clean": {
       "options": {
         "commands": ["rm -vrf ./.output"]
+      },
+      "configurations": {
+        "very": {
+          "commands": ["rm -vrf ./.wxt", "rm -vrf ./node_modules"]
+        }
       }
     }
   }

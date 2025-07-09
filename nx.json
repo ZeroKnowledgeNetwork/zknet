@@ -42,7 +42,8 @@
       "options": {
         "targetName": "test"
       }
-    }
+    },
+    "@monodon/rust"
   ],
   "release": {
     "version": {

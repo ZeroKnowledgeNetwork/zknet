@@ -2,7 +2,7 @@
 [workspace]
 resolver = '2'
 members = [
-	'libs/zknet_core',
+	'libs/rs-core',
 ]
 
 [profile.release]

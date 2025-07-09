@@ -2,8 +2,8 @@
 [workspace]
 resolver = '2'
 members = [
+	'apps/client-cli',
 	'libs/rs-core',
-	'apps/zknet_client_cli',
 ]
 
 [profile.release]

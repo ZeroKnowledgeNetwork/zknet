@@ -2,7 +2,7 @@
   "name": "zknet_client_cli",
   "$schema": "../../node_modules/nx/schemas/project-schema.json",
   "projectType": "application",
-  "sourceRoot": "apps/zknet_client_cli/src",
+  "sourceRoot": "apps/client-cli/src",
   "targets": {
     "build": {
       "cache": true,

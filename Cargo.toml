@@ -3,6 +3,7 @@
 resolver = '2'
 members = [
 	'libs/rs-core',
+	'apps/zknet_client_cli',
 ]
 
 [profile.release]

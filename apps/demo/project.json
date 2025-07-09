@@ -5,11 +5,16 @@
   "tags": [],
   "targets": {
     "build": {
-      "outputs": ["{projectRoot}/.dist"]
+      "outputs": ["{projectRoot}/dist"]
     },
     "clean": {
       "options": {
         "commands": ["rm -vrf ./dist"]
+      },
+      "configurations": {
+        "very": {
+          "commands": ["rm -vrf ./node_modules"]
+        }
       }
     }
   }

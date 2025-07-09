@@ -3,6 +3,7 @@
 resolver = '2'
 members = [
 	'apps/client-cli',
+  'apps/client/src-tauri',
 	'libs/rs-core',
 ]
 

@@ -1,3 +1,7 @@
+pub fn network_connect(network_id: &str) {
+    println!("Connecting to network with ID={network_id}...");
+}
+
 #[cfg(test)]
 mod tests {
     #[test]

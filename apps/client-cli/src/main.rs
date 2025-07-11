@@ -1,3 +1,4 @@
+use anyhow::Result;
 use clap::Parser;
 use zknet_core::network_connect;
 
@@ -8,7 +9,10 @@ struct Cli {
     network_id: String,
 }
 
-fn main() {
+#[tokio::main]
+async fn main() -> Result<()> {
     let cli = Cli::parse();
-    network_connect(&cli.network_id);
+
+    network_connect(&cli.network_id).await?;
+    Ok(())
 }

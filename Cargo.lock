@@ -6723,7 +6723,9 @@ dependencies = [
 name = "zknet_client_cli"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "clap",
+ "tokio",
  "zknet_core",
 ]
 

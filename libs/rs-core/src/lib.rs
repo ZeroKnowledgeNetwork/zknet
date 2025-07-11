@@ -1,3 +1,5 @@
+pub mod net;
+
 pub fn network_connect(network_id: &str) {
     println!("Connecting to network with ID={network_id}...");
 }

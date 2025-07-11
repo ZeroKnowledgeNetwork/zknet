@@ -6723,6 +6723,14 @@ dependencies = [
 [[package]]
 name = "zknet_core"
 version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "bytes",
+ "futures-util",
+ "reqwest",
+ "serde",
+ "tokio",
+]
 
 [[package]]
 name = "zvariant"

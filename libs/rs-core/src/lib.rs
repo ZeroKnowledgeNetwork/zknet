@@ -3,6 +3,7 @@ use net::download;
 use tokio::fs::File;
 
 pub mod net;
+pub mod utils;
 
 // TODO: extract to config
 const URL_NETWORK: &str = "https://test.net.zknet.io";

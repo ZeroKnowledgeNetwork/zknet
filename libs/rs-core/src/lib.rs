@@ -2,7 +2,10 @@ use anyhow::{ensure, Context, Result};
 use net::download;
 use tokio::fs::File;
 
+pub mod config;
+pub mod context;
 pub mod net;
+pub mod paths;
 pub mod utils;
 
 // TODO: extract to config

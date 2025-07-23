@@ -22,7 +22,7 @@ async fn main() -> Result<()> {
     let platform_arch = get_platform_arch().expect("Unsupported platform or architecture");
     println!("Starting {app_name} v{VERSION} on {platform_arch}");
 
-    let ctx = AppContext::new(&app_name, CONFIG_JSON);
+    let ctx = AppContext::new(&app_name, CONFIG_JSON, platform_arch);
     println!("App data directory: {}", ctx.paths.dir_data().display());
     println!("Using configuration: {:#?}", ctx.config);
 

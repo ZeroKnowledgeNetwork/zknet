@@ -17,6 +17,11 @@
         }
       }
     },
+    "clean": {
+      "options": {
+        "commands": ["rm -vrf ../../dist/target/zknet_client_cli"]
+      }
+    },
     "test": {
       "cache": true,
       "executor": "@monodon/rust:test",

@@ -11,6 +11,11 @@
         "target-dir": "dist/target/zknet_core"
       }
     },
+    "clean": {
+      "options": {
+        "commands": ["rm -vrf ../../dist/target/zknet_core"]
+      }
+    },
     "test": {
       "cache": true,
       "executor": "@monodon/rust:test",

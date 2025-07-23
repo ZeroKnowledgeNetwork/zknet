@@ -6,7 +6,7 @@ fn map_platform_arch(os: &str, arch: &str) -> Result<String, String> {
         ("linux", "x86_64") => Ok("linux-x64".into()),
         ("macos", "aarch64") | ("macos", "x86_64") => Ok("macos".into()),
         ("windows", "x86_64") => Ok("windows-x64".into()),
-        _other => Err(format!("{os} ({arch})")),
+        _other => Err(format!("Unsupported platform: {os} ({arch})")),
     }
 }
 

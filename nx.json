@@ -42,7 +42,8 @@
       "options": {
         "targetName": "test"
       }
-    }
+    },
+    "@monodon/rust"
   ],
   "release": {
     "version": {
@@ -57,6 +58,20 @@
       "cache": false,
       "executor": "nx:run-commands",
       "options": {
+        "cwd": "{projectRoot}"
+      }
+    },
+    "format": {
+      "executor": "nx:run-commands",
+      "options": {
+        "commands": ["cargo fmt"],
+        "cwd": "{projectRoot}"
+      }
+    },
+    "format:check": {
+      "executor": "nx:run-commands",
+      "options": {
+        "commands": ["cargo fmt -- --check -l"],
         "cwd": "{projectRoot}"
       }
     },

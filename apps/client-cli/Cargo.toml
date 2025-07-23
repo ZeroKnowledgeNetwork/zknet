@@ -1,0 +1,14 @@
+[package]
+name = "zknet_client_cli"
+version = "0.1.0"
+edition = "2021"
+
+
+[dependencies]
+anyhow = "1.0.98"
+clap = { version = "4.5.41", features = ["derive"] }
+tokio = { version = "1.46.1", features = ["rt-multi-thread", "macros"] }
+zknet_core = { path = "../../libs/rs-core" }
+
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html

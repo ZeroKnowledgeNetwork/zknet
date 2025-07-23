@@ -3,6 +3,7 @@
 .wxt
 dist
 out-tsc
+pnpm-lock.yaml
 /coverage
 /.nx/cache
 /.nx/workspace-data

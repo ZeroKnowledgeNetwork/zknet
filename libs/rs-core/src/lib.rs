@@ -64,6 +64,84 @@ impl DlCtx {
     }
 }
 
+/// Start the client for the specified network from the downloaded assets.
+async fn start_network_client(ctx: crate::context::AppContext, network_id: &str) -> Result<()> {
+    let dir_network = ctx.paths.dir_data().join("networks").join(network_id);
+
+    let platform_arch = utils::get_platform_arch().expect("");
+    let platform = platform_arch.split('-').next().unwrap_or("");
+    let mut path_walletshield = dir_network.join("walletshield");
+    if platform == "windows" {
+        path_walletshield.set_extension("exe");
+    }
+
+    // ensure the walletshield binary exists
+    if !path_walletshield.exists() {
+        return Err(anyhow::anyhow!(
+            "Walletshield binary not found at {}",
+            path_walletshield.display()
+        ));
+    }
+
+    // spawn the walletshield process
+    let mut command = tokio::process::Command::new(path_walletshield);
+    command.current_dir(&dir_network);
+    command.stdout(std::process::Stdio::piped());
+    command.stderr(std::process::Stdio::piped());
+
+    command.arg("-listen");
+    command.arg(ctx.config.walletshield_listen_address);
+    command.arg("-config").arg("client.toml");
+
+    println!("Starting network client...");
+    let mut child = command.spawn()?;
+
+    // Handle stdout
+    if let Some(stdout) = child.stdout.take() {
+        let mut reader = tokio::io::BufReader::new(stdout);
+        tokio::spawn(async move {
+            let mut line = String::new();
+            loop {
+                line.clear();
+                match tokio::io::AsyncBufReadExt::read_line(&mut reader, &mut line).await {
+                    Ok(0) => break, // EOF
+                    Ok(_) => print!("{line}"),
+                    Err(e) => {
+                        eprintln!("Error reading stdout: {e}");
+                        break;
+                    }
+                }
+            }
+        });
+    }
+
+    // Handle stderr
+    if let Some(stderr) = child.stderr.take() {
+        let mut reader = tokio::io::BufReader::new(stderr);
+        tokio::spawn(async move {
+            let mut line = String::new();
+            loop {
+                line.clear();
+                match tokio::io::AsyncBufReadExt::read_line(&mut reader, &mut line).await {
+                    Ok(0) => break, // EOF
+                    Ok(_) => eprint!("{line}"),
+                    Err(e) => {
+                        eprintln!("Error reading stderr: {e}");
+                        break;
+                    }
+                }
+            }
+        });
+    }
+
+    // Wait for the process to finish (will run until killed)
+    let status = child.wait().await?;
+    println!("Client for network {network_id} exited with status: {status}");
+
+    Ok(())
+}
+
+/// Connect to a network by downloading its assets and starting the client.
 pub async fn network_connect(ctx: crate::context::AppContext, network_id: &str) -> Result<()> {
     println!("Connecting to network with ID={network_id}...");
 
@@ -101,6 +179,8 @@ pub async fn network_connect(ctx: crate::context::AppContext, network_id: &str) 
         ctx_dl.asset("services.json", false, false),
         ctx_dl.asset("walletshield", true, false),
     )?;
+
+    start_network_client(ctx, network_id).await?;
 
     Ok(())
 }

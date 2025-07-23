@@ -16,11 +16,15 @@ struct DlCtx {
     client: Arc<Client>,
     dir: Arc<PathBuf>,
     url_base: Arc<str>,
+    platform_arch: Arc<String>,
 }
 
 impl DlCtx {
-    async fn asset(&self, name: &str, show_progress: bool) -> Result<()> {
-        let url = format!("{}/{name}", self.url_base);
+    async fn asset(&self, name: &str, is_binary: bool, show_progress: bool) -> Result<()> {
+        let mut url = format!("{}/{name}", self.url_base);
+        if is_binary {
+            url.push_str(&format!("-{}", self.platform_arch));
+        }
         let path = self.dir.join(name);
         println!("  << {url}\n  >> {}", path.display());
 
@@ -65,14 +69,14 @@ pub async fn network_connect(ctx: crate::context::AppContext, network_id: &str) 
         client: Arc::new(client),
         dir: Arc::new(dir_network),
         url_base: Arc::from(url_base),
+        platform_arch: Arc::from(platform_arch),
     };
 
     println!("Downloading network assets...");
-    let ws = &format!("walletshield-{platform_arch}");
     tokio::try_join!(
-        ctx_dl.asset("client.toml", false),
-        ctx_dl.asset("services.json", false),
-        ctx_dl.asset(ws, false),
+        ctx_dl.asset("client.toml", false, false),
+        ctx_dl.asset("services.json", false, false),
+        ctx_dl.asset("walletshield", true, false),
     )?;
 
     Ok(())

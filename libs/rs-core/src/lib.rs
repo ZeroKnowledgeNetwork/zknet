@@ -37,6 +37,29 @@ impl DlCtx {
         });
 
         download(&self.client, &url, &mut file, progress, None, None).await?;
+
+        if is_binary {
+            let platform = self.platform_arch.split('-').next().unwrap_or("");
+
+            // if platform is unix, set the file permissions to 755
+            if platform == "linux" || platform == "macos" {
+                #[cfg(unix)]
+                {
+                    use std::os::unix::fs::PermissionsExt;
+                    let mut perms = file.metadata().await?.permissions();
+                    perms.set_mode(0o755); // rwxr-xr-x
+                    tokio::fs::set_permissions(&path, perms).await?;
+                }
+            }
+
+            // if platform is windows, rename the file to .exe
+            if platform == "windows" {
+                let new_path = path.with_extension("exe");
+                tokio::fs::rename(&path, &new_path).await?;
+                println!("Renamed {} to {}", path.display(), new_path.display());
+            }
+        }
+
         Ok::<(), anyhow::Error>(())
     }
 }

@@ -1,0 +1,5 @@
+{
+  "apiListenAddress": "127.0.0.1:7000",
+  "urlNetwork": "https://test.net.zknet.io",
+  "walletshieldListenAddress": ":7070"
+}

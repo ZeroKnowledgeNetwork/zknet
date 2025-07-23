@@ -24,12 +24,14 @@ pub struct ProgressPayload {
     pub transfer_speed: f64,
 }
 
+pub type ProgressCallback = Box<dyn FnMut(ProgressPayload) + Send + 'static>;
+
 /// Stream `url` into `writer` without buffering the whole body.
 pub async fn download<W>(
     client: &Client,
     url: &str,
     mut writer: W,
-    mut progress: Option<Box<dyn FnMut(ProgressPayload) + Send + 'static>>,
+    mut progress: Option<ProgressCallback>,
     headers: Option<HeaderMap>,
     body: Option<String>,
 ) -> anyhow::Result<()>

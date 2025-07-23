@@ -22,6 +22,8 @@
         "commands": ["rm -vrf ../../dist/target/zknet_client_cli"]
       }
     },
+    "format": {},
+    "format:check": {},
     "test": {
       "cache": true,
       "executor": "@monodon/rust:test",

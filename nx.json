@@ -61,6 +61,20 @@
         "cwd": "{projectRoot}"
       }
     },
+    "format": {
+      "executor": "nx:run-commands",
+      "options": {
+        "commands": ["cargo fmt"],
+        "cwd": "{projectRoot}"
+      }
+    },
+    "format:check": {
+      "executor": "nx:run-commands",
+      "options": {
+        "commands": ["cargo fmt -- --check -l"],
+        "cwd": "{projectRoot}"
+      }
+    },
     "test": {
       "dependsOn": ["^build"]
     },

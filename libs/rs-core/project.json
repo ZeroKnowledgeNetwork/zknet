@@ -16,6 +16,8 @@
         "commands": ["rm -vrf ../../dist/target/zknet_core"]
       }
     },
+    "format": {},
+    "format:check": {},
     "test": {
       "cache": true,
       "executor": "@monodon/rust:test",

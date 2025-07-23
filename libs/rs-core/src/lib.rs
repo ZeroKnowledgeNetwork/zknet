@@ -68,8 +68,7 @@ impl DlCtx {
 async fn start_network_client(ctx: crate::context::AppContext, network_id: &str) -> Result<()> {
     let dir_network = ctx.paths.dir_data().join("networks").join(network_id);
 
-    let platform_arch = utils::get_platform_arch().expect("");
-    let platform = platform_arch.split('-').next().unwrap_or("");
+    let platform = ctx.platform_arch.split('-').next().unwrap_or("");
     let mut path_walletshield = dir_network.join("walletshield");
     if platform == "windows" {
         path_walletshield.set_extension("exe");
@@ -158,8 +157,6 @@ pub async fn network_connect(ctx: crate::context::AppContext, network_id: &str) 
         .timeout(std::time::Duration::from_secs(10))
         .build()?;
 
-    let platform_arch = utils::get_platform_arch().expect("unsupported platform or architecture");
-
     // create the directory for network assets, ensuring it exists
     let dir_network = ctx.paths.dir_data().join("networks").join(network_id);
     tokio::fs::create_dir_all(&dir_network).await?;
@@ -170,7 +167,7 @@ pub async fn network_connect(ctx: crate::context::AppContext, network_id: &str) 
         client: Arc::new(client),
         dir: Arc::new(dir_network),
         url_base: Arc::from(url_base),
-        platform_arch: Arc::from(platform_arch),
+        platform_arch: Arc::from(ctx.platform_arch.clone()),
     };
 
     println!("Downloading network assets...");

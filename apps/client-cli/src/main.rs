@@ -26,6 +26,7 @@ async fn main() -> Result<()> {
     println!("App data directory: {}", ctx.paths.dir_data().display());
     println!("Using configuration: {:#?}", ctx.config);
 
-    network_connect(ctx, &cli.network_id).await?;
+    let toolchain_info = network_connect(ctx, &cli.network_id).await?;
+    println!("✓ Nargo v{} available at: {}", toolchain_info.noir_version, toolchain_info.noir_cache_dir.display());
     Ok(())
 }

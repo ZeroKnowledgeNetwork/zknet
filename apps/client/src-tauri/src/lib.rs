@@ -2,6 +2,7 @@ use tauri::Manager;
 
 mod config;
 mod ws_server;
+mod toolchain;
 
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 #[tauri::command]
@@ -82,6 +83,9 @@ pub fn run() {
             network_connect,
             config::cfg,
             ws_server::api_reply,
+            toolchain::download_nargo_toolchain,
+            toolchain::get_nargo_path,
+            toolchain::run_nargo_command,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -107,3 +107,79 @@ jobs:
           releaseDraft: true
           prerelease: true
           args: ${{ matrix.args }}
+
+  build-nargo-binaries:
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: 'macos-latest'
+            platform_name: 'macos-arm64'
+            args: '--target aarch64-apple-darwin'
+          - platform: 'macos-latest'
+            platform_name: 'macos-x86_64'
+            args: '--target x86_64-apple-darwin'
+          - platform: 'ubuntu-22.04'
+            platform_name: 'linux-x86_64'
+            args: ''
+          - platform: 'windows-latest'
+            platform_name: 'windows-x86_64'
+            args: ''
+
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: './libs/rs-core -> target'
+          key: ${{ matrix.args }}
+
+      - name: Extract version from tag
+        run: echo "VERSION=${GITHUB_REF#refs/tags/client@}" >> $GITHUB_ENV
+        shell: bash
+
+      # Note: nargo/bb binaries should be built from the Noir project
+      # This step creates placeholder binaries for demonstration
+      # In production, fetch pre-built Noir releases or build from source
+      - name: Create placeholder nargo+bb archive (Unix)
+        if: matrix.platform != 'windows-latest'
+        run: |
+          mkdir -p nargo-${{ env.VERSION }}-${{ matrix.platform_name }}/bin
+          touch nargo-${{ env.VERSION }}-${{ matrix.platform_name }}/bin/nargo
+          touch nargo-${{ env.VERSION }}-${{ matrix.platform_name }}/bin/bb
+          chmod +x nargo-${{ env.VERSION }}-${{ matrix.platform_name }}/bin/{nargo,bb}
+          tar -czf nargo-${{ env.VERSION }}-${{ matrix.platform_name }}.tar.gz nargo-${{ env.VERSION }}-${{ matrix.platform_name }}
+          rm -rf nargo-${{ env.VERSION }}-${{ matrix.platform_name }}
+
+      - name: Create placeholder nargo+bb archive (Windows)
+        if: matrix.platform == 'windows-latest'
+        shell: powershell
+        run: |
+          New-Item -ItemType Directory -Force -Path "nargo-${{ env.VERSION }}-${{ matrix.platform_name }}\bin" | Out-Null
+          New-Item -Path "nargo-${{ env.VERSION }}-${{ matrix.platform_name }}\bin\nargo.exe" -ItemType File
+          New-Item -Path "nargo-${{ env.VERSION }}-${{ matrix.platform_name }}\bin\bb.exe" -ItemType File
+          Compress-Archive -Path "nargo-${{ env.VERSION }}-${{ matrix.platform_name }}" -DestinationPath "nargo-${{ env.VERSION }}-${{ matrix.platform_name }}.zip"
+          Remove-Item -Recurse -Force "nargo-${{ env.VERSION }}-${{ matrix.platform_name }}"
+
+      - name: Upload nargo archives to release
+        uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: |
+            nargo-${{ env.VERSION }}-${{ matrix.platform_name }}.*
+          tag_name: client@${{ env.VERSION }}
+          draft: true
+          prerelease: true
+

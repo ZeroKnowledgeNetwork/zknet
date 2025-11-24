@@ -11,6 +11,8 @@ pub struct AppConfig {
     pub api_listen_address: String,
     pub url_network: String,
     pub walletshield_listen_address: String,
+    pub url_toolchains: String,
+    pub noir_version: String,
 }
 
 pub fn load_config(paths: &AppPaths, config_json: &str) -> AppConfig {

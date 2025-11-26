@@ -9,7 +9,15 @@ pub mod config;
 pub mod context;
 pub mod net;
 pub mod paths;
+pub mod toolchain;
 pub mod utils;
+
+/// Information about downloaded toolchain and assets
+#[derive(Debug, Clone)]
+pub struct ToolchainInfo {
+    pub noir_cache_dir: PathBuf,
+    pub noir_version: String,
+}
 
 #[derive(Clone)]
 struct DlCtx {
@@ -141,7 +149,7 @@ async fn start_network_client(ctx: crate::context::AppContext, network_id: &str)
 }
 
 /// Connect to a network by downloading its assets and starting the client.
-pub async fn network_connect(ctx: crate::context::AppContext, network_id: &str) -> Result<()> {
+pub async fn network_connect(ctx: crate::context::AppContext, network_id: &str) -> Result<ToolchainInfo> {
     println!("Connecting to network with ID={network_id}...");
 
     // ensure network_id is safe
@@ -154,7 +162,10 @@ pub async fn network_connect(ctx: crate::context::AppContext, network_id: &str) 
     );
 
     let client = Client::builder()
-        .timeout(std::time::Duration::from_secs(10))
+        .timeout(std::time::Duration::from_secs(60))  // Increase to 60 seconds
+        .connect_timeout(std::time::Duration::from_secs(30))  // Add connect timeout
+        //.danger_accept_invalid_certs(true)
+        //.danger_accept_invalid_hostnames(true)  // Also accept invalid hostnames
         .build()?;
 
     // create the directory for network assets, ensuring it exists
@@ -164,7 +175,7 @@ pub async fn network_connect(ctx: crate::context::AppContext, network_id: &str) 
     let url_base = format!("{}/{}", ctx.config.url_network, network_id);
 
     let ctx_dl = DlCtx {
-        client: Arc::new(client),
+        client: Arc::new(client.clone()),
         dir: Arc::new(dir_network),
         url_base: Arc::from(url_base),
         platform_arch: Arc::from(ctx.platform_arch.clone()),
@@ -177,9 +188,28 @@ pub async fn network_connect(ctx: crate::context::AppContext, network_id: &str) 
         ctx_dl.asset("walletshield", true, false),
     )?;
 
+    // Download nargo toolchain in parallel
+    println!("Downloading nargo toolchain...");
+    let cache_dir = ctx.paths.dir_noir_cache(&ctx.config.noir_version);
+    let url_toolchains = ctx.config.url_toolchains.clone();
+    let platform_arch = ctx.platform_arch.clone();
+    let noir_version = ctx.config.noir_version.clone();
+    
+    toolchain::verify_or_download(
+        &client,
+        &noir_version,
+        &platform_arch,
+        &url_toolchains,
+        cache_dir.clone(),
+    )
+    .await?;
+
     start_network_client(ctx, network_id).await?;
 
-    Ok(())
+    Ok(ToolchainInfo {
+        noir_cache_dir: cache_dir,
+        noir_version,
+    })
 }
 
 #[cfg(test)]

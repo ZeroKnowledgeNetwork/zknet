@@ -32,4 +32,12 @@ impl AppPaths {
     pub fn path_settings(&self) -> PathBuf {
         self.dir_data().join("settings.json")
     }
+
+    pub fn dir_toolchains(&self) -> PathBuf {
+        self.dir_data().join("toolchains")
+    }
+
+    pub fn dir_noir_cache(&self, version: &str) -> PathBuf {
+        self.dir_toolchains().join("noir").join(version)
+    }
 }

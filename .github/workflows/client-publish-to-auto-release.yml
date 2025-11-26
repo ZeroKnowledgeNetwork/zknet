@@ -1,185 +1,153 @@
-# https://github.com/tauri-apps/tauri-action/blob/dev/examples/publish-to-auto-release.yml
-name: 'client-publish'
+steps:
+  - name: Checkout
+    uses: actions/checkout@v4
+    with:
+      fetch-depth: 0
+      fetch-tags: true
 
-on:
-  push:
-    tags:
-      - 'client@*'
+  - name: Install pnpm (no install)
+    uses: pnpm/action-setup@v4
+    with:
+      run_install: false
 
-# On each push of a certain tag it will create or update a GitHub release, build your app, and upload the artifacts to the release.
+  - name: Setup Node
+    uses: actions/setup-node@v4
+    with:
+      node-version: lts/*
+      cache: 'pnpm'
 
-jobs:
-  publish-tauri:
-    permissions:
-      contents: write
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - platform: 'macos-latest' # for Arm based macs (M1 and above).
-            args: '--target aarch64-apple-darwin'
-          - platform: 'macos-latest' # for Intel based macs.
-            args: '--target x86_64-apple-darwin'
-          - platform: 'ubuntu-22.04'
-            args: ''
-          - platform: 'windows-latest'
-            args: ''
+  - name: Extract VERSION from tag
+    if: startsWith(github.ref, 'refs/tags/')
+    shell: bash
+    run: |
+      echo "GITHUB_REF=${GITHUB_REF}"
+      # Strip the prefix "client@" from the tag name (guarded to tag runs only)
+      TAG_NAME="${GITHUB_REF#refs/tags/}"
+      VERSION="${TAG_NAME#client@}"
+      if [ -z "$VERSION" ]; then
+        echo "VERSION empty after parsing tag $GITHUB_REF" >&2
+        exit 1
+      fi
+      echo "VERSION=$VERSION" >> $GITHUB_ENV
+      echo "Parsed VERSION=$VERSION"
 
-    runs-on: ${{ matrix.platform }}
-    steps:
-      - name: install dependencies (ubuntu only)
-        if: matrix.platform == 'ubuntu-22.04' # This must match the platform value defined above.
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+  - name: Print debug info
+    run: |
+      echo "runner.os=$RUNNER_OS"
+      echo "platform=${{ matrix.platform }}"
+      echo "VERSION=${{ env.VERSION || 'unset' }}"
+      git --no-pager show --no-patch --format='%h %an %s' HEAD
 
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          fetch-tags: true
+  - name: Install frontend deps
+    run: pnpm install --frozen-lockfile
 
-      - uses: pnpm/action-setup@v4
-        name: Install pnpm
-        with:
-          run_install: false
+  - name: Generate changelog (tagged releases only)
+    id: changelog
+    if: startsWith(github.ref, 'refs/tags/')
+    shell: bash
+    run: |
+      set -euo pipefail
+      git fetch --no-tags origin HEAD || true
+      {
+        echo 'changelog<<EOF'
+        git-cliff --latest --strip all --use-branch-tags --tag-pattern 'client@*' --include-path "apps/client/**/*" | sed -E \
+          -e 's/^-[[:space:]]*\*\(client\)\*[[:space:]]*/- /' \
+          -e 's/^-[[:space:]]*\*\(client\//- *(/'
+        echo 'EOF'
+      } >> $GITHUB_OUTPUT
 
-      - name: setup node
-        uses: actions/setup-node@v4
-        with:
-          node-version: lts/*
-          cache: 'pnpm'
+  - name: Install Rust toolchain
+    uses: dtolnay/rust-toolchain@stable
+    with:
+      # always install default stable; targets added per-platform below
+      override: true
 
-      - name: install Rust stable
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          # Those targets are only used on macos runners so it's in an `if` to slightly speed up windows and linux builds.
-          targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
+  - name: Add macOS targets (macOS only)
+    if: matrix.platform == 'macos-latest'
+    shell: bash
+    run: |
+      rustup target add aarch64-apple-darwin x86_64-apple-darwin || true
 
-      - name: Rust cache
-        uses: swatinem/rust-cache@v2
-        with:
-          workspaces: './apps/client/src-tauri -> target'
-          key: ${{ matrix.args }}
+  - name: Rust cache
+    uses: swatinem/rust-cache@v2
+    with:
+      # ensure key is unique per platform and lockfile
+      workspaces: ./apps/client/src-tauri -> target
+      key: ${{ matrix.platform }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
-      - name: install frontend dependencies
-        run: pnpm install --frozen-lockfile # change this to npm, pnpm or bun depending on which one you use.
+  # Build + release for macOS: build both archs in one job so we don't depend on runner CPU
+  - name: Build and publish macOS (both archs)
+    if: startsWith(github.ref, 'refs/tags/') && matrix.platform == 'macos-latest'
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+      TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+    shell: bash
+    run: |
+      set -euo pipefail
+      cd apps/client
+      # ensure tauri action can find project path; run action-like builds for each mac arch.
+      # First attempt: run tauri-action twice to create/update the same release with artifacts for both archs.
+      cd $GITHUB_WORKSPACE
+  - name: Tauri publish (mac aarch64)
+    if: startsWith(github.ref, 'refs/tags/') && matrix.platform == 'macos-latest'
+    uses: tauri-apps/tauri-action@v0
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+      TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+    with:
+      projectPath: ./apps/client
+      tagName: client@${{ env.VERSION }}
+      releaseName: client@${{ env.VERSION }}
+      releaseBody: '${{ steps.changelog.outputs.changelog || "" }}'
+      releaseDraft: true
+      prerelease: true
+      args: --target aarch64-apple-darwin
 
-      - name: Extract version from tag
-        run: echo "VERSION=${GITHUB_REF#refs/tags/client@}" >> $GITHUB_ENV
-        shell: bash
+  - name: Tauri publish (mac x86_64)
+    if: startsWith(github.ref, 'refs/tags/') && matrix.platform == 'macos-latest'
+    uses: tauri-apps/tauri-action@v0
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+      TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+    with:
+      projectPath: ./apps/client
+      tagName: client@${{ env.VERSION }}
+      releaseName: client@${{ env.VERSION }}
+      releaseBody: '${{ steps.changelog.outputs.changelog || "" }}'
+      releaseDraft: true
+      prerelease: true
+      args: --target x86_64-apple-darwin
 
-      # for cross-platform build compat, use perl
-      - name: Update the Tauri App version with tag version
-        run: |
-          perl -pi -e 's/^version = ".*"/version = "${{ env.VERSION }}"/' apps/client/src-tauri/Cargo.toml
+  # Linux / Windows builds: single publish (tagged runs only)
+  - name: Tauri publish (linux)
+    if: startsWith(github.ref, 'refs/tags/') && matrix.platform == 'ubuntu-22.04'
+    uses: tauri-apps/tauri-action@v0
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+      TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+    with:
+      projectPath: ./apps/client
+      tagName: client@${{ env.VERSION }}
+      releaseName: client@${{ env.VERSION }}
+      releaseBody: '${{ steps.changelog.outputs.changelog || "" }}'
+      releaseDraft: true
+      prerelease: true
 
-      - name: install git-cliff
-        run: cargo install git-cliff || true
-
-      - name: Generate changelog
-        id: changelog
-        shell: bash
-        run: |
-          {
-            echo 'changelog<<EOF'
-            git-cliff \
-              --latest \
-              --strip all \
-              --use-branch-tags \
-              --tag-pattern 'client@*' \
-              --include-path "apps/client/**/*" \
-            | sed -E \
-                -e 's/^-[[:space:]]*\*\(client\)\*[[:space:]]*/- /' \
-                -e 's/^-[[:space:]]*\*\(client\//- *(/'
-            echo 'EOF'
-          } >> $GITHUB_OUTPUT
-
-      - uses: tauri-apps/tauri-action@v0
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-        with:
-          projectPath: ./apps/client
-          tagName: client@${{ env.VERSION }}
-          releaseName: client@${{ env.VERSION }}
-          releaseBody: '${{ steps.changelog.outputs.changelog }}'
-          releaseDraft: true
-          prerelease: true
-          args: ${{ matrix.args }}
-
-  build-nargo-binaries:
-    permissions:
-      contents: write
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - platform: 'macos-latest'
-            platform_name: 'macos-arm64'
-            args: '--target aarch64-apple-darwin'
-          - platform: 'macos-latest'
-            platform_name: 'macos-x86_64'
-            args: '--target x86_64-apple-darwin'
-          - platform: 'ubuntu-22.04'
-            platform_name: 'linux-x86_64'
-            args: ''
-          - platform: 'windows-latest'
-            platform_name: 'windows-x86_64'
-            args: ''
-
-    runs-on: ${{ matrix.platform }}
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          fetch-tags: true
-
-      - name: install Rust stable
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
-
-      - name: Rust cache
-        uses: swatinem/rust-cache@v2
-        with:
-          workspaces: './libs/rs-core -> target'
-          key: ${{ matrix.args }}
-
-      - name: Extract version from tag
-        run: echo "VERSION=${GITHUB_REF#refs/tags/client@}" >> $GITHUB_ENV
-        shell: bash
-
-      # Note: nargo/bb binaries should be built from the Noir project
-      # This step creates placeholder binaries for demonstration
-      # In production, fetch pre-built Noir releases or build from source
-      - name: Create placeholder nargo+bb archive (Unix)
-        if: matrix.platform != 'windows-latest'
-        run: |
-          mkdir -p nargo-${{ env.VERSION }}-${{ matrix.platform_name }}/bin
-          touch nargo-${{ env.VERSION }}-${{ matrix.platform_name }}/bin/nargo
-          touch nargo-${{ env.VERSION }}-${{ matrix.platform_name }}/bin/bb
-          chmod +x nargo-${{ env.VERSION }}-${{ matrix.platform_name }}/bin/{nargo,bb}
-          tar -czf nargo-${{ env.VERSION }}-${{ matrix.platform_name }}.tar.gz nargo-${{ env.VERSION }}-${{ matrix.platform_name }}
-          rm -rf nargo-${{ env.VERSION }}-${{ matrix.platform_name }}
-
-      - name: Create placeholder nargo+bb archive (Windows)
-        if: matrix.platform == 'windows-latest'
-        shell: powershell
-        run: |
-          New-Item -ItemType Directory -Force -Path "nargo-${{ env.VERSION }}-${{ matrix.platform_name }}\bin" | Out-Null
-          New-Item -Path "nargo-${{ env.VERSION }}-${{ matrix.platform_name }}\bin\nargo.exe" -ItemType File
-          New-Item -Path "nargo-${{ env.VERSION }}-${{ matrix.platform_name }}\bin\bb.exe" -ItemType File
-          Compress-Archive -Path "nargo-${{ env.VERSION }}-${{ matrix.platform_name }}" -DestinationPath "nargo-${{ env.VERSION }}-${{ matrix.platform_name }}.zip"
-          Remove-Item -Recurse -Force "nargo-${{ env.VERSION }}-${{ matrix.platform_name }}"
-
-      - name: Upload nargo archives to release
-        uses: softprops/action-gh-release@v1
-        if: startsWith(github.ref, 'refs/tags/')
-        with:
-          files: |
-            nargo-${{ env.VERSION }}-${{ matrix.platform_name }}.*
-          tag_name: client@${{ env.VERSION }}
-          draft: true
-          prerelease: true
-
+  - name: Tauri publish (windows)
+    if: startsWith(github.ref, 'refs/tags/') && matrix.platform == 'windows-latest'
+    uses: tauri-apps/tauri-action@v0
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+      TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+    with:
+      projectPath: ./apps/client
+      tagName: client@${{ env.VERSION }}
+      releaseName: client@${{ env.VERSION }}
+      releaseBody: '${{ steps.changelog.outputs.changelog || "" }}'
+      releaseDraft: true
+      prerelease: true

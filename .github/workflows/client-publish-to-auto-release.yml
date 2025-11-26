@@ -76,6 +76,11 @@ jobs:
       - name: install git-cliff
         run: cargo install git-cliff || true
 
+      - name: Check documentation files
+        run: |
+          [[ -f docs/ARCHITECTURE.md ]] || { echo 'ARCHITECTURE.md missing'; exit 1; }
+          [[ -f docs/TOOLCHAIN_README.md ]] || { echo 'TOOLCHAIN_README.md missing'; exit 1; }
+
       - name: Generate changelog
         id: changelog
         shell: bash

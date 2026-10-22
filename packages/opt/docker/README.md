@@ -24,6 +24,26 @@ Network documentation](https://github.com/katzenpost/katzenpost/tree/main/docker
 functionality offers less complex local testing of ZKN mix plugins and client apps that do not
 require the appchain.
 
+### Networks
+
+`network=<file>` reads a network profile: a Make file that overrides the defaults above (node
+counts, `net_name`, log levels) and may add targets. Every target reads it, so the knobs are not
+repeated per call and plain `make` works without `-e` or Nx. Unset, the targets run the local
+network.
+
+```sh
+make network=/path/to/profile.mk start   # generate and start that network
+make network=/path/to/profile.mk stop    # stop; keeps the network directory (its keys)
+```
+
+**Logging.** `log_level` (nodes and dirauths), `rpc_proxy_log_level` and `ws_log_level` take
+DEBUG, INFO, NOTICE, WARNING or ERROR; `log_disable=true` turns node and `kpclientd` logging
+off. Logs are files in the network directory, not rotated.
+
+**Teardown.** The containers run as root, so files they write (`mixkeys/`, logs) are root's:
+`clean-network` deletes the directory from a container. Regenerating a network mints new keys,
+so every client config of the old one goes stale.
+
 ## Appchain PKI
 
 This Makefile builds and manages a network of dockerized nodes from

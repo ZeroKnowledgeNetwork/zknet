@@ -62,6 +62,16 @@ docker_args=--user ${docker_user} --volume $(kp_dir):/go/katzenpost --workdir /g
 	$(git_safe_dir) $(extra_docker_args)
 mount_net_name=-v $(kp_docker_dir)/$(net_name):/$(net_name)
 
+### network selection
+# network=<file> reads a network profile, a Make file, after the defaults
+# above: it overrides them (its own net_name included) and may add targets,
+# so every target sees the same network without repeating knobs. Unset: the
+# local network above. The command line still wins over both.
+network?=
+ifneq ($(network),)
+include $(network)
+endif
+
 ### local
 # ldflags for our binaries: upstream's ldflags_body plus the compression flag
 # and the version. Not named ldflags, which would override upstream's (and its
@@ -242,7 +252,7 @@ clean-network: stop
 # Makefiles are sources: the empty rules keep the pass-through `%` rule below
 # from trying to remake them through upstream.
 Makefile: ;
-networks/%.mk: ;
+$(network): ;
 
 # pass through all other targets to katzenpost/docker/Makefile
 %: clone-katzenpost

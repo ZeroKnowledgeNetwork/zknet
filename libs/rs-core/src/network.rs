@@ -63,7 +63,7 @@ impl std::fmt::Display for NetworkId {
     }
 }
 
-/// A client platform by its published name, e.g. `linux-x64`.
+/// A client platform by its published name, e.g. `linux-x64` or `macos-arm64`.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[serde(transparent)]
 pub struct Platform(String);
@@ -80,7 +80,8 @@ impl Platform {
         let name = match (os, arch) {
             ("linux", "aarch64") => "linux-arm64",
             ("linux", "x86_64") => "linux-x64",
-            ("macos", "aarch64") | ("macos", "x86_64") => "macos",
+            ("macos", "aarch64") => "macos-arm64",
+            ("macos", "x86_64") => "macos-x64",
             ("windows", "x86_64") => "windows-x64",
             _ => return Err(FetchError::UnsupportedPlatform(format!("{os} ({arch})"))),
         };
@@ -650,8 +651,8 @@ mod tests {
         let p = |os, arch| Platform::from_os_arch(os, arch).map(|p| p.0);
         assert_eq!(p("linux", "x86_64").unwrap(), "linux-x64");
         assert_eq!(p("linux", "aarch64").unwrap(), "linux-arm64");
-        assert_eq!(p("macos", "x86_64").unwrap(), "macos");
-        assert_eq!(p("macos", "aarch64").unwrap(), "macos");
+        assert_eq!(p("macos", "x86_64").unwrap(), "macos-x64");
+        assert_eq!(p("macos", "aarch64").unwrap(), "macos-arm64");
         assert_eq!(p("windows", "x86_64").unwrap(), "windows-x64");
         assert_eq!(
             p("plan9", "mips").unwrap_err().kind(),

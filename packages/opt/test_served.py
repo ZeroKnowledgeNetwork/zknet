@@ -43,13 +43,15 @@ class ServedTest(unittest.TestCase):
         served = self.dist / 'served'
         self.assertEqual(sorted(p.name for p in served.iterdir()), [
             'checksums.txt', 'walletshield-linux-arm64', 'walletshield-linux-x64',
-            'walletshield-macos', 'walletshield-windows-x64',
+            'walletshield-macos-arm64', 'walletshield-macos-x64', 'walletshield-windows-x64',
         ])
-        self.assertEqual((served / 'walletshield-macos').read_text(), 'darwin-universal_darwin_all')
+        # per-arch, not the universal binary: Cloudflare Pages caps a file at 25 MiB
+        self.assertEqual((served / 'walletshield-macos-arm64').read_text(), 'darwin-arm64_darwin_arm64_v8.0')
+        self.assertEqual((served / 'walletshield-macos-x64').read_text(), 'darwin-amd64_darwin_amd64_v1')
         self.assertEqual((served / 'walletshield-windows-x64').read_text(), 'windows-amd64_windows_amd64_v1')
         check = subprocess.run(['sha256sum', '-c', 'checksums.txt'], cwd=served, capture_output=True, text=True)
         self.assertEqual(check.returncode, 0, check.stdout)
-        self.assertEqual(len(check.stdout.splitlines()), 4)
+        self.assertEqual(len(check.stdout.splitlines()), 5)
 
     def test_replaces_a_previous_export(self):
         self.served()
@@ -76,6 +78,11 @@ class ContractTest(unittest.TestCase):
         config = (HERE / '.goreleaser.yaml').read_text()
         builds = set(re.findall(r'^\s+(?:- )?(?:&\w+\s+)?id: ([\w-]+)$', config, re.M))
         self.assertLessEqual(set(platforms()), builds)
+
+    def test_the_universal_binary_keeps_its_per_arch_builds(self):
+        config = (HERE / '.goreleaser.yaml').read_text()
+        universal = config.split('universal_binaries:', 1)[1].split('\n\n', 1)[0]
+        self.assertIn('replace: false', universal)
 
 
 if __name__ == '__main__':

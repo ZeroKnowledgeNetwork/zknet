@@ -14,14 +14,10 @@
         "{workspaceRoot}/packages/opt/served.sh",
         "{workspaceRoot}/packages/opt/test_served.py",
         "{workspaceRoot}/packages/opt/.goreleaser.yaml",
-        "{workspaceRoot}/apps/client/src/utils/index.ts",
-        "{workspaceRoot}/libs/rs-core/src/utils.rs"
+        "{workspaceRoot}/libs/rs-core/src/network.rs"
       ],
       "options": {
-        "commands": [
-          "go test ./...",
-          "python3 -B -m unittest discover -s ../.. -p test_served.py"
-        ],
+        "commands": ["go test ./...", "python3 -B -m unittest discover -s ../.. -p test_served.py"],
         "cwd": "{projectRoot}",
         "parallel": false
       }

@@ -23,7 +23,8 @@ FIXTURE_NETWORKS = {
     'devnet-78c3de28': {'id': 'devnet-78c3de28', 'kind': 'devnet', 'name': 'Devnet · 2026-10-23 12:00 UTC',
                         'created': '2026-10-23T12:00:00Z'},
 }
-BINARIES = ['walletshield-linux-arm64', 'walletshield-linux-x64', 'walletshield-macos', 'walletshield-windows-x64']
+BINARIES = ['walletshield-linux-arm64', 'walletshield-linux-x64', 'walletshield-macos-arm64', 'walletshield-macos-x64',
+            'walletshield-windows-x64']
 # a full config dialing a public gateway: assembly copies whatever the caller passes
 CLIENT_CONFIG = '[[PinnedGateways.Gateways]]\n  Addresses = ["tcp://203.0.113.7:30004"]\n'
 
@@ -78,7 +79,7 @@ class AssembleTest(Fixture):
         check = subprocess.run(['sha256sum', '--check', '--strict', 'checksums.txt'], cwd=assets,
                                capture_output=True, text=True)
         self.assertEqual(check.returncode, 0, check.stdout)
-        self.assertEqual(len(check.stdout.splitlines()), 6)
+        self.assertEqual(len(check.stdout.splitlines()), len(BINARIES) + 2)
 
     def test_defaults_to_the_network_services_manifest(self):
         result = subprocess.run([ASSEMBLE, '--served', self.served, '--out', self.output, 'dev-local',
@@ -105,7 +106,7 @@ class AssembleTest(Fixture):
         self.assertEqual(self.networks(), ['dev-local'])
 
     def test_refuses_binaries_that_fail_the_build_checksums(self):
-        (self.served / 'walletshield-macos').write_text('corrupted')
+        (self.served / 'walletshield-macos-arm64').write_text('corrupted')
         result = self.assemble(check=False)
         self.assertNotEqual(result.returncode, 0)
         self.assertIn('do not match their build checksums', result.stderr)

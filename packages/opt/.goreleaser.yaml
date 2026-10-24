@@ -55,10 +55,13 @@ builds:
     goos: [windows]
     env: [CC=x86_64-w64-mingw32-gcc, CXX=x86_64-w64-mingw32-g++]
 
+# The release archive ships one universal macOS binary; the clients download
+# the per-arch builds (served.sh), which Cloudflare Pages' 25 MiB file limit
+# requires: the universal binary is larger, each slice is not. So keep both.
 universal_binaries:
   - id: darwin-universal
     ids: [darwin-amd64, darwin-arm64]
-    replace: true
+    replace: false
     mod_timestamp: "{{ .CommitTimestamp }}"
 
 # UPX 5.2.1 refuses macOS binaries, so darwin stays unpacked

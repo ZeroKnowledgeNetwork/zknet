@@ -252,7 +252,7 @@ async fn an_unpublished_network_is_not_found() {
     .await
     .unwrap_err();
     assert_eq!(err.kind(), "notFound", "{err}");
-    assert_eq!(files(&layout.network_dir(&other)), Vec::<String>::new());
+    assert!(!layout.network_dir(&other).exists());
 }
 
 #[tokio::test]
@@ -294,7 +294,7 @@ async fn a_cut_first_download_leaves_nothing_cached() {
         Route::Cut(vec![9; 300_000]),
     );
     assert!(get(&layout, FetchOptions::default(), None).await.is_err());
-    assert_eq!(files(&layout.network_dir(&id())), Vec::<String>::new());
+    assert!(!layout.network_dir(&id()).exists());
     assert!(cached(&layout).is_empty());
 }
 

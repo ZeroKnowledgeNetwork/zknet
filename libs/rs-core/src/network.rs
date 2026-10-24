@@ -59,7 +59,7 @@ impl NetworkId {
 
 impl std::fmt::Display for NetworkId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(&self.0)
+        f.pad(&self.0)
     }
 }
 
@@ -99,7 +99,7 @@ impl Platform {
 
 impl std::fmt::Display for Platform {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(&self.0)
+        f.pad(&self.0)
     }
 }
 
@@ -425,6 +425,7 @@ pub async fn fetch(
         return Ok(dir);
     }
 
+    let created = !dir.exists();
     tokio::fs::create_dir_all(&dir)
         .await
         .map_err(|e| FetchError::io(&dir, e))?;
@@ -446,6 +447,9 @@ pub async fn fetch(
     if let Err(e) = staged {
         for asset in Asset::ALL {
             let _ = tokio::fs::remove_file(part_path(layout, id, asset)).await;
+        }
+        if created {
+            let _ = tokio::fs::remove_dir(&dir).await; // only if still empty
         }
         return Err(e);
     }
@@ -702,6 +706,13 @@ mod tests {
             part_path(&windows, &id, Asset::Walletshield),
             Path::new("/d/networks/devnet-1/walletshield.exe.part")
         );
+    }
+
+    #[test]
+    fn ids_and_platforms_honour_format_width() {
+        let id = NetworkId::parse("dev-1").unwrap();
+        assert_eq!(format!("[{id:<8}]"), "[dev-1   ]");
+        assert_eq!(format!("[{:>11}]", platform("linux-x64")), "[  linux-x64]");
     }
 
     #[test]

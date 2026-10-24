@@ -141,7 +141,7 @@ impl Asset {
 /// The one place that knows the published URL shape and the local directory shape.
 #[derive(Clone, Debug)]
 pub struct Layout {
-    /// The published root, e.g. `https://test.net.zknet.io`.
+    /// The published root, e.g. `https://dist.zknet.io`.
     pub base_url: String,
     /// The client's network cache: `<app data>/networks`.
     pub networks_dir: PathBuf,

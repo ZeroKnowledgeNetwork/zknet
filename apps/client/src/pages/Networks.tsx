@@ -1,18 +1,36 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import * as log from '@tauri-apps/plugin-log';
-import * as path from '@tauri-apps/api/path';
-import { exists, mkdir } from '@tauri-apps/plugin-fs';
-import { fetch } from '@tauri-apps/plugin-http';
-import { platform } from '@tauri-apps/plugin-os';
 import { Child, Command } from '@tauri-apps/plugin-shell';
-import { download } from '@tauri-apps/plugin-upload';
 import { useStore } from '../store';
 import { notifyAPIClientsOfStatusChange } from '../services/api';
-import { getNetworks, getWalletshieldListenAddress, getZKNetClientCfg } from '../utils';
+import {
+  CmdError,
+  FetchEvent,
+  NetworkEntry,
+  fetchNetwork,
+  getWalletshieldListenAddress,
+  getZKNetClientCfg,
+  listNetworks,
+} from '../utils';
 import { walletshieldSpawn } from '../utils/walletshield';
 
+// A rejected command carries a CmdError; anything else is shown as is.
+const errorText = (error: unknown) =>
+  typeof error === 'object' && error !== null && 'message' in error
+    ? (error as CmdError).message
+    : `${error}`;
+
+// "3 hours ago" for an RFC 3339 time
+const age = (created: string) => {
+  const minutes = Math.round((Date.now() - Date.parse(created)) / 60000);
+  if (Number.isNaN(minutes)) return '';
+  const rtf = new Intl.RelativeTimeFormat(undefined, { numeric: 'auto' });
+  if (Math.abs(minutes) < 60) return rtf.format(-minutes, 'minute');
+  if (Math.abs(minutes) < 60 * 24) return rtf.format(-Math.round(minutes / 60), 'hour');
+  return rtf.format(-Math.round(minutes / 60 / 24), 'day');
+};
+
 export function Networks() {
-  const [dlProgress, setDlProgress] = useState(0);
   const [networkId, setNetworkId] = useState('');
 
   const clientPid = useStore((s) => s.clientPid);
@@ -38,14 +56,28 @@ export function Networks() {
       setMessage('info', '');
       setIsConnected(true);
       setNetworkConnected(networkId);
-      setNetworks(await getNetworks());
       notifyAPIClientsOfStatusChange();
-    } catch (error: any) {
-      log.error(`${error}`);
-      setMessage('error', `${error}`);
-      consoleAddLine(`${error}`);
+    } catch (error: unknown) {
+      log.error(errorText(error));
+      setMessage('error', errorText(error));
+      consoleAddLine(errorText(error));
+    }
+    refreshNetworks();
+  }
+
+  async function refreshNetworks() {
+    try {
+      setNetworks(await listNetworks());
+    } catch (error: unknown) {
+      log.error(errorText(error));
     }
   }
+
+  // with exactly one live network and nothing chosen yet, choose it
+  useEffect(() => {
+    const live = networks.networks.filter((n) => n.listed);
+    if (networkId === '' && live.length === 1) setNetworkId(live[0].id);
+  }, [networks]);
 
   async function disconnect() {
     try {
@@ -66,75 +98,37 @@ export function Networks() {
   }
 
   async function clientStart() {
-    const { urlNetwork, walletshieldLogLevel, walletshieldThin } = await getZKNetClientCfg();
-
-    const urlClientCfg = `${urlNetwork}/${networkId}/client.toml`;
-    const urlServices = `${urlNetwork}/${networkId}/services.json`;
-    const urlWalletshield = `${urlNetwork}/${networkId}/walletshield-${platformArch}`;
-    const appLocalDataDirPath = await path.appLocalDataDir();
-    const dirNetworks = await path.join(appLocalDataDirPath, 'networks');
-    const dirNetwork = await path.join(dirNetworks, networkId);
-    const fileClientCfg = await path.join(dirNetwork, 'client.toml');
-    const fileServices = await path.join(dirNetwork, 'services.json');
-    const fileWalletshield =
-      (await path.join(dirNetwork, 'walletshield')) + (platform() === 'windows' ? '.exe' : '');
-    const updateInterval = 1; // download progress update interval
+    const { walletshieldLogLevel, walletshieldThin } = await getZKNetClientCfg();
 
     ////////////////////////////////////////////////////////////////////////
-    // check network existence
-    ////////////////////////////////////////////////////////////////////////
-    setMessage('info', `Checking network...`);
-    const response = await fetch(urlClientCfg, {
-      method: 'GET',
-      connectTimeout: 5000,
-    });
-    if (!response.ok || response.body === null) {
-      log.warn(`Failed to download client config: ${response.statusText}`);
-      throw new Error('Invalid network id (or local network error)');
-    }
-
-    ////////////////////////////////////////////////////////////////////////
-    // save the network's assets in a network-specific directory
-    ////////////////////////////////////////////////////////////////////////
-    log.debug(`local network directory: ${dirNetwork}`);
-    if (!(await exists(dirNetwork))) await mkdir(dirNetwork, { recursive: true });
-    await download(urlClientCfg, fileClientCfg);
-    await download(urlServices, fileServices);
-    setMessage('info', 'Retrieved network assets');
-
-    ////////////////////////////////////////////////////////////////////////
-    // save the network's walletshield binary
+    // ensure the network's assets are on disk (zknet_core::network)
     ////////////////////////////////////////////////////////////////////////
     // A thin-mode network is a local development build: its binary changes with
     // every rebuild, so a cached copy would be stale.
-    if (walletshieldThin || !(await exists(fileWalletshield))) {
-      setMessage('info', 'Downloading network client...');
-      await download(urlWalletshield, fileWalletshield, ({ progressTotal, total }) => {
-        const percentComplete = Math.floor((progressTotal / total) * 100);
-        if (
-          (dlProgress !== percentComplete && percentComplete % updateInterval === 0) ||
-          progressTotal === total
-        ) {
-          let msg = `Downloading client... ${percentComplete}%`;
-          if (progressTotal === total) msg = `Downloaded client for OS: ${platformArch}`;
-          setMessage('info', msg);
-          setDlProgress(() => percentComplete);
+    setMessage('info', 'Checking network...');
+    let percent = -1;
+    const onEvent = (e: FetchEvent) => {
+      if (e.data.asset !== 'walletshield') return;
+      if (e.event === 'cached') setMessage('info', 'Using the cached network client');
+      if (e.event === 'started') setMessage('info', 'Downloading network client...');
+      if (e.event === 'progress' && e.data.progress.total > 0) {
+        const { progressTotal, total } = e.data.progress;
+        const p = Math.floor((progressTotal / total) * 100);
+        if (p !== percent) {
+          percent = p;
+          setMessage('info', `Downloading client... ${p}%`);
         }
-      });
-    }
-
-    ////////////////////////////////////////////////////////////////////////
-    // prepare the walletshield binary for execution
-    ////////////////////////////////////////////////////////////////////////
-    if (platform() === 'linux' || platform() === 'macos') {
-      log.debug(`executing command: chmod +x walletshield`);
-      const output = await Command.create('chmod-walletshield', ['+x', 'walletshield'], {
-        cwd: dirNetwork,
-      }).execute();
-      if (output.code !== 0) {
-        throw new Error(`Failed to chmod+x walletshield: ${output.stderr}`);
       }
-    }
+      if (e.event === 'finished') setMessage('info', `Downloaded client for OS: ${platformArch}`);
+    };
+    const dirNetwork = await fetchNetwork(networkId, walletshieldThin, onEvent).catch(
+      (error: CmdError) => {
+        log.warn(`network fetch: ${error.kind}: ${error.message}`);
+        throw new Error(
+          error.kind === 'notFound' ? `Network ${networkId} is not published` : error.message,
+        );
+      },
+    );
 
     ////////////////////////////////////////////////////////////////////////
     // execute the walletshield client with the client.toml
@@ -165,6 +159,7 @@ export function Networks() {
       setIsStopping(false);
       setNetworkConnected('');
       notifyAPIClientsOfStatusChange();
+      refreshNetworks();
     });
 
     command.on('error', (e) => log.error(o(e)));
@@ -195,7 +190,7 @@ export function Networks() {
       {isPlatformSupported &&
         (clientPid === 0 ? (
           <>
-            <p>Enter a network identifier for access.</p>
+            <p>Choose a network, or enter its identifier.</p>
             <form
               className="join"
               onSubmit={(e) => {
@@ -209,21 +204,24 @@ export function Networks() {
               <input
                 className="input validator focus:outline-none join-item"
                 onChange={(e) => setNetworkId(e.currentTarget.value)}
+                value={networkId}
                 placeholder="Enter a network id..."
-                maxLength={36}
-                minLength={5}
+                maxLength={64}
+                pattern="[a-z0-9][a-z0-9._\-]*"
+                title="lowercase letters, digits, '.', '_' and '-'"
                 required
-                list="networks"
               />
-              <datalist id="networks">
-                {networks.map((n) => (
-                  <option key={n} value={n} />
-                ))}
-              </datalist>
               <button className="btn btn-primary join-item" type="submit">
                 Connect
               </button>
             </form>
+            <NetworkPicker
+              entries={networks.networks}
+              indexError={networks.indexError}
+              selected={networkId}
+              onSelect={setNetworkId}
+              onRefresh={refreshNetworks}
+            />
           </>
         ) : (
           <>
@@ -233,6 +231,63 @@ export function Networks() {
             </button>
           </>
         ))}
+    </div>
+  );
+}
+
+function NetworkPicker(props: {
+  entries: NetworkEntry[];
+  indexError: string | null;
+  selected: string;
+  onSelect: (id: string) => void;
+  onRefresh: () => void;
+}) {
+  const live = props.entries.filter((n) => n.listed);
+  const local = props.entries.filter((n) => !n.listed);
+  const row = (n: NetworkEntry) => (
+    <li key={n.id}>
+      <button
+        type="button"
+        className={`flex justify-between ${props.selected === n.id ? 'menu-active' : ''} ${n.listed ? '' : 'opacity-60'}`}
+        onClick={() => props.onSelect(n.id)}
+      >
+        <span>
+          {n.listed?.name ?? n.id}
+          {n.listed && n.listed.name !== n.id && (
+            <span className="ml-2 text-xs opacity-60">{n.id}</span>
+          )}
+        </span>
+        <span className="text-xs opacity-60">
+          {n.listed ? age(n.listed.created) : 'not listed — may be retired'}
+          {n.listed && n.cached && <span className="badge badge-xs ml-2">cached</span>}
+        </span>
+      </button>
+    </li>
+  );
+
+  return (
+    <div className="w-full max-w-md">
+      {props.indexError && (
+        <p className="text-xs opacity-70 mb-2" title={props.indexError}>
+          Couldn't load the network list — showing networks on this device.
+        </p>
+      )}
+      <ul className="menu w-full bg-base-200 rounded-box">
+        <li className="menu-title flex flex-row justify-between items-center">
+          <span>Live networks</span>
+          <button
+            type="button"
+            className="btn btn-ghost btn-xs"
+            onClick={props.onRefresh}
+            title="Reload the network list"
+          >
+            ↻
+          </button>
+        </li>
+        {live.length > 0 ? live.map(row) : <li className="disabled px-4 text-xs">None listed</li>}
+        {local.length > 0 && <li className="menu-title">On this device</li>}
+        {local.map(row)}
+      </ul>
     </div>
   );
 }

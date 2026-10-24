@@ -91,3 +91,22 @@ describe('walletshield spawn', () => {
     expect(spawnScopes(enabledCapabilities()).some((s) => s.name === scope)).toBe(false);
   });
 });
+
+// Network assets are fetched in Rust (zknet_core::network through the
+// network_fetch command), so the webview holds no network or download grant.
+describe('network access', () => {
+  const identifiers = (capabilities: Capability[]) =>
+    capabilities
+      .flatMap((c) => c.permissions)
+      .map((p) => (typeof p === 'string' ? p : p.identifier));
+
+  it.each([
+    ['production', enabledCapabilities()],
+    ['dev-local', enabledCapabilities(devLocal)],
+  ])('%s grants no http, upload or chmod access', (_, capabilities) => {
+    const ids = identifiers(capabilities);
+    expect(ids.filter((id) => /^(http|upload):/.test(id))).toEqual([]);
+    expect(ids).not.toContain('shell:allow-execute');
+    expect(ids.filter((id) => /^fs:allow-(mkdir|write|exists|read-dir)/.test(id))).toEqual([]);
+  });
+});

@@ -1,7 +1,6 @@
-import { BaseDirectory, readDir, readTextFile } from '@tauri-apps/plugin-fs';
+import { BaseDirectory, readTextFile } from '@tauri-apps/plugin-fs';
 import { path } from '@tauri-apps/api';
-import { arch, platform } from '@tauri-apps/plugin-os';
-import { invoke } from '@tauri-apps/api/core';
+import { Channel, invoke } from '@tauri-apps/api/core';
 import { useStore } from '../store';
 
 // This matches exactly what is in tauri.conf.json:plugins.zknet.
@@ -26,30 +25,47 @@ export const getWalletshieldListenAddress = async (): Promise<string> => {
   return cfg.defaultWalletshieldListenAddress;
 };
 
-// Map the os platform and architecture to a supported ZKN format
-export const getPlatformArch = (): string => {
-  const platArch = `${platform()}-${arch()}`;
-  switch (platArch) {
-    case 'linux-aarch64':
-      return 'linux-arm64';
-    case 'linux-x86_64':
-      return 'linux-x64';
-    case 'macos-aarch64':
-    case 'macos-x86_64':
-      return 'macos';
-    case 'windows-x86_64':
-      return 'windows-x64';
-    default:
-      throw new Error(`Unsupported Operating System: ${platArch}`);
-  }
+// The published platform name of this build, e.g. `linux-x64`
+export const getPlatform = (): Promise<string> => invoke<string>('platform');
+
+// zknet_core::network, serialized: the network list and the asset fetch
+export type NetworkEntry = {
+  id: string;
+  listed: { id: string; kind: string; name: string; created: string } | null;
+  cached: boolean;
 };
 
-// Get networks with previously downloaded assets
-export const getNetworks = async () => {
-  const entries = await readDir('networks', {
-    baseDir: BaseDirectory.AppLocalData,
-  });
-  return entries.filter((i) => i.isDirectory).map((i) => i.name);
+export type Listing = { networks: NetworkEntry[]; indexError: string | null };
+
+export type Asset = 'clientToml' | 'servicesJson' | 'walletshield';
+
+export type FetchEvent =
+  | { event: 'started'; data: { asset: Asset; total: number } }
+  | {
+      event: 'progress';
+      data: {
+        asset: Asset;
+        progress: { progress: number; progressTotal: number; total: number; transferSpeed: number };
+      };
+    }
+  | { event: 'cached'; data: { asset: Asset } }
+  | { event: 'finished'; data: { asset: Asset } };
+
+// Rejections of the network commands: `kind` is zknet_core's FetchError::kind()
+export type CmdError = { kind: string; message: string };
+
+// Live networks from the index merged with those cached on this device
+export const listNetworks = (): Promise<Listing> => invoke<Listing>('networks_list');
+
+// Ensure a network's assets are on disk; resolves to the network's directory
+export const fetchNetwork = (
+  networkId: string,
+  refresh: boolean,
+  onEvent: (e: FetchEvent) => void,
+): Promise<string> => {
+  const channel = new Channel<FetchEvent>();
+  channel.onmessage = onEvent;
+  return invoke<string>('network_fetch', { networkId, refresh, onEvent: channel });
 };
 
 export const readNetworkAssetFile = async (networkId: string, asset: string) => {

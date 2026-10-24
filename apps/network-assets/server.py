@@ -21,7 +21,7 @@ import urllib.request
 from pathlib import Path
 
 # The one definition of the local asset endpoint. The desktop's dev-local Tauri
-# overlay must repeat it literally for its HTTP capability; tests check they agree.
+# overlay must repeat it literally as its urlNetwork; tests check they agree.
 HOST = '127.0.0.1'
 PORT = 8765
 NETWORK_ID = 'dev-local'

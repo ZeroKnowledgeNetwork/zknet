@@ -4,7 +4,7 @@
   "projectType": "application",
   "sourceRoot": "apps/client/src-tauri/src",
   "tags": [],
-  "implicitDependencies": ["@zknet/client"],
+  "implicitDependencies": ["@zknet/client", "zknet_core"],
   "namedInputs": {
     "rustSources": [
       "{projectRoot}/Cargo.toml",
@@ -26,7 +26,11 @@
     "test": {
       "executor": "nx:run-commands",
       "cache": true,
-      "inputs": ["rustSources", "cargoWorkspace"],
+      "inputs": [
+        "rustSources",
+        { "input": "rustSources", "projects": ["zknet_core"] },
+        "cargoWorkspace"
+      ],
       "options": {
         "command": "cargo test --locked --target-dir dist/target -p zkn-client"
       }
@@ -34,7 +38,11 @@
     "lint": {
       "executor": "nx:run-commands",
       "cache": true,
-      "inputs": ["rustSources", "cargoWorkspace"],
+      "inputs": [
+        "rustSources",
+        { "input": "rustSources", "projects": ["zknet_core"] },
+        "cargoWorkspace"
+      ],
       "options": {
         "command": "cargo clippy --locked --target-dir dist/target -p zkn-client --all-targets"
       }

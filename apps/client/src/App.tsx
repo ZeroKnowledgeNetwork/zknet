@@ -6,7 +6,7 @@ import { arch, platform } from '@tauri-apps/plugin-os';
 import { Footer, Header, Message } from './components';
 import { Networks, Settings, WalletShield } from './pages';
 import { useStore } from './store';
-import { getNetworks, getPlatformArch } from './utils';
+import { getPlatform, listNetworks } from './utils';
 import './App.css';
 
 function App() {
@@ -18,21 +18,21 @@ function App() {
 
   // run once on startup (twice in dev mode)
   useEffect(() => {
-    try {
-      (async () => {
+    (async () => {
+      try {
         const name = await app.getName();
         const v = 'v' + (await app.getVersion());
         log.info(`Starting ${name} ${v} on ${platform()}-${arch()}`);
 
         setAppVersion(v);
-        setPlatformArch(getPlatformArch());
+        setPlatformArch(await getPlatform());
         setIsPlatformSupported(true);
-        setNetworks(await getNetworks());
-      })();
-    } catch (error: any) {
-      log.error(`${error}`);
-      setMessage('error', `${error}`);
-    }
+        setNetworks(await listNetworks());
+      } catch (error: any) {
+        log.error(`${error?.message ?? error}`);
+        setMessage('error', `${error?.message ?? error}`);
+      }
+    })();
   }, []);
 
   return (

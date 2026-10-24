@@ -66,11 +66,10 @@ class ServedTest(unittest.TestCase):
 
 class ContractTest(unittest.TestCase):
     def test_platform_names_match_the_clients(self):
-        desktop = (WORKSPACE / 'apps/client/src/utils/index.ts').read_text()
+        # both clients take their platform from zknet_core::network::Platform
         rust = (WORKSPACE / 'libs/rs-core/src/network.rs').read_text()
         mapping = rust.split('pub fn from_os_arch', 1)[1].split('_ => return', 1)[0]
         names = set(platforms().values())
-        self.assertEqual(set(re.findall(r"return '([a-z0-9-]+)';", desktop)), names)
         self.assertEqual(set(re.findall(r'=> "([a-z0-9-]+)",', mapping)), names)
 
     def test_platforms_are_goreleaser_build_ids(self):

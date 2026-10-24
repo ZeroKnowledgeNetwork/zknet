@@ -168,9 +168,6 @@ class ConsumerContractTest(unittest.TestCase):
     def test_desktop_overlay_targets_this_server(self):
         overlay = json.loads((server.WORKSPACE / 'apps/client/src-tauri/tauri.dev-local.conf.json').read_text())
         self.assertEqual(overlay['plugins']['zknet']['urlNetwork'], server.BASE_URL)
-        (capability,) = [c for c in overlay['app']['security']['capabilities'] if isinstance(c, dict)]
-        urls = [a['url'] for p in capability['permissions'] if p['identifier'] == 'http:default' for a in p['allow']]
-        self.assertEqual(urls, [f'{server.BASE_URL}/*/client.toml'])
 
     def test_server_binds_loopback_only(self):
         self.assertEqual(server.HOST, '127.0.0.1')

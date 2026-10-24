@@ -7,13 +7,9 @@
         "desktop-capability",
         {
           "identifier": "dev-local",
-          "description": "Development only: local network assets and thin-mode WalletShield",
+          "description": "Development only: thin-mode WalletShield",
           "windows": ["main"],
           "permissions": [
-            {
-              "identifier": "http:default",
-              "allow": [{ "url": "http://127.0.0.1:8765/*/client.toml" }]
-            },
             {
               "identifier": "shell:allow-spawn",
               "allow": [
@@ -22,11 +18,15 @@
                   "cmd": "walletshield",
                   "args": [
                     "-listen",
-                    { "validator": "^(\\S*:\\d+)$" },
+                    {
+                      "validator": "^(\\S*:\\d+)$"
+                    },
                     "-config",
                     "client.toml",
                     "-log_level",
-                    { "validator": "^(DEBUG|INFO|WARN|ERROR)$" },
+                    {
+                      "validator": "^(DEBUG|INFO|WARN|ERROR)$"
+                    },
                     "-thin"
                   ],
                   "sidecar": false

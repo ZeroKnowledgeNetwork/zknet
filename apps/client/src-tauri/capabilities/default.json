@@ -13,39 +13,11 @@
     "shell:allow-kill",
     "shell:default",
     "store:default",
-    "upload:default",
-    {
-      "identifier": "fs:allow-exists",
-      "allow": [{ "path": "$APPLOCALDATA/**" }]
-    },
-    {
-      "identifier": "fs:allow-mkdir",
-      "allow": [{ "path": "$APPLOCALDATA/**" }]
-    },
-    {
-      "identifier": "fs:allow-read-dir",
-      "allow": [{ "path": "$APPLOCALDATA/**" }]
-    },
     {
       "identifier": "fs:allow-read-text-file",
-      "allow": [{ "path": "$APPLOCALDATA/networks/**" }]
-    },
-    {
-      "identifier": "http:default",
       "allow": [
         {
-          "url": "https://test.net.zknet.io/*/client.toml"
-        }
-      ]
-    },
-    {
-      "identifier": "shell:allow-execute",
-      "allow": [
-        {
-          "name": "chmod-walletshield",
-          "cmd": "chmod",
-          "args": ["+x", "walletshield"],
-          "sidecar": false
+          "path": "$APPLOCALDATA/networks/**"
         }
       ]
     },
@@ -57,11 +29,15 @@
           "cmd": "walletshield",
           "args": [
             "-listen",
-            { "validator": "^(\\S*:\\d+)$" },
+            {
+              "validator": "^(\\S*:\\d+)$"
+            },
             "-config",
             "client.toml",
             "-log_level",
-            { "validator": "^(DEBUG|INFO|WARN|ERROR)$" }
+            {
+              "validator": "^(DEBUG|INFO|WARN|ERROR)$"
+            }
           ],
           "sidecar": false
         }

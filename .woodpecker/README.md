@@ -4,12 +4,12 @@ Local CI and distribution builds on the Woodpecker docker backend, run with
 `woodpecker-cli exec` (Woodpecker 3.19). No server is needed and nothing runs
 docker-in-docker: each step's image is the toolchain.
 
-| Pipeline    | Does                                                                                                                      |
-| ----------- | ------------------------------------------------------------------------------------------------------------------------- |
-| `ci.yaml`   | The checks of `.github/workflows/ci.yml`: `nx format:check` and `nx run-many -t lint test build typecheck`                |
-| `dist.yaml` | WalletShield and the CLI for linux-amd64, linux-arm64, darwin-universal and windows-amd64, plus the Linux desktop bundles |
-| `lib.sh`    | Step setup both pipelines source: pinned toolchains, caches, the checkout                                                 |
-| `run`       | The entry point: `woodpecker-cli exec` with the host cache directory mounted                                              |
+| Pipeline    | Does                                                                                                                                                                                                                                                                                               |
+| ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ci.yaml`   | The checks of `.github/workflows/ci.yml`: `nx format:check` and `nx run-many -t lint test build typecheck`                                                                                                                                                                                         |
+| `dist.yaml` | WalletShield for linux-amd64, linux-arm64, darwin-amd64, darwin-arm64 and windows-amd64 (the clients' download export, `served/`; the release rung's archive keeps a darwin-universal binary); the CLI for linux-amd64, linux-arm64, darwin-universal and windows-amd64; the Linux desktop bundles |
+| `lib.sh`    | Step setup both pipelines source: pinned toolchains, caches, the checkout                                                                                                                                                                                                                          |
+| `run`       | The entry point: `woodpecker-cli exec` with the host cache directory mounted                                                                                                                                                                                                                       |
 
 ## Run
 

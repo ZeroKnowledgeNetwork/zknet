@@ -1,13 +1,21 @@
 #!/usr/bin/env bash
-# Assemble one network's client assets in the layout the clients download:
+# Assemble one network's client assets in the layout the clients download, and
+# list it in the index (index.sh):
 #
-#   <out>/<network_id>/{client.toml,services.json,walletshield-<platform>,checksums.txt}
+#   <out>/<network_id>/{client.toml,services.json,walletshield-<platform>,checksums.txt,network.json}
+#   <out>/{networks.json,_headers,404.html}
 #
-#   assemble.sh [--served DIR] [--out DIR] <network_id> <client.toml> [<services.json>]
+#   assemble.sh [--served DIR] [--out DIR] [--kind KIND] [--name NAME]
+#               <network_id> <client.toml> [<services.json>]
+#   assemble.sh [--out DIR] --remove <network_id>
 #
 #   --served   the WalletShield dist export, served/ of `walletshield:dist`
 #              (default: dist/woodpecker/walletshield/served)
 #   --out      the directory of networks (default: generated/ beside this script)
+#   --kind     local, devnet, testnet or mainnet (default: local for dev-local,
+#              else the id's prefix before its first '-')
+#   --name     the name clients show (default: the network id)
+#   --remove   delete a network and drop it from the index
 #   services.json defaults to the network manifest, packages/opt/docker/services.json
 #
 # client.toml is copied verbatim: the caller picks the config its clients run.
@@ -19,7 +27,11 @@ here=$(cd "$(dirname "$0")" && pwd)
 workspace=$(cd "$here/../.." && pwd)
 served=$workspace/dist/woodpecker/walletshield/served
 out=$here/generated
-usage='usage: assemble.sh [--served DIR] [--out DIR] <network_id> <client.toml> [<services.json>]'
+kind=
+name=
+remove=
+usage='usage: assemble.sh [--served DIR] [--out DIR] [--kind KIND] [--name NAME] <network_id> <client.toml> [<services.json>]
+       assemble.sh [--out DIR] --remove <network_id>'
 
 die() {
   echo "assemble: $*" >&2
@@ -30,18 +42,43 @@ while [ $# -gt 0 ]; do
   case $1 in
     --served) served=${2:?$usage}; shift 2 ;;
     --out) out=${2:?$usage}; shift 2 ;;
+    --kind) kind=${2:?$usage}; shift 2 ;;
+    --name) name=${2:?$usage}; shift 2 ;;
+    --remove) remove=1; shift ;;
     -h | --help) echo "$usage"; exit 0 ;;
     -*) die "unknown option $1; $usage" ;;
     *) break ;;
   esac
 done
+# the clients' NetworkId (libs/rs-core network.rs): one plain lowercase path
+# component, not a CLI subcommand; dot names are staging
+valid_id() {
+  [[ $1 =~ ^[a-z0-9][a-z0-9._-]{0,63}$ ]] && [[ ! $1 =~ ^(list|connect|help)$ ]]
+}
+
+if [ -n "$remove" ]; then
+  [ $# = 1 ] || die "$usage"
+  valid_id "$1" || die "invalid network id: '$1'"
+  [ -d "$out/$1" ] || die "no network $1 in $out"
+  rm -rf "${out:?}/$1"
+  echo "Removed $out/$1"
+  exec "$here/index.sh" --out "$out"
+fi
+
 [ $# -ge 2 ] && [ $# -le 3 ] || die "$usage"
 network_id=$1
 client_config=$2
 services=${3:-$workspace/packages/opt/docker/services.json}
 
-# one plain path component, as the clients require; dot names are staging
-[[ $network_id =~ ^[A-Za-z0-9][A-Za-z0-9._-]*$ ]] || die "invalid network id: '$network_id'"
+valid_id "$network_id" || die "invalid network id: '$network_id'"
+if [ -z "$kind" ]; then
+  if [ "$network_id" = dev-local ]; then kind=local; else kind=${network_id%%-*}; fi
+fi
+[[ $kind =~ ^(local|devnet|testnet|mainnet)$ ]] ||
+  die "unknown network kind '$kind': pass --kind local|devnet|testnet|mainnet"
+name=${name:-$network_id}
+[[ $name =~ ^[^[:cntrl:]]+$ ]] || die "invalid network name: '$name'"
+json() { local s=${1//\\/\\\\}; printf '"%s"' "${s//\"/\\\"}"; }
 [ -f "$client_config" ] || die "no client config at $client_config"
 [ -f "$services" ] || die "no services manifest at $services"
 [ -f "$served/checksums.txt" ] ||
@@ -61,6 +98,9 @@ done <"$served/checksums.txt"
 cp "$served/checksums.txt" "$staging/checksums.txt"
 (cd "$staging" && sha256sum client.toml services.json >>checksums.txt &&
   sha256sum --check --quiet --strict checksums.txt)
+printf '{"id": %s, "kind": %s, "name": %s, "created": %s}\n' \
+  "$(json "$network_id")" "$(json "$kind")" "$(json "$name")" "$(json "$(date -u +%FT%TZ)")" \
+  >"$staging/network.json"
 
 target=$out/$network_id
 previous=$out/.previous-$network_id
@@ -74,3 +114,4 @@ echo "  client.toml    <- $client_config ($(modified "$client_config"))"
 echo "  services.json  <- $services ($(modified "$services"))"
 echo "  walletshield-* <- $served ($(modified "$served/checksums.txt"))"
 echo "Assembled $target"
+"$here/index.sh" --out "$out"

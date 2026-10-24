@@ -1,0 +1,5 @@
+# Cloudflare Pages response headers for a published network directory.
+# The index changes with every deploy; clients must revalidate it.
+/networks.json
+  Cache-Control: public, max-age=0, must-revalidate
+  Access-Control-Allow-Origin: *

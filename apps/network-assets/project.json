@@ -36,6 +36,8 @@
       "inputs": [
         "{projectRoot}/*.py",
         "{projectRoot}/*.sh",
+        "{projectRoot}/site/**",
+        "{projectRoot}/fixtures/**",
         "{workspaceRoot}/packages/opt/docker/services.json",
         "{workspaceRoot}/apps/client/src-tauri/*.json"
       ],

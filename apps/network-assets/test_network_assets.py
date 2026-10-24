@@ -15,6 +15,14 @@ from unittest import mock
 import server
 
 ASSEMBLE = server.PROJECT / 'assemble.sh'
+INDEX = server.PROJECT / 'index.sh'
+FIXTURE = server.PROJECT / 'fixtures' / 'networks.json'
+# the network.json lines behind FIXTURE, which the clients' tests parse
+FIXTURE_NETWORKS = {
+    'dev-local': {'id': 'dev-local', 'kind': 'local', 'name': 'dev-local', 'created': '2026-10-23T08:00:00Z'},
+    'devnet-78c3de28': {'id': 'devnet-78c3de28', 'kind': 'devnet', 'name': 'Devnet · 2026-10-23 12:00 UTC',
+                        'created': '2026-10-23T12:00:00Z'},
+}
 BINARIES = ['walletshield-linux-arm64', 'walletshield-linux-x64', 'walletshield-macos', 'walletshield-windows-x64']
 # a full config dialing a public gateway: assembly copies whatever the caller passes
 CLIENT_CONFIG = '[[PinnedGateways.Gateways]]\n  Addresses = ["tcp://203.0.113.7:30004"]\n'
@@ -43,15 +51,21 @@ class Fixture(unittest.TestCase):
         self.services.write_text('{"RPCEndpoints": []}\n')
         self.output = self.root / 'generated'
 
-    def assemble(self, network_id='dev-local', *extra, check=True):
-        result = subprocess.run(
-            [ASSEMBLE, '--served', self.served, '--out', self.output, network_id,
-             self.client_config, self.services, *extra],
-            capture_output=True, text=True,
-        )
+    def assemble(self, network_id='dev-local', *extra, options=(), check=True):
+        return self.run_script(ASSEMBLE, '--served', self.served, '--out', self.output, *options,
+                               network_id, self.client_config, self.services, *extra, check=check)
+
+    def run_script(self, *args, check=True):
+        result = subprocess.run(args, capture_output=True, text=True)
         if check and result.returncode:
             self.fail(result.stderr)
         return result
+
+    def networks(self):
+        return sorted(p.name for p in self.output.iterdir() if p.is_dir())
+
+    def index(self):
+        return json.loads((self.output / 'networks.json').read_text())
 
 
 class AssembleTest(Fixture):
@@ -59,7 +73,7 @@ class AssembleTest(Fixture):
         self.assemble()
         assets = self.output / 'dev-local'
         self.assertEqual(sorted(p.name for p in assets.iterdir()),
-                         ['checksums.txt', 'client.toml', 'services.json', *BINARIES])
+                         ['checksums.txt', 'client.toml', 'network.json', 'services.json', *BINARIES])
         self.assertEqual((assets / 'client.toml').read_text(), CLIENT_CONFIG)
         check = subprocess.run(['sha256sum', '--check', '--strict', 'checksums.txt'], cwd=assets,
                                capture_output=True, text=True)
@@ -78,7 +92,7 @@ class AssembleTest(Fixture):
         first = {p.name: p.read_bytes() for p in (self.output / 'dev-local').iterdir()}
         self.client_config.write_text(CLIENT_CONFIG.replace('203.0.113.7', '203.0.113.8'))
         self.assemble('devnet-test')
-        self.assertEqual(sorted(p.name for p in self.output.iterdir()), ['dev-local', 'devnet-test'])
+        self.assertEqual(self.networks(), ['dev-local', 'devnet-test'])
         self.assertEqual({p.name: p.read_bytes() for p in (self.output / 'dev-local').iterdir()}, first)
         self.assertIn('203.0.113.8', (self.output / 'devnet-test' / 'client.toml').read_text())
 
@@ -88,7 +102,7 @@ class AssembleTest(Fixture):
         stale.write_bytes(b'stale')
         self.assemble()
         self.assertFalse(stale.exists())
-        self.assertEqual(sorted(p.name for p in self.output.iterdir()), ['dev-local'])
+        self.assertEqual(self.networks(), ['dev-local'])
 
     def test_refuses_binaries_that_fail_the_build_checksums(self):
         (self.served / 'walletshield-macos').write_text('corrupted')
@@ -108,11 +122,69 @@ class AssembleTest(Fixture):
         self.assertIn('no client config', self.assemble(check=False).stderr)
 
     def test_refuses_network_ids_that_are_not_one_plain_name(self):
-        for network_id in ['../escape', 'a/b', '.hidden', '']:
+        for network_id in ['../escape', 'a/b', '.hidden', '', 'Dev', 'list', 'connect', 'help', 'a' * 65]:
             with self.subTest(network_id=network_id):
                 result = self.assemble(network_id, check=False)
                 self.assertIn('invalid network id', result.stderr)
         self.assertFalse(self.output.exists())
+
+
+class IndexTest(Fixture):
+    def test_lists_every_assembled_network_newest_first(self):
+        self.assemble('dev-local')
+        self.assemble('devnet-a', options=['--name', 'Devnet "A" \\ one'])
+        index = self.index()
+        self.assertEqual(index['schema'], 1)
+        self.assertEqual([n['id'] for n in index['networks']], ['devnet-a', 'dev-local'])
+        self.assertEqual([n['kind'] for n in index['networks']], ['devnet', 'local'])
+        self.assertEqual(index['networks'][0]['name'], 'Devnet "A" \\ one')
+        self.assertEqual(index['networks'][1]['name'], 'dev-local')
+        self.assertRegex(index['networks'][0]['created'], r'^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ$')
+
+    def test_publishes_pages_headers_and_a_real_404(self):
+        self.assemble()
+        headers = (self.output / '_headers').read_text()
+        self.assertIn('/networks.json\n  Cache-Control: public, max-age=0, must-revalidate', headers)
+        self.assertTrue((self.output / '404.html').is_file())
+
+    def test_remove_drops_the_network_and_its_entry(self):
+        self.assemble('dev-local')
+        self.assemble('devnet-a')
+        self.run_script(ASSEMBLE, '--out', self.output, '--remove', 'devnet-a')
+        self.assertEqual(self.networks(), ['dev-local'])
+        self.assertEqual([n['id'] for n in self.index()['networks']], ['dev-local'])
+        result = self.run_script(ASSEMBLE, '--out', self.output, '--remove', 'devnet-a', check=False)
+        self.assertIn('no network devnet-a', result.stderr)
+
+    def test_an_empty_directory_has_an_empty_index(self):
+        self.output.mkdir()
+        self.run_script(INDEX, '--out', self.output)
+        self.assertEqual(self.index(), {'schema': 1, 'networks': []})
+
+    def test_skips_staging_directories(self):
+        self.assemble()
+        staging = self.output / '.assemble-devnet-x.abc'
+        staging.mkdir()
+        (staging / 'network.json').write_text(json.dumps(FIXTURE_NETWORKS['devnet-78c3de28']) + '\n')
+        self.run_script(INDEX, '--out', self.output)
+        self.assertEqual([n['id'] for n in self.index()['networks']], ['dev-local'])
+
+    def test_refuses_an_unknown_kind_or_name(self):
+        result = self.assemble('lab-1', check=False)
+        self.assertIn('pass --kind', result.stderr)
+        result = self.assemble('devnet-1', options=['--kind', 'lab'], check=False)
+        self.assertIn("unknown network kind 'lab'", result.stderr)
+        result = self.assemble('devnet-1', options=['--name', 'a\nb'], check=False)
+        self.assertIn('invalid network name', result.stderr)
+        self.assertFalse((self.output / 'devnet-1').exists())
+
+    def test_the_client_fixture_is_what_index_writes(self):
+        self.output.mkdir()
+        for network_id, entry in FIXTURE_NETWORKS.items():
+            (self.output / network_id).mkdir()
+            (self.output / network_id / 'network.json').write_text(json.dumps(entry, ensure_ascii=False) + '\n')
+        self.run_script(INDEX, '--out', self.output)
+        self.assertEqual((self.output / 'networks.json').read_text(), FIXTURE.read_text())
 
 
 class ServeTest(Fixture):
@@ -139,6 +211,10 @@ class ServeTest(Fixture):
         (other / 'dev-local' / 'client.toml').write_text(CLIENT_CONFIG + '# another network\n')
         with self.assertRaisesRegex(server.AssetError, 'different client.toml'):
             server.ready(other, self.url, timeout=2)
+
+    def test_serves_the_index(self):
+        with urllib.request.urlopen(f'{self.url}/networks.json') as response:
+            self.assertEqual([n['id'] for n in json.load(response)['networks']], ['dev-local'])
 
     def test_does_not_list_directories(self):
         with self.assertRaises(urllib.error.HTTPError) as error:

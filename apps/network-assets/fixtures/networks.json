@@ -1,0 +1,7 @@
+{
+  "schema": 1,
+  "networks": [
+    {"id": "devnet-78c3de28", "kind": "devnet", "name": "Devnet · 2026-10-23 12:00 UTC", "created": "2026-10-23T12:00:00Z"},
+    {"id": "dev-local", "kind": "local", "name": "dev-local", "created": "2026-10-23T08:00:00Z"}
+  ]
+}

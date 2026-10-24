@@ -17,7 +17,7 @@ use tempfile::TempDir;
 
 use zknet_core::network::{
     cached, fetch, fetch_index, http_client, list, Asset, FetchError, FetchEvent, FetchOptions,
-    Layout, NetworkId, OnFetchEvent, Platform,
+    Layout, NetworkId, NetworkKind, OnFetchEvent, Platform,
 };
 
 type Body = BoxBody<Bytes, std::io::Error>;
@@ -408,6 +408,24 @@ async fn the_index_rejects_another_schema() {
         .unwrap_err();
     assert_eq!(err.kind(), "index");
     assert!(err.to_string().contains("unsupported schema 2"));
+}
+
+/// The index `apps/network-assets` generates parses as this client reads it.
+#[tokio::test]
+async fn the_generated_index_fixture_parses() {
+    let fixture = std::fs::read(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../apps/network-assets/fixtures/networks.json"
+    ))
+    .unwrap();
+    let (server, layout, _cache) = published().await;
+    server.route("/networks.json", Route::Ok(fixture));
+    let index = fetch_index(&http_client().unwrap(), &layout).await.unwrap();
+    let ids: Vec<&str> = index.networks.iter().map(|n| n.id.as_str()).collect();
+    assert_eq!(ids, ["devnet-78c3de28", "dev-local"]);
+    assert_eq!(index.networks[0].kind, NetworkKind::Devnet);
+    assert_eq!(index.networks[1].kind, NetworkKind::Local);
+    assert_eq!(index.networks[0].name, "Devnet · 2026-10-23 12:00 UTC");
 }
 
 #[tokio::test]

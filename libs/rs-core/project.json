@@ -23,7 +23,12 @@
     "test": {
       "executor": "nx:run-commands",
       "cache": true,
-      "inputs": ["rustSources", "^rustSources", "cargoWorkspace"],
+      "inputs": [
+        "rustSources",
+        "^rustSources",
+        "cargoWorkspace",
+        "{workspaceRoot}/apps/network-assets/fixtures/**"
+      ],
       "options": {
         "command": "cargo test --locked --target-dir dist/target -p zknet_core"
       }

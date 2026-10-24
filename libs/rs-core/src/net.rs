@@ -13,6 +13,7 @@ use tokio::io::{AsyncReadExt, AsyncWrite, AsyncWriteExt};
 
 /// Progress event (follows Tauri upload plugin API)
 #[derive(Debug, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct ProgressPayload {
     /// Bytes in this chunk
     pub progress: u64,

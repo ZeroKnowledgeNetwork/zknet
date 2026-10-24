@@ -1,6 +1,6 @@
 use anyhow::Result;
 use clap::Parser;
-use zknet_core::{context::AppContext, network_connect, utils::get_platform_arch};
+use zknet_core::{context::AppContext, network::Platform, network_connect};
 
 const APP_NAME: &str = env!("CARGO_PKG_NAME");
 const VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -25,10 +25,10 @@ async fn main() -> Result<()> {
     let cli = Cli::parse();
 
     let app_name = APP_NAME.replace('_', "-");
-    let platform_arch = get_platform_arch().expect("Unsupported platform or architecture");
-    println!("Starting {app_name} v{VERSION} on {platform_arch}");
+    let platform = Platform::current()?;
+    println!("Starting {app_name} v{VERSION} on {platform}");
 
-    let mut ctx = AppContext::new(&app_name, CONFIG_JSON, platform_arch);
+    let mut ctx = AppContext::new(&app_name, CONFIG_JSON, platform);
     if let Some(url) = cli.network_url {
         ctx.config.url_network = url;
     }

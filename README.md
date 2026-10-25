@@ -150,13 +150,17 @@ avoids retagging an image someone else built. The default is `alpine`.
 
 With the local mixnet running (`mixnet:start`, `mixnet:ready`) and a current WalletShield
 dist (`.woodpecker/run dist`), each client target stages and serves that network's assets
-on `127.0.0.1:8765`, then connects in WalletShield thin mode through the host-exposed
-client daemon:
+on `127.0.0.1:8765` and launches the client with it as its source. `dev-local` publishes a
+thin client config, so WalletShield dials the host-exposed client daemon:
 
 ```sh
-pnpm nx run zknet_client_cli:dev-local         # headless; WalletShield on :7070
-pnpm nx run @zknet/client:desktop-dev-local    # desktop; connect to network id `dev-local`
+pnpm nx run zknet_client_cli:dev-local -- connect dev-local   # headless; WalletShield on :7070
+pnpm nx run zknet_client_cli:dev-local -- list                # every known network, with its source
+pnpm nx run @zknet/client:desktop-dev-local                   # desktop; connect to network id `dev-local`
 ```
+
+Once connected, `dev-local` is known to the client and connects at its own source from any
+launch, e.g. `pnpm nx run zknet_client_cli:run -- connect dev-local`.
 
 Ctrl-C stops the client, its WalletShield and the asset server. Here the asset server is
 an Nx `continuous` task, which suits a plain process: the dependents' explicit `ready` probe

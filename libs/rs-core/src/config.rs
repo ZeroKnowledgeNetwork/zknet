@@ -13,8 +13,6 @@ pub struct AppConfig {
     pub walletshield_listen_address: String,
     /// WalletShield's -log_level: INFO for users, DEBUG for development.
     pub walletshield_log_level: String,
-    /// Run WalletShield as a thin client of an already running client daemon.
-    pub walletshield_thin: bool,
 }
 
 pub fn load_config(paths: &AppPaths, config_json: &str) -> AppConfig {

@@ -8,18 +8,14 @@ use zknet_core::{
 
 /// WalletShield's arguments, run from the network directory holding `client.toml`.
 fn walletshield_args(config: &AppConfig) -> Vec<String> {
-    let mut args = vec![
+    vec![
         "-listen".into(),
         config.walletshield_listen_address.clone(),
         "-config".into(),
         "client.toml".into(),
         "-log_level".into(),
         config.walletshield_log_level.clone(),
-    ];
-    if config.walletshield_thin {
-        args.push("-thin".into());
-    }
-    args
+    ]
 }
 
 /// Run the network's WalletShield until it exits.
@@ -88,20 +84,17 @@ mod tests {
     use super::walletshield_args;
     use zknet_core::config::AppConfig;
 
-    fn config(walletshield_thin: bool) -> AppConfig {
-        AppConfig {
+    /// WalletShield picks its mode from the network's config; the CLI never does.
+    #[test]
+    fn walletshield_args_leave_the_mode_to_the_config() {
+        let config = AppConfig {
             api_listen_address: "127.0.0.1:7000".into(),
             url_network: "http://127.0.0.1:8765".into(),
             walletshield_listen_address: ":7070".into(),
             walletshield_log_level: "INFO".into(),
-            walletshield_thin,
-        }
-    }
-
-    #[test]
-    fn walletshield_args_select_thin_mode() {
+        };
         assert_eq!(
-            walletshield_args(&config(false)),
+            walletshield_args(&config),
             [
                 "-listen",
                 ":7070",
@@ -109,18 +102,6 @@ mod tests {
                 "client.toml",
                 "-log_level",
                 "INFO"
-            ]
-        );
-        assert_eq!(
-            walletshield_args(&config(true)),
-            [
-                "-listen",
-                ":7070",
-                "-config",
-                "client.toml",
-                "-log_level",
-                "INFO",
-                "-thin"
             ]
         );
     }

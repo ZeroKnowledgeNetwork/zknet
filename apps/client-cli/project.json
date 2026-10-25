@@ -79,7 +79,7 @@
       "cache": false,
       "dependsOn": ["network-assets:serve"],
       "options": {
-        "command": "python3 apps/network-assets/server.py ready && cargo run --locked --target-dir dist/target -p zknet_client_cli -- dev-local --network-url \"$(python3 apps/network-assets/server.py url)\" --thin"
+        "command": "python3 apps/network-assets/server.py ready && cargo run --locked --target-dir dist/target -p zknet_client_cli -- --network-url \"$(python3 apps/network-assets/server.py url)\""
       }
     },
     "clean": {

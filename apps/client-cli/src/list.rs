@@ -18,21 +18,22 @@ pub enum Format {
 /// Columns as docker's formatter writes them: tabwriter minwidth 10, padding 3
 /// (docker/cli `cli/command/formatter/formatter.go`). The last column is never
 /// padded, and no line ends in spaces.
-fn table(rows: &[[String; 5]]) -> String {
+fn table(rows: &[Vec<String>]) -> String {
     const MIN_WIDTH: usize = 10;
     const PADDING: usize = 3;
+    let last = rows[0].len() - 1;
     let width = |i: usize| {
         let widest = rows.iter().map(|r| r[i].chars().count()).max().unwrap_or(0);
         (widest + PADDING).max(MIN_WIDTH)
     };
-    let widths: Vec<usize> = (0..4).map(width).collect();
+    let widths: Vec<usize> = (0..last).map(width).collect();
     let mut out = String::new();
     for row in rows {
         let mut line = String::new();
         for (cell, w) in row.iter().zip(&widths) {
             line.push_str(&format!("{cell:<w$}"));
         }
-        line.push_str(&row[4]);
+        line.push_str(&row[last]);
         out.push_str(line.trim_end());
         out.push('\n');
     }
@@ -49,18 +50,25 @@ fn status(n: &NetworkEntry) -> &'static str {
     }
 }
 
-fn row(n: &NetworkEntry) -> [String; 5] {
+/// A row; `source` adds the SOURCE cell, blank for the built-in source.
+fn row(n: &NetworkEntry, source: bool) -> Vec<String> {
     let entry = n.entry.as_ref();
-    [
+    let mut cells = vec![
         n.id.to_string(),
         entry.map_or("-".into(), |e| format!("{:?}", e.kind).to_lowercase()),
         n.created_ago.clone().unwrap_or_else(|| "-".into()),
         status(n).into(),
-        // a name that only repeats the id is noise
+    ];
+    if source {
+        cells.push(n.source_label.clone().unwrap_or_default());
+    }
+    // a name that only repeats the id is noise
+    cells.push(
         entry
             .filter(|e| e.name != n.id.as_str())
             .map_or(String::new(), |e| e.name.clone()),
-    ]
+    );
+    cells
 }
 
 /// One network for `--format json`: data, so the source is the full URL.
@@ -110,9 +118,15 @@ pub fn print(
             writeln!(out, "{}", json_row(n))?;
         }
     } else if !rows.is_empty() {
-        let header = ["NETWORK ID", "KIND", "CREATED", "STATUS", "NAME"].map(String::from);
-        let all: Vec<[String; 5]> = std::iter::once(header)
-            .chain(rows.iter().map(row))
+        // a SOURCE column only once a source other than the built-in one is known
+        let source = rows.iter().any(|n| n.source_label.is_some());
+        let mut header = vec!["NETWORK ID", "KIND", "CREATED", "STATUS"];
+        if source {
+            header.push("SOURCE");
+        }
+        header.push("NAME");
+        let all: Vec<Vec<String>> = std::iter::once(header.into_iter().map(String::from).collect())
+            .chain(rows.iter().map(|n| row(n, source)))
             .collect();
         write!(out, "{}", table(&all))?;
     }
@@ -280,6 +294,55 @@ devnet-78c3de28   devnet    2 days ago     unpublished   Devnet · 2026-10-23
         let (out, err, _) = run(&copies, Format::Table, false);
         assert!(out.contains("unpublished"));
         assert_eq!(err, "No published networks.\n");
+    }
+
+    #[test]
+    fn a_source_column_appears_only_for_a_non_default_source() {
+        let local = || Some((NetworkKind::Local, "Local · 2026-10-25", "2 hours ago"));
+        let l = listing(
+            DIST,
+            vec![
+                net(
+                    "devnet-78c3de87",
+                    Status::Ready,
+                    devnet("Devnet · 2026-10-24", "22 hours ago"),
+                    DIST,
+                ),
+                net("dev-local", Status::Ready, local(), LOCAL),
+            ],
+            &[],
+        );
+        let (out, _, _) = run(&l, Format::Table, false);
+        assert_eq!(
+            out,
+            "\
+NETWORK ID        KIND      CREATED        STATUS    SOURCE           NAME
+devnet-78c3de87   devnet    22 hours ago   ready                      Devnet · 2026-10-24
+dev-local         local     2 hours ago    ready     127.0.0.1:8765   Local · 2026-10-25
+"
+        );
+        let l = listing(
+            LOCAL,
+            vec![
+                net("dev-local", Status::Ready, local(), LOCAL),
+                net(
+                    "devnet-78c3de90",
+                    Status::Available,
+                    devnet("Devnet · 2026-10-25", "3 hours ago"),
+                    DIST,
+                ),
+            ],
+            &[],
+        );
+        let (out, _, _) = run(&l, Format::Table, false);
+        assert_eq!(
+            out,
+            "\
+NETWORK ID        KIND      CREATED       STATUS      SOURCE           NAME
+dev-local         local     2 hours ago   ready       127.0.0.1:8765   Local · 2026-10-25
+devnet-78c3de90   devnet    3 hours ago   available                    Devnet · 2026-10-25
+"
+        );
     }
 
     #[test]

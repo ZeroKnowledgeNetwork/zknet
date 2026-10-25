@@ -58,7 +58,7 @@ missing paths unless the site has a `404.html`; `index.sh` writes one.
 ```sh
 .woodpecker/run dist                                   # after committing any change under packages/opt
 pnpm nx run mixnet:start && pnpm nx run mixnet:ready   # once, if no local mixnet is running
-pnpm nx run zknet_client_cli:dev-local                 # headless client on :7070
+pnpm nx run zknet_client_cli:dev-local -- connect dev-local   # headless client on :7070
 pnpm nx run @zknet/client:desktop-dev-local            # desktop; connect to network id `dev-local`
 ```
 
@@ -73,9 +73,13 @@ running at once share one server.
 | `ready` | Waits until the server returns the `dev-local` bytes; fails if nothing or something else answers                   |
 | `test`  | Assembly, server and client-contract tests (`python3 -m unittest`)                                                 |
 
-`dev-local` publishes the thin-client config under the clients' `client.toml` name, and the
-clients start WalletShield with `-thin`: it dials the host-exposed `kpclientd`, while the
-full config names container hosts the host cannot resolve.
+`dev-local` publishes the thin-client config under the clients' `client.toml` name:
+WalletShield recognises a thin config and dials the host-exposed `kpclientd`, while the
+full config names container hosts the host cannot resolve. No client flag picks the mode,
+so `dev-local` connects from any launch once a client knows it. Re-staging gives it a new
+`created`, so clients download the rebuilt WalletShield instead of their cached copy; the
+binary itself must come from a `.woodpecker/run dist` that includes WalletShield's mode
+inference, or a thin config without `-thin` fails to load.
 
 The server never stops a process it did not start. If `:8765` is taken, `serve` fails and
 names the port. WalletShield listens on the client's configured `:7070`, so free that port

@@ -128,7 +128,8 @@ pub fn print(
             Ok(false)
         }
         None => {
-            if rows.is_empty() && !quiet && format == Format::Table {
+            // nothing live: say so, above or instead of what is on this device
+            if !rows.iter().any(|n| n.status.is_live()) && !quiet && format == Format::Table {
                 writeln!(err, "No listed networks{at}.")?;
             }
             Ok(true)
@@ -338,6 +339,18 @@ meep              -         -              unlisted
         assert_eq!(err, "No listed networks at 127.0.0.1:8765.\n");
         let (out, err, _) = run(&listing(DIST, None, vec![], None), Format::Table, true);
         assert_eq!((out.as_str(), err.as_str()), ("", ""));
+    }
+
+    #[test]
+    fn nothing_listed_is_said_even_with_copies_on_disk() {
+        let mut l = default_source();
+        l.networks.retain(|n| !n.status.is_live());
+        let (out, err, ok) = run(&l, Format::Table, false);
+        assert!(
+            out.starts_with("NETWORK ID") && out.contains("unlisted"),
+            "{out}"
+        );
+        assert_eq!((err.as_str(), ok), ("No listed networks.\n", true));
     }
 
     #[test]

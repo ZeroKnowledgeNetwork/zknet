@@ -1,5 +1,13 @@
 import { IconArrowPath } from './icons';
-import { BADGES, Listing, NetworkRow, caption, createdTitle, statusHint } from '../utils/networks';
+import {
+  BADGES,
+  Listing,
+  NetworkRow,
+  anyListed,
+  caption,
+  createdTitle,
+  statusHint,
+} from '../utils/networks';
 
 function StatusBadge({ row }: { row: NetworkRow }) {
   const badge = BADGES[row.status];
@@ -57,11 +65,10 @@ export function NetworkTable(props: {
           Couldn't reach the network list. Showing networks on this device.
         </div>
       )}
-      {listing.networks.length === 0 ? (
-        !listing.indexError && (
-          <p className="px-3 pb-4 pt-1 text-sm opacity-60">No listed networks.</p>
-        )
-      ) : (
+      {!listing.indexError && !anyListed(listing) && (
+        <p className="px-3 pb-4 pt-1 text-sm opacity-60">No listed networks.</p>
+      )}
+      {listing.networks.length > 0 && (
         <table className="table table-sm">
           <thead>
             <tr>

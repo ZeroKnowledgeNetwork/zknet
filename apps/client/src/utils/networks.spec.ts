@@ -2,6 +2,7 @@ import {
   BADGES,
   NetworkRow,
   Listing,
+  anyListed,
   autoFillId,
   caption,
   createdTitle,
@@ -60,6 +61,12 @@ describe('network list presentation', () => {
     expect(autoFillId(live, 'typed')).toBeNull();
     expect(autoFillId(listing([row('old', 'unlisted')]), '')).toBeNull();
     expect(autoFillId(listing([]), '')).toBeNull();
+  });
+
+  it('knows when nothing is listed, whatever is on this device', () => {
+    expect(anyListed(listing([]))).toBe(false);
+    expect(anyListed(listing([row('old', 'unlisted'), row('x', 'otherSource')]))).toBe(false);
+    expect(anyListed(listing([row('old', 'unlisted'), row('new', 'available')]))).toBe(true);
   });
 
   it('titles CREATED with the full time in the given locale', () => {

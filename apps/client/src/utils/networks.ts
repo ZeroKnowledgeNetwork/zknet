@@ -62,6 +62,9 @@ export const statusHint = (n: NetworkRow): string => {
 export const caption = (l: Listing) =>
   l.sourceLabel ? `Mix Networks at ${l.sourceLabel}` : 'Mix Networks';
 
+// Whether the source lists any network now
+export const anyListed = (l: Listing) => l.networks.some(isLive);
+
 // The network to fill in: the top row when it is live and nothing is chosen
 export const autoFillId = (l: Listing, chosen: string): string | null =>
   chosen === '' && l.networks.length > 0 && isLive(l.networks[0]) ? l.networks[0].id : null;

@@ -2,6 +2,7 @@ import { BaseDirectory, readTextFile } from '@tauri-apps/plugin-fs';
 import { path } from '@tauri-apps/api';
 import { Channel, invoke } from '@tauri-apps/api/core';
 import { useStore } from '../store';
+import type { Listing, Prepared } from './networks';
 
 // This matches exactly what is in tauri.conf.json:plugins.zknet.
 export interface ZKNetClientCfg {
@@ -28,14 +29,7 @@ export const getWalletshieldListenAddress = async (): Promise<string> => {
 // The published platform name of this build, e.g. `linux-x64`
 export const getPlatform = (): Promise<string> => invoke<string>('platform');
 
-// zknet_core::network, serialized: the network list and the asset fetch
-export type NetworkEntry = {
-  id: string;
-  status: 'ready' | 'available' | 'cached' | 'unlisted' | 'otherSource';
-  entry: { id: string; kind: string; name: string; created: string } | null;
-};
-
-export type Listing = { networks: NetworkEntry[]; indexError: string | null };
+export * from './networks';
 
 export type Asset = 'clientToml' | 'servicesJson' | 'walletshield';
 
@@ -57,15 +51,15 @@ export type CmdError = { kind: string; message: string };
 // Live networks from the index merged with those cached on this device
 export const listNetworks = (): Promise<Listing> => invoke<Listing>('networks_list');
 
-// Ensure a network's assets are on disk; resolves to the network's directory
+// Make a network ready to run (zknet_core::network::prepare)
 export const fetchNetwork = (
   networkId: string,
   refresh: boolean,
   onEvent: (e: FetchEvent) => void,
-): Promise<string> => {
+): Promise<Prepared> => {
   const channel = new Channel<FetchEvent>();
   channel.onmessage = onEvent;
-  return invoke<string>('network_fetch', { networkId, refresh, onEvent: channel });
+  return invoke<Prepared>('network_fetch', { networkId, refresh, onEvent: channel });
 };
 
 export const readNetworkAssetFile = async (networkId: string, asset: string) => {

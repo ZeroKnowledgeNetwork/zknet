@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react';
 import * as log from '@tauri-apps/plugin-log';
 import { Child, Command } from '@tauri-apps/plugin-shell';
+import { NetworkTable } from '../components';
 import { useStore } from '../store';
 import { notifyAPIClientsOfStatusChange } from '../services/api';
 import {
   CmdError,
   FetchEvent,
-  NetworkEntry,
+  autoFillId,
   fetchNetwork,
   getWalletshieldListenAddress,
   getZKNetClientCfg,
@@ -14,26 +15,15 @@ import {
 } from '../utils';
 import { walletshieldSpawn } from '../utils/walletshield';
 
-const isLive = (n: NetworkEntry) => n.status === 'ready' || n.status === 'available';
-
 // A rejected command carries a CmdError; anything else is shown as is.
 const errorText = (error: unknown) =>
   typeof error === 'object' && error !== null && 'message' in error
     ? (error as CmdError).message
     : `${error}`;
 
-// "3 hours ago" for an RFC 3339 time
-const age = (created: string) => {
-  const minutes = Math.round((Date.now() - Date.parse(created)) / 60000);
-  if (Number.isNaN(minutes)) return '';
-  const rtf = new Intl.RelativeTimeFormat(undefined, { numeric: 'auto' });
-  if (Math.abs(minutes) < 60) return rtf.format(-minutes, 'minute');
-  if (Math.abs(minutes) < 60 * 24) return rtf.format(-Math.round(minutes / 60), 'hour');
-  return rtf.format(-Math.round(minutes / 60 / 24), 'day');
-};
-
 export function Networks() {
   const [networkId, setNetworkId] = useState('');
+  const [reloading, setReloading] = useState(false);
 
   const clientPid = useStore((s) => s.clientPid);
   const isConnected = useStore((s) => s.isConnected);
@@ -68,17 +58,20 @@ export function Networks() {
   }
 
   async function refreshNetworks() {
+    setReloading(true);
     try {
       setNetworks(await listNetworks());
     } catch (error: unknown) {
       log.error(errorText(error));
+    } finally {
+      setReloading(false);
     }
   }
 
-  // with exactly one live network and nothing chosen yet, choose it
+  // nothing chosen yet: fill in the newest live network, the list's top row
   useEffect(() => {
-    const live = networks.networks.filter((n) => isLive(n));
-    if (networkId === '' && live.length === 1) setNetworkId(live[0].id);
+    const id = autoFillId(networks, networkId);
+    if (id) setNetworkId(id);
   }, [networks]);
 
   async function disconnect() {
@@ -123,7 +116,7 @@ export function Networks() {
       }
       if (e.event === 'finished') setMessage('info', `Downloaded client for OS: ${platformArch}`);
     };
-    const dirNetwork = await fetchNetwork(networkId, walletshieldThin, onEvent).catch(
+    const prepared = await fetchNetwork(networkId, walletshieldThin, onEvent).catch(
       (error: CmdError) => {
         log.warn(`network fetch: ${error.kind}: ${error.message}`);
         throw new Error(
@@ -131,6 +124,11 @@ export function Networks() {
         );
       },
     );
+    const dirNetwork = prepared.dir;
+    if (prepared.otherSource) {
+      const from = prepared.originLabel ?? 'the default source';
+      consoleAddLine(`${networkId} isn't listed here; running the copy downloaded from ${from}`);
+    }
 
     ////////////////////////////////////////////////////////////////////////
     // execute the walletshield client with the client.toml
@@ -217,12 +215,12 @@ export function Networks() {
                 Connect
               </button>
             </form>
-            <NetworkPicker
-              entries={networks.networks}
-              indexError={networks.indexError}
+            <NetworkTable
+              listing={networks}
               selected={networkId}
+              loading={reloading}
               onSelect={setNetworkId}
-              onRefresh={refreshNetworks}
+              onReload={refreshNetworks}
             />
           </>
         ) : (
@@ -233,63 +231,6 @@ export function Networks() {
             </button>
           </>
         ))}
-    </div>
-  );
-}
-
-function NetworkPicker(props: {
-  entries: NetworkEntry[];
-  indexError: string | null;
-  selected: string;
-  onSelect: (id: string) => void;
-  onRefresh: () => void;
-}) {
-  const live = props.entries.filter(isLive);
-  const local = props.entries.filter((n) => !isLive(n));
-  const row = (n: NetworkEntry) => (
-    <li key={n.id}>
-      <button
-        type="button"
-        className={`flex justify-between ${props.selected === n.id ? 'menu-active' : ''} ${isLive(n) ? '' : 'opacity-60'}`}
-        onClick={() => props.onSelect(n.id)}
-      >
-        <span>
-          {n.entry?.name ?? n.id}
-          {n.entry && n.entry.name !== n.id && (
-            <span className="ml-2 text-xs opacity-60">{n.id}</span>
-          )}
-        </span>
-        <span className="text-xs opacity-60">
-          {isLive(n) && n.entry ? age(n.entry.created) : 'not listed — may be retired'}
-          {n.status === 'ready' && <span className="badge badge-xs ml-2">cached</span>}
-        </span>
-      </button>
-    </li>
-  );
-
-  return (
-    <div className="w-full max-w-md">
-      {props.indexError && (
-        <p className="text-xs opacity-70 mb-2" title={props.indexError}>
-          Couldn't load the network list — showing networks on this device.
-        </p>
-      )}
-      <ul className="menu w-full bg-base-200 rounded-box">
-        <li className="menu-title flex flex-row justify-between items-center">
-          <span>Live networks</span>
-          <button
-            type="button"
-            className="btn btn-ghost btn-xs"
-            onClick={props.onRefresh}
-            title="Reload the network list"
-          >
-            ↻
-          </button>
-        </li>
-        {live.length > 0 ? live.map(row) : <li className="disabled px-4 text-xs">None listed</li>}
-        {local.length > 0 && <li className="menu-title">On this device</li>}
-        {local.map(row)}
-      </ul>
     </div>
   );
 }

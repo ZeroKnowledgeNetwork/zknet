@@ -19,10 +19,7 @@ The network list and the asset download are Rust: `src-tauri/src/network.rs` exp
 `zknet_core::network` (shared with the CLI) as the `networks_list`, `network_fetch` and
 `platform` commands, with download progress on a `Channel`. The webview therefore holds
 no `http`, `upload` or `chmod` grant; it only spawns WalletShield from the directory
-`network_fetch` returns. The picker shows the live networks of `<urlNetwork>/networks.json`
-and, muted, those cached on this device but no longer listed; an id can still be typed.
-
-Each WalletShield argv shape has its own shell scope name (`src/utils/walletshield.ts`).
-The shell plugin runs the first scope with a matching name and builds argv from that
-scope's template, so a shared name silently drops extra arguments.
-`walletshield.spec.ts` checks this against the capability files.
+`network_fetch` returns. The _Mix Networks_ table lists every network with a status badge
+(`zknet_core::network::Status`), live ones first, and fills in the newest live network; an
+id can still be typed. The built-in network source is never shown: the caption names the
+source only when `urlNetwork` is overridden.

@@ -6,6 +6,7 @@ use serde::Serialize;
 use tauri::{ipc::Channel, AppHandle, Manager, Runtime, State};
 use zknet_core::network::{
     self, FetchError, FetchEvent, FetchOptions, Layout, Listing, NetworkId, OnFetchEvent, Platform,
+    Prepared,
 };
 
 use crate::config::ZKNetClientCfg;
@@ -55,8 +56,8 @@ pub async fn networks_list<R: Runtime>(
     Ok(network::list(&network::http_client()?, &layout).await)
 }
 
-/// Ensure a network's assets are on disk, streaming progress over `on_event`.
-/// Returns the network's directory, where WalletShield is spawned.
+/// Make a network ready to run (`zknet_core::network::prepare`), streaming
+/// progress over `on_event`. Its `dir` is where WalletShield is spawned.
 #[tauri::command]
 pub async fn network_fetch<R: Runtime>(
     app: AppHandle<R>,
@@ -64,22 +65,21 @@ pub async fn network_fetch<R: Runtime>(
     network_id: String,
     refresh: bool,
     on_event: Channel<FetchEvent>,
-) -> Result<String, CmdError> {
+) -> Result<Prepared, CmdError> {
     let layout = layout(&app, &cfg)?;
     let id = NetworkId::parse(&network_id)?;
     let on_event: OnFetchEvent = std::sync::Arc::new(move |event| {
         let _ = on_event.send(event);
     });
     let options = FetchOptions { refresh };
-    let prepared = network::prepare(
+    Ok(network::prepare(
         &network::http_client()?,
         &layout,
         &id,
         options,
         Some(on_event),
     )
-    .await?;
-    Ok(prepared.dir.to_string_lossy().into_owned())
+    .await?)
 }
 
 /// This build's platform by its published name, e.g. `linux-x64`.
@@ -104,5 +104,16 @@ mod tests {
             url: "https://h/devnet-1/client.toml".into(),
         });
         assert_eq!(e.kind, "notFound");
+    }
+
+    /// "Is this the built-in source?" is answered by zknet_core alone.
+    #[test]
+    fn the_configured_source_is_the_built_in_one() {
+        let conf: serde_json::Value =
+            serde_json::from_str(include_str!("../tauri.conf.json")).unwrap();
+        assert_eq!(
+            conf["plugins"]["zknet"]["urlNetwork"],
+            network::DEFAULT_SOURCE
+        );
     }
 }

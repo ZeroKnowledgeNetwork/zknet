@@ -1,7 +1,7 @@
 import { LazyStore } from '@tauri-apps/plugin-store';
 import { create } from 'zustand';
 import { combine } from 'zustand/middleware';
-import type { Listing } from '../utils';
+import type { Listing } from '../utils/networks';
 
 const store = new LazyStore('settings.json');
 
@@ -29,7 +29,7 @@ export const useStore = create(
       message: '',
       messageType: '',
       networkConnected: '',
-      networks: { networks: [], indexError: null } as Listing,
+      networks: { source: '', sourceLabel: null, networks: [], indexError: null } as Listing,
       platformArch: '',
       updateStatus: '' as UpdateStatus,
       walletshieldListenAddress: '',

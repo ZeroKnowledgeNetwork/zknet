@@ -171,6 +171,15 @@ func setDialAddress(c *ttransport.DialConfig, addr string) error {
 	return nil
 }
 
+// isThinConfig reports whether the config at path is a thin client config: one
+// that dials an existing client daemon instead of starting its own. The thin
+// loader rejects every key it does not know, so a full client config never
+// passes as one. The config, not the caller, decides the mode.
+func isThinConfig(path string) bool {
+	_, err := thin.LoadFile(path)
+	return err == nil
+}
+
 func main() {
 	var logLevel string
 	var listenAddr string
@@ -193,7 +202,7 @@ func main() {
 	flag.IntVar(&testProbeResponseDelay, "probe_response_delay", 0, "test probe response deplay")
 	flag.IntVar(&testProbeSendDelay, "probe_send_delay", 10, "test probe delay between probes")
 	flag.IntVar(&timeout, "timeout", timeout, "seconds to wait for a request")
-	flag.BoolVar(&thinClientOnly, "thin", false, "use thin client mode (connect to existing daemon)")
+	flag.BoolVar(&thinClientOnly, "thin", false, "force thin client mode (default: inferred from -config)")
 	flag.Parse()
 
 	if listenAddr == "" && !testProbe {
@@ -209,6 +218,7 @@ func main() {
 		panic(err)
 	}
 	mylog := newLogger(os.Stdout, level)
+	thinClientOnly = thinClientOnly || isThinConfig(configPath)
 	mode := "daemon"
 	if thinClientOnly {
 		mode = "thin"
@@ -227,9 +237,6 @@ func main() {
 	if !thinClientOnly {
 		cfg, err := config.LoadFile(configPath)
 		if err != nil {
-			if _, thinErr := thin.LoadFile(configPath); thinErr == nil {
-				err = fmt.Errorf("%w: %s is a thin client config, which requires -thin", err, configPath)
-			}
 			panic(err)
 		}
 

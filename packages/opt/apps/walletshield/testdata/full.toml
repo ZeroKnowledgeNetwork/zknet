@@ -1,0 +1,11 @@
+# The shape of a full client config: it starts its own client daemon. Only the
+# keys matter here; the thin loader must reject them.
+WireKEMScheme = "xwing"
+PKISignatureScheme = "Ed25519"
+
+[Listen]
+  [Listen.Tcp]
+    Address = "localhost:45020"
+    Network = "tcp"
+
+[PinnedGateways]

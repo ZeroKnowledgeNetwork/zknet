@@ -9,6 +9,7 @@
       "cache": true,
       "inputs": [
         "{projectRoot}/**/*.go",
+        "{projectRoot}/testdata/**",
         "^default",
         "optModule",
         "{workspaceRoot}/packages/opt/served.sh",

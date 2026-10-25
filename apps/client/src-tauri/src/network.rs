@@ -71,7 +71,7 @@ pub async fn network_fetch<R: Runtime>(
         let _ = on_event.send(event);
     });
     let options = FetchOptions { refresh };
-    let dir = network::fetch(
+    let prepared = network::prepare(
         &network::http_client()?,
         &layout,
         &id,
@@ -79,7 +79,7 @@ pub async fn network_fetch<R: Runtime>(
         Some(on_event),
     )
     .await?;
-    Ok(dir.to_string_lossy().into_owned())
+    Ok(prepared.dir.to_string_lossy().into_owned())
 }
 
 /// This build's platform by its published name, e.g. `linux-x64`.

@@ -31,8 +31,8 @@ export const getPlatform = (): Promise<string> => invoke<string>('platform');
 // zknet_core::network, serialized: the network list and the asset fetch
 export type NetworkEntry = {
   id: string;
-  listed: { id: string; kind: string; name: string; created: string } | null;
-  cached: boolean;
+  status: 'ready' | 'available' | 'cached' | 'unlisted' | 'otherSource';
+  entry: { id: string; kind: string; name: string; created: string } | null;
 };
 
 export type Listing = { networks: NetworkEntry[]; indexError: string | null };

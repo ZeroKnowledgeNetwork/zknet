@@ -14,6 +14,8 @@ import {
 } from '../utils';
 import { walletshieldSpawn } from '../utils/walletshield';
 
+const isLive = (n: NetworkEntry) => n.status === 'ready' || n.status === 'available';
+
 // A rejected command carries a CmdError; anything else is shown as is.
 const errorText = (error: unknown) =>
   typeof error === 'object' && error !== null && 'message' in error
@@ -75,7 +77,7 @@ export function Networks() {
 
   // with exactly one live network and nothing chosen yet, choose it
   useEffect(() => {
-    const live = networks.networks.filter((n) => n.listed);
+    const live = networks.networks.filter((n) => isLive(n));
     if (networkId === '' && live.length === 1) setNetworkId(live[0].id);
   }, [networks]);
 
@@ -242,24 +244,24 @@ function NetworkPicker(props: {
   onSelect: (id: string) => void;
   onRefresh: () => void;
 }) {
-  const live = props.entries.filter((n) => n.listed);
-  const local = props.entries.filter((n) => !n.listed);
+  const live = props.entries.filter(isLive);
+  const local = props.entries.filter((n) => !isLive(n));
   const row = (n: NetworkEntry) => (
     <li key={n.id}>
       <button
         type="button"
-        className={`flex justify-between ${props.selected === n.id ? 'menu-active' : ''} ${n.listed ? '' : 'opacity-60'}`}
+        className={`flex justify-between ${props.selected === n.id ? 'menu-active' : ''} ${isLive(n) ? '' : 'opacity-60'}`}
         onClick={() => props.onSelect(n.id)}
       >
         <span>
-          {n.listed?.name ?? n.id}
-          {n.listed && n.listed.name !== n.id && (
+          {n.entry?.name ?? n.id}
+          {n.entry && n.entry.name !== n.id && (
             <span className="ml-2 text-xs opacity-60">{n.id}</span>
           )}
         </span>
         <span className="text-xs opacity-60">
-          {n.listed ? age(n.listed.created) : 'not listed — may be retired'}
-          {n.listed && n.cached && <span className="badge badge-xs ml-2">cached</span>}
+          {isLive(n) && n.entry ? age(n.entry.created) : 'not listed — may be retired'}
+          {n.status === 'ready' && <span className="badge badge-xs ml-2">cached</span>}
         </span>
       </button>
     </li>

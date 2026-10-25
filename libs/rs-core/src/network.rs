@@ -27,7 +27,12 @@ pub const RESERVED_IDS: [&str; 3] = ["list", "connect", "help"];
 /// The index's schema version this client reads.
 pub const INDEX_SCHEMA: u32 = 1;
 
+/// The built-in network source. Each client's config names it too (tests hold
+/// them equal); it is never shown to users, so it may change freely.
+pub const DEFAULT_SOURCE: &str = "https://dist.zknet.io";
+
 const INDEX_FILE: &str = "networks.json";
+const ORIGIN_FILE: &str = "origin.json";
 const PART_SUFFIX: &str = ".part";
 const PROGRESS_INTERVAL: Duration = Duration::from_millis(100);
 
@@ -177,11 +182,54 @@ impl Layout {
         self.network_dir(id).join(asset.local_name(&self.platform))
     }
 
-    /// Whether a complete asset set is on disk. Assets are promoted only once
-    /// fully downloaded, so a present file is a whole one.
-    pub fn is_cached(&self, id: &NetworkId) -> bool {
+    /// Whether a complete asset set is on disk, from any source. Assets are
+    /// promoted only once fully downloaded, so a present file is a whole one.
+    fn is_complete(&self, id: &NetworkId) -> bool {
         Asset::ALL.iter().all(|&a| self.asset_path(id, a).is_file())
     }
+
+    /// Where the copy on disk came from, if a complete one is there.
+    pub fn cached_origin(&self, id: &NetworkId) -> Option<Origin> {
+        if !self.is_complete(id) {
+            return None;
+        }
+        let json = std::fs::read(self.network_dir(id).join(ORIGIN_FILE)).ok()?;
+        serde_json::from_slice(&json).ok()
+    }
+
+    /// Whether a complete copy downloaded from this layout's source is on disk.
+    pub fn is_cached(&self, id: &NetworkId) -> bool {
+        self.cached_origin(id)
+            .is_some_and(|o| o.base_url == self.base_url)
+    }
+
+    /// The source as users may see it: `None` for the built-in default.
+    pub fn source_label(&self) -> Option<String> {
+        source_label(&self.base_url)
+    }
+}
+
+/// A network source as users may see it: its host (and path, if any), or
+/// `None` for the built-in [`DEFAULT_SOURCE`], which is never shown.
+pub fn source_label(base_url: &str) -> Option<String> {
+    let base = base_url.trim_end_matches('/');
+    (base != DEFAULT_SOURCE).then(|| {
+        base.split_once("://")
+            .map_or(base, |(_, rest)| rest)
+            .to_owned()
+    })
+}
+
+/// A URL with the built-in source shown as nothing: `None` if it is under it.
+fn shown_url(url: &str) -> Option<&str> {
+    let under_default = url
+        .strip_prefix(DEFAULT_SOURCE)
+        .is_some_and(|rest| rest.is_empty() || rest.starts_with('/'));
+    (!under_default && !url.is_empty()).then_some(url)
+}
+
+fn at(url: &str) -> String {
+    shown_url(url).map_or_else(String::new, |u| format!(" at {u}"))
 }
 
 /// `<base>/networks.json`: the networks that are live now. A network leaves the
@@ -213,19 +261,77 @@ pub enum NetworkKind {
     Other,
 }
 
-/// One network as a client shows it: listed in the index, cached on disk, or both.
+/// `<networks_dir>/<id>/origin.json`: where a cached copy came from. Written
+/// last when a fetch promotes, so it marks a complete set.
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct Origin {
+    /// The [`Layout::base_url`] the assets were downloaded from.
+    pub base_url: String,
+    /// RFC 3339, UTC.
+    pub fetched: String,
+    /// The index entry seen at download time, if the source listed it.
+    pub entry: Option<IndexEntry>,
+}
+
+/// What a network is to this client now. Both clients render it; neither decides it.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum Status {
+    /// Listed by the current source, and a complete copy from it is on disk.
+    Ready,
+    /// Listed by the current source; connecting downloads it.
+    Available,
+    /// A copy from the current source is on disk; its index could not be read.
+    Cached,
+    /// A copy from the current source is on disk; its index no longer lists it.
+    Unlisted,
+    /// A copy from another source is on disk; the current source doesn't list it.
+    OtherSource,
+}
+
+impl Status {
+    /// Listed now: the networks a user most likely wants.
+    pub fn is_live(self) -> bool {
+        matches!(self, Status::Ready | Status::Available)
+    }
+
+    /// Live first (ready and available together), then what still works
+    /// offline, then the rest.
+    fn rank(self) -> u8 {
+        match self {
+            Status::Ready | Status::Available => 0,
+            Status::Cached => 1,
+            Status::Unlisted => 2,
+            Status::OtherSource => 3,
+        }
+    }
+}
+
+/// One network as both clients list it.
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NetworkEntry {
     pub id: NetworkId,
-    pub listed: Option<IndexEntry>,
-    pub cached: bool,
+    pub status: Status,
+    /// The current index's entry, else the one recorded with the cached copy.
+    pub entry: Option<IndexEntry>,
+    /// The source of the copy on disk, if any (data: the full URL).
+    pub origin: Option<String>,
+    /// [`source_label`] of `origin`: `None` for the built-in source or no copy.
+    pub origin_label: Option<String>,
+    /// `entry.created` as `docker ps` writes CREATED, e.g. `11 hours ago`.
+    pub created_ago: Option<String>,
 }
 
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Listing {
-    /// Listed networks in index order, then cached-only networks by id.
+    /// The source this listing is for (data: the full URL).
+    pub source: String,
+    /// [`source_label`] of `source`: `None` for the built-in source.
+    pub source_label: Option<String>,
+    /// Live first, newest first within a status, then by id.
     pub networks: Vec<NetworkEntry>,
     /// Why the index could not be read; the cached networks are listed regardless.
     pub index_error: Option<String>,
@@ -268,9 +374,9 @@ pub enum FetchError {
     InvalidNetworkId(String),
     #[error("unsupported platform: {0}")]
     UnsupportedPlatform(String),
-    #[error("network {id} is not published at {url}")]
+    #[error("network {id} is not published{}", at(url))]
     NotFound { id: String, url: String },
-    #[error("request to {url} failed: {source}")]
+    #[error("request{} failed: {source}", shown_url(url).map_or_else(String::new, |u| format!(" to {u}")))]
     Http {
         url: String,
         #[source]
@@ -282,7 +388,7 @@ pub enum FetchError {
         #[source]
         source: std::io::Error,
     },
-    #[error("invalid network index at {url}: {reason}")]
+    #[error("invalid network index{}: {reason}", at(url))]
     Index { url: String, reason: String },
     #[error("{asset:?} failed verification: {reason}")]
     Verification { asset: Asset, reason: String },
@@ -308,6 +414,15 @@ impl FetchError {
             source,
         }
     }
+
+    /// An HTTP error that names its URL once, in its own message, and only if
+    /// it isn't under the built-in source.
+    fn http(url: &str, source: reqwest::Error) -> Self {
+        FetchError::Http {
+            url: url.to_owned(),
+            source: source.without_url(),
+        }
+    }
 }
 
 /// The HTTP client for every network call: a stalled connection fails, a slow
@@ -318,19 +433,13 @@ pub fn http_client() -> Result<Client, FetchError> {
         .connect_timeout(Duration::from_secs(10))
         .read_timeout(Duration::from_secs(30))
         .build()
-        .map_err(|source| FetchError::Http {
-            url: String::new(),
-            source,
-        })
+        .map_err(|source| FetchError::http("", source))
 }
 
 /// Read the index. Entries whose id is not a valid [`NetworkId`] are dropped.
 pub async fn fetch_index(http: &Client, layout: &Layout) -> Result<Index, FetchError> {
     let url = layout.index_url();
-    let http_err = |source| FetchError::Http {
-        url: url.clone(),
-        source,
-    };
+    let http_err = |source| FetchError::http(&url, source);
     let response = http.get(&url).send().await.map_err(http_err)?;
     if !response.status().is_success() {
         return Err(FetchError::Index {
@@ -356,59 +465,181 @@ pub async fn fetch_index(http: &Client, layout: &Layout) -> Result<Index, FetchE
     Ok(index)
 }
 
-/// The networks with a complete asset set on disk, by id.
-pub fn cached(layout: &Layout) -> Vec<NetworkId> {
+/// The networks with a complete asset set on disk, by id, with where each came
+/// from (`None` if that wasn't recorded).
+pub fn cached(layout: &Layout) -> Vec<(NetworkId, Option<Origin>)> {
     let Ok(entries) = std::fs::read_dir(&layout.networks_dir) else {
         return Vec::new();
     };
-    let mut ids: Vec<NetworkId> = entries
+    let mut ids: Vec<(NetworkId, Option<Origin>)> = entries
         .filter_map(|e| NetworkId::parse(e.ok()?.file_name().to_str()?).ok())
-        .filter(|id| layout.is_cached(id))
+        .filter(|id| layout.is_complete(id))
+        .map(|id| {
+            let origin = layout.cached_origin(&id);
+            (id, origin)
+        })
         .collect();
-    ids.sort();
+    ids.sort_by(|a, b| a.0.cmp(&b.0));
     ids
 }
 
-/// The live networks merged with the cached ones.
+/// The live networks merged with the cached ones, each with its [`Status`].
 pub async fn list(http: &Client, layout: &Layout) -> Listing {
-    let mut cached_ids: BTreeSet<NetworkId> = cached(layout).into_iter().collect();
-    let (listed, index_error) = match fetch_index(http, layout).await {
-        Ok(index) => (index.networks, None),
-        Err(e) => (Vec::new(), Some(e.to_string())),
+    let index = fetch_index(http, layout).await;
+    listing(layout, index, std::time::SystemTime::now())
+}
+
+fn listing(
+    layout: &Layout,
+    index: Result<Index, FetchError>,
+    now: std::time::SystemTime,
+) -> Listing {
+    let here = |o: &Option<Origin>| o.as_ref().is_none_or(|o| o.base_url == layout.base_url);
+    let mut on_disk: std::collections::BTreeMap<NetworkId, Option<Origin>> =
+        cached(layout).into_iter().collect();
+    let (listed, index_error) = match index {
+        Ok(index) => (Some(index.networks), None),
+        Err(e) => (None, Some(e.to_string())),
     };
-    let mut networks: Vec<NetworkEntry> = listed
-        .into_iter()
-        .filter_map(|entry| {
-            let id = NetworkId::parse(&entry.id).ok()?;
-            Some(NetworkEntry {
-                cached: cached_ids.remove(&id),
-                id,
-                listed: Some(entry),
+
+    let row = |id: NetworkId, status, entry: Option<IndexEntry>, origin: Option<&Origin>| {
+        let origin = origin.map(|o| o.base_url.clone());
+        NetworkEntry {
+            created_ago: entry.as_ref().and_then(|e| created_ago(&e.created, now)),
+            origin_label: origin.as_deref().and_then(source_label),
+            id,
+            status,
+            entry,
+            origin,
+        }
+    };
+
+    let mut networks = Vec::new();
+    for entry in listed.iter().flatten() {
+        let Ok(id) = NetworkId::parse(&entry.id) else {
+            continue;
+        };
+        let copy = on_disk.remove(&id);
+        let (status, origin) = match copy {
+            Some(Some(o)) if o.base_url == layout.base_url => (Status::Ready, Some(o)),
+            // a copy from elsewhere doesn't count here, and is replaced on connect
+            _ => (Status::Available, None),
+        };
+        networks.push(row(id, status, Some(entry.clone()), origin.as_ref()));
+    }
+    for (id, origin) in on_disk {
+        let status = match (&listed, here(&origin)) {
+            (_, false) => Status::OtherSource,
+            (None, true) => Status::Cached,
+            (Some(_), true) => Status::Unlisted,
+        };
+        let entry = origin.as_ref().and_then(|o| o.entry.clone());
+        networks.push(row(id, status, entry, origin.as_ref()));
+    }
+
+    let created = |n: &NetworkEntry| n.entry.as_ref().map(|e| e.created.clone());
+    networks.sort_by(|a, b| {
+        a.status
+            .rank()
+            .cmp(&b.status.rank())
+            .then_with(|| match (created(a), created(b)) {
+                (Some(x), Some(y)) => y.cmp(&x),
+                (Some(_), None) => std::cmp::Ordering::Less,
+                (None, Some(_)) => std::cmp::Ordering::Greater,
+                (None, None) => std::cmp::Ordering::Equal,
             })
-        })
-        .collect();
-    networks.extend(cached_ids.into_iter().map(|id| NetworkEntry {
-        id,
-        listed: None,
-        cached: true,
-    }));
+            .then_with(|| a.id.cmp(&b.id))
+    });
+
     Listing {
+        source: layout.base_url.clone(),
+        source_label: layout.source_label(),
         networks,
         index_error,
     }
 }
 
-/// Ensure a network's complete asset set is on disk, and return its directory.
+/// What [`prepare`] made ready to run.
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Prepared {
+    /// The network's directory, where WalletShield is spawned.
+    pub dir: PathBuf,
+    /// The source of the copy that will run (data: the full URL).
+    pub origin: String,
+    /// [`source_label`] of `origin`.
+    pub origin_label: Option<String>,
+    /// The copy came from another source than the current one: the current
+    /// source doesn't list the network, and a copy from elsewhere is on disk.
+    pub other_source: bool,
+}
+
+/// Make a network ready to run; both clients call this before spawning.
 ///
-/// A cached set is used as is unless `opts.refresh`. Otherwise every asset is
-/// downloaded concurrently to `<name>.part`; only when all have arrived is each
-/// one verified, made executable if it is the binary, and renamed into place.
-/// On any failure the `.part` files are removed and the cached set is untouched.
-pub async fn fetch(
+/// - A complete copy from the current source is used as is, without a request,
+///   unless `opts.refresh`.
+/// - Otherwise the index is read once. If the current source doesn't list the
+///   network but a copy from another source is on disk, that copy is used.
+/// - Otherwise the assets are downloaded from the current source, replacing any
+///   copy from elsewhere: another source's bytes never run under an id the
+///   current source publishes.
+pub async fn prepare(
     http: &Client,
     layout: &Layout,
     id: &NetworkId,
     opts: FetchOptions,
+    on_event: Option<OnFetchEvent>,
+) -> Result<Prepared, FetchError> {
+    let here = |dir| Prepared {
+        dir,
+        origin: layout.base_url.clone(),
+        origin_label: layout.source_label(),
+        other_source: false,
+    };
+    if !opts.refresh && layout.is_cached(id) {
+        emit_cached(&on_event);
+        return Ok(here(layout.network_dir(id)));
+    }
+
+    let index = fetch_index(http, layout).await.ok();
+    let entry = index
+        .as_ref()
+        .and_then(|i| i.networks.iter().find(|n| n.id == id.as_str()).cloned());
+    let elsewhere = layout
+        .cached_origin(id)
+        .filter(|o| o.base_url != layout.base_url);
+    if let (Some(_), None, Some(origin)) = (&index, &entry, &elsewhere) {
+        emit_cached(&on_event);
+        return Ok(Prepared {
+            dir: layout.network_dir(id),
+            origin_label: source_label(&origin.base_url),
+            origin: origin.base_url.clone(),
+            other_source: true,
+        });
+    }
+
+    fetch(http, layout, id, entry, on_event).await.map(here)
+}
+
+fn emit_cached(on_event: &Option<OnFetchEvent>) {
+    if let Some(cb) = on_event {
+        for asset in Asset::ALL {
+            cb(FetchEvent::Cached { asset });
+        }
+    }
+}
+
+/// Download a network's assets from the layout's source, and return its directory.
+///
+/// Every asset is downloaded concurrently to `<name>.part`; only when all have
+/// arrived is each one verified, made executable if it is the binary, and
+/// renamed into place, with `origin.json` last. On any failure the `.part`
+/// files are removed and the cached set is untouched.
+async fn fetch(
+    http: &Client,
+    layout: &Layout,
+    id: &NetworkId,
+    entry: Option<IndexEntry>,
     on_event: Option<OnFetchEvent>,
 ) -> Result<PathBuf, FetchError> {
     let emit = |event| {
@@ -417,13 +648,6 @@ pub async fn fetch(
         }
     };
     let dir = layout.network_dir(id);
-
-    if !opts.refresh && layout.is_cached(id) {
-        for asset in Asset::ALL {
-            emit(FetchEvent::Cached { asset });
-        }
-        return Ok(dir);
-    }
 
     let created = !dir.exists();
     tokio::fs::create_dir_all(&dir)
@@ -440,7 +664,7 @@ pub async fn fetch(
         for asset in Asset::ALL {
             promote(layout, id, asset).await?;
         }
-        Ok(())
+        write_origin(layout, id, entry).await
     }
     .await;
 
@@ -457,6 +681,30 @@ pub async fn fetch(
         emit(FetchEvent::Finished { asset });
     }
     Ok(dir)
+}
+
+/// Record where the promoted set came from, atomically.
+async fn write_origin(
+    layout: &Layout,
+    id: &NetworkId,
+    entry: Option<IndexEntry>,
+) -> Result<(), FetchError> {
+    let origin = Origin {
+        base_url: layout.base_url.clone(),
+        fetched: rfc3339(std::time::SystemTime::now()),
+        entry,
+    };
+    let path = layout.network_dir(id).join(ORIGIN_FILE);
+    let part = layout
+        .network_dir(id)
+        .join(format!("{ORIGIN_FILE}{PART_SUFFIX}"));
+    let json = serde_json::to_vec_pretty(&origin).expect("an Origin serializes");
+    tokio::fs::write(&part, json)
+        .await
+        .map_err(|e| FetchError::io(&part, e))?;
+    tokio::fs::rename(&part, &path)
+        .await
+        .map_err(|e| FetchError::io(&path, e))
 }
 
 fn part_path(layout: &Layout, id: &NetworkId, asset: Asset) -> PathBuf {
@@ -530,18 +778,106 @@ fn download_error(error: anyhow::Error, id: &NetworkId, url: &str, part: &Path) 
                 url: url.to_owned(),
             }
         }
-        Ok(source) => {
-            return FetchError::Http {
-                url: url.to_owned(),
-                source,
-            }
-        }
+        Ok(source) => return FetchError::http(url, source),
         Err(e) => e,
     };
     match error.downcast::<std::io::Error>() {
         Ok(source) => FetchError::io(part, source),
         Err(e) => FetchError::io(part, std::io::Error::other(e)),
     }
+}
+
+/// `created` (RFC 3339, UTC) as `docker ps` writes CREATED: `11 hours ago`.
+/// `None` if `created` doesn't parse.
+pub fn created_ago(created: &str, now: std::time::SystemTime) -> Option<String> {
+    let then = parse_rfc3339(created)?;
+    let d = now.duration_since(then).unwrap_or_default();
+    Some(format!("{} ago", human_duration(d)))
+}
+
+/// go-units `HumanDuration` (github.com/docker/go-units, duration.go), which
+/// `docker ps` and `docker images` use for CREATED.
+fn human_duration(d: Duration) -> String {
+    let seconds = d.as_secs();
+    let minutes = seconds / 60;
+    let hours = (d.as_secs_f64() / 3600.0 + 0.5) as u64;
+    match () {
+        _ if seconds < 1 => "Less than a second".into(),
+        _ if seconds == 1 => "1 second".into(),
+        _ if seconds < 60 => format!("{seconds} seconds"),
+        _ if minutes == 1 => "About a minute".into(),
+        _ if minutes < 60 => format!("{minutes} minutes"),
+        _ if hours == 1 => "About an hour".into(),
+        _ if hours < 48 => format!("{hours} hours"),
+        _ if hours < 24 * 7 * 2 => format!("{} days", hours / 24),
+        _ if hours < 24 * 30 * 2 => format!("{} weeks", hours / 24 / 7),
+        _ if hours < 24 * 365 * 2 => format!("{} months", hours / 24 / 30),
+        _ => format!("{} years", seconds / 3600 / 24 / 365),
+    }
+}
+
+/// `YYYY-MM-DDTHH:MM:SS[.fff]Z` (what `assemble.sh` writes) to a time.
+fn parse_rfc3339(s: &str) -> Option<std::time::SystemTime> {
+    let b = s.as_bytes();
+    let num = |r: std::ops::Range<usize>| s.get(r)?.parse::<i64>().ok();
+    let shape = b.len() >= 20
+        && [(4, b'-'), (7, b'-'), (10, b'T'), (13, b':'), (16, b':')]
+            .iter()
+            .all(|&(i, c)| b[i] == c || (i == 10 && b[i] == b't'));
+    let tail = s.get(19..).unwrap_or("");
+    let utc = tail == "Z"
+        || tail.strip_suffix('Z').is_some_and(|f| {
+            f.starts_with('.') && f.len() > 1 && f[1..].bytes().all(|c| c.is_ascii_digit())
+        });
+    if !shape || !utc {
+        return None;
+    }
+    let (y, mo, d) = (num(0..4)?, num(5..7)?, num(8..10)?);
+    let (h, mi, sec) = (num(11..13)?, num(14..16)?, num(17..19)?);
+    if !(1..=12).contains(&mo) || !(1..=31).contains(&d) || h > 23 || mi > 59 || sec > 60 {
+        return None;
+    }
+    let secs = days_from_civil(y, mo, d) * 86400 + h * 3600 + mi * 60 + sec;
+    let secs = u64::try_from(secs).ok()?;
+    Some(std::time::UNIX_EPOCH + Duration::from_secs(secs))
+}
+
+/// A time as RFC 3339 UTC to the second, as `assemble.sh` writes `created`.
+fn rfc3339(t: std::time::SystemTime) -> String {
+    let secs = t
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs() as i64;
+    let (y, mo, d) = civil_from_days(secs.div_euclid(86400));
+    let rem = secs.rem_euclid(86400);
+    format!(
+        "{y:04}-{mo:02}-{d:02}T{:02}:{:02}:{:02}Z",
+        rem / 3600,
+        rem % 3600 / 60,
+        rem % 60
+    )
+}
+
+// Howard Hinnant's civil-calendar algorithms (proleptic Gregorian, days since 1970-01-01).
+fn days_from_civil(y: i64, m: i64, d: i64) -> i64 {
+    let y = if m <= 2 { y - 1 } else { y };
+    let era = y.div_euclid(400);
+    let yoe = y - era * 400;
+    let doy = (153 * (if m > 2 { m - 3 } else { m + 9 }) + 2) / 5 + d - 1;
+    let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
+    era * 146097 + doe - 719468
+}
+
+fn civil_from_days(z: i64) -> (i64, i64, i64) {
+    let z = z + 719468;
+    let era = z.div_euclid(146097);
+    let doe = z - era * 146097;
+    let yoe = (doe - doe / 1460 + doe / 36524 - doe / 146096) / 365;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let d = doy - (153 * mp + 2) / 5 + 1;
+    let m = if mp < 10 { mp + 3 } else { mp - 9 };
+    (yoe + era * 400 + i64::from(m <= 2), m, d)
 }
 
 /// Turns per-chunk progress into `FetchEvent`s: `Started` once, then `Progress`
@@ -713,6 +1049,106 @@ mod tests {
         let id = NetworkId::parse("dev-1").unwrap();
         assert_eq!(format!("[{id:<8}]"), "[dev-1   ]");
         assert_eq!(format!("[{:>11}]", platform("linux-x64")), "[  linux-x64]");
+    }
+
+    #[test]
+    fn created_ago_matches_go_units_human_duration() {
+        let t0 = parse_rfc3339("2026-10-24T00:00:00Z").unwrap();
+        let ago = |secs: u64| {
+            created_ago("2026-10-24T00:00:00Z", t0 + Duration::from_secs(secs)).unwrap()
+        };
+        for (secs, want) in [
+            (0, "Less than a second ago"),
+            (1, "1 second ago"),
+            (59, "59 seconds ago"),
+            (60, "About a minute ago"),
+            (119, "About a minute ago"),
+            (120, "2 minutes ago"),
+            (59 * 60 + 59, "59 minutes ago"),
+            (3600, "About an hour ago"),
+            (3600 + 29 * 60, "About an hour ago"),
+            (3600 + 30 * 60, "2 hours ago"),
+            (11 * 3600, "11 hours ago"),
+            (47 * 3600, "47 hours ago"),
+            (47 * 3600 + 30 * 60, "2 days ago"),
+            (13 * 86400, "13 days ago"),
+            (14 * 86400, "2 weeks ago"),
+            (59 * 86400, "8 weeks ago"),
+            (60 * 86400, "2 months ago"),
+            (729 * 86400, "24 months ago"),
+            (730 * 86400, "2 years ago"),
+        ] {
+            assert_eq!(ago(secs), want, "{secs}s");
+        }
+        // a clock behind the publisher's reads as just now, as docker does
+        assert_eq!(
+            created_ago("2026-10-24T00:00:10Z", t0).unwrap(),
+            "Less than a second ago"
+        );
+    }
+
+    #[test]
+    fn rfc3339_round_trips_and_rejects_other_shapes() {
+        for s in [
+            "1970-01-01T00:00:00Z",
+            "2026-10-24T07:18:14Z",
+            "2000-02-29T23:59:59Z",
+            "2100-03-01T00:00:00Z",
+        ] {
+            assert_eq!(rfc3339(parse_rfc3339(s).unwrap()), s);
+        }
+        assert_eq!(
+            parse_rfc3339("2026-10-24T07:18:14.250Z"),
+            parse_rfc3339("2026-10-24T07:18:14Z")
+        );
+        for bad in [
+            "",
+            "2026-10-24",
+            "2026-10-24T07:18:14",
+            "2026-10-24T07:18:14+02:00",
+            "2026-13-01T00:00:00Z",
+            "yesterday",
+        ] {
+            assert_eq!(parse_rfc3339(bad), None, "{bad}");
+        }
+    }
+
+    #[test]
+    fn the_built_in_source_is_never_shown() {
+        assert_eq!(source_label(DEFAULT_SOURCE), None);
+        assert_eq!(source_label(&format!("{DEFAULT_SOURCE}/")), None);
+        assert_eq!(
+            source_label("http://127.0.0.1:8765").as_deref(),
+            Some("127.0.0.1:8765")
+        );
+        assert_eq!(
+            source_label("https://mirror.example/zknet/").as_deref(),
+            Some("mirror.example/zknet")
+        );
+        // a host that merely starts like the default is not the default
+        assert_eq!(
+            source_label("https://dist.zknet.io.evil").as_deref(),
+            Some("dist.zknet.io.evil")
+        );
+
+        let hidden = FetchError::NotFound {
+            id: "devnet-1".into(),
+            url: format!("{DEFAULT_SOURCE}/devnet-1/client.toml"),
+        };
+        assert_eq!(hidden.to_string(), "network devnet-1 is not published");
+        let shown = FetchError::NotFound {
+            id: "devnet-1".into(),
+            url: "http://127.0.0.1:8765/devnet-1/client.toml".into(),
+        };
+        assert_eq!(
+            shown.to_string(),
+            "network devnet-1 is not published at http://127.0.0.1:8765/devnet-1/client.toml"
+        );
+        let index = FetchError::Index {
+            url: format!("{DEFAULT_SOURCE}/networks.json"),
+            reason: "HTTP 500".into(),
+        };
+        assert_eq!(index.to_string(), "invalid network index: HTTP 500");
     }
 
     #[test]

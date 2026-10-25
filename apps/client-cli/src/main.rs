@@ -5,7 +5,7 @@ use clap::{Args, Parser, Subcommand};
 use zknet_core::{
     context::AppContext,
     network::{
-        fetch, http_client, list, FetchEvent, FetchOptions, Layout, Listing, NetworkId,
+        http_client, list, prepare, FetchEvent, FetchOptions, Layout, Listing, NetworkId,
         OnFetchEvent, Platform,
     },
 };
@@ -76,15 +76,11 @@ fn print_listing(listing: &Listing, out: &mut impl Write, err: &mut impl Write) 
     }
     for n in &listing.networks {
         writeln!(out, "{}", n.id)?;
-        let (kind, name) = match &n.listed {
+        let (kind, name) = match &n.entry {
             Some(l) => (format!("{:?}", l.kind).to_lowercase(), l.name.as_str()),
             None => ("-".into(), "-"),
         };
-        let status = match (n.listed.is_some(), n.cached) {
-            (true, true) => "live, cached",
-            (true, false) => "live",
-            (false, _) => "cached, not listed",
-        };
+        let status = format!("{:?}", n.status).to_lowercase();
         writeln!(err, "  {:<24} {:<8} {:<36} {status}", n.id, kind, name)?;
     }
     Ok(())
@@ -104,7 +100,7 @@ async fn connect(ctx: AppContext, args: ConnectArgs) -> Result<()> {
     let options = FetchOptions {
         refresh: args.refresh || ctx.config.walletshield_thin,
     };
-    fetch(&http_client()?, &layout, &id, options, Some(on_event)).await?;
+    prepare(&http_client()?, &layout, &id, options, Some(on_event)).await?;
 
     walletshield::run(&ctx.config, &layout, &id).await
 }
@@ -138,7 +134,7 @@ async fn main() -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use zknet_core::network::{IndexEntry, NetworkEntry, NetworkKind};
+    use zknet_core::network::{IndexEntry, NetworkEntry, NetworkKind, Status};
 
     fn parse(args: &[&str]) -> Result<Cli, clap::Error> {
         Cli::try_parse_from([&["zknet-client-cli"], args].concat())
@@ -197,21 +193,29 @@ mod tests {
     fn listing_prints_ids_alone_on_stdout() {
         let id = |s| NetworkId::parse(s).unwrap();
         let listing = Listing {
+            source: "https://example.test".into(),
+            source_label: Some("example.test".into()),
             networks: vec![
                 NetworkEntry {
                     id: id("devnet-2"),
-                    listed: Some(IndexEntry {
+                    status: Status::Ready,
+                    entry: Some(IndexEntry {
                         id: "devnet-2".into(),
                         kind: NetworkKind::Devnet,
                         name: "Devnet two".into(),
                         created: "2026-10-23T12:00:00Z".into(),
                     }),
-                    cached: true,
+                    origin: Some("https://example.test".into()),
+                    origin_label: Some("example.test".into()),
+                    created_ago: Some("11 hours ago".into()),
                 },
                 NetworkEntry {
                     id: id("dev-old"),
-                    listed: None,
-                    cached: true,
+                    status: Status::Unlisted,
+                    entry: None,
+                    origin: None,
+                    origin_label: None,
+                    created_ago: None,
                 },
             ],
             index_error: None,
@@ -221,9 +225,9 @@ mod tests {
         assert_eq!(String::from_utf8(out).unwrap(), "devnet-2\ndev-old\n");
         let err = String::from_utf8(err).unwrap();
         assert!(
-            err.contains("devnet   Devnet two") && err.contains("live, cached"),
+            err.contains("devnet   Devnet two") && err.contains("ready"),
             "{err}"
         );
-        assert!(err.contains("cached, not listed"), "{err}");
+        assert!(err.contains("unlisted"), "{err}");
     }
 }

@@ -16,8 +16,8 @@ use hyper_util::rt::TokioIo;
 use tempfile::TempDir;
 
 use zknet_core::network::{
-    cached, fetch, fetch_index, http_client, list, Asset, FetchError, FetchEvent, FetchOptions,
-    Layout, NetworkId, NetworkKind, OnFetchEvent, Platform,
+    cached, fetch_index, http_client, list, prepare, Asset, FetchError, FetchEvent, FetchOptions,
+    Layout, NetworkId, NetworkKind, OnFetchEvent, Platform, Prepared, Status,
 };
 
 type Body = BoxBody<Bytes, std::io::Error>;
@@ -147,11 +147,42 @@ async fn published() -> (Server, Layout, TempDir) {
         &format!("/{ID}/walletshield-linux-x64"),
         Route::Ok(vec![7; 300_000]),
     );
+    server.route("/networks.json", Route::Ok(index_of(&[ID]).into_bytes()));
     let base = server.start().await;
     let cache = TempDir::new().unwrap();
     let platform = Platform::from_os_arch(PLATFORM.0, PLATFORM.1).unwrap();
     let layout = Layout::new(&base, cache.path().join("networks"), platform);
     (server, layout, cache)
+}
+
+/// An index listing `ids`, created on the hour from 2026-10-23T08:00Z in order.
+fn index_of(ids: &[&str]) -> String {
+    let entries: Vec<String> = ids
+        .iter()
+        .enumerate()
+        .map(|(i, id)| {
+            format!(r#"{{"id": "{id}", "kind": "devnet", "name": "{id}", "created": "2026-10-23T{:02}:00:00Z"}}"#, 8 + i)
+        })
+        .collect();
+    format!(r#"{{"schema": 1, "networks": [{}]}}"#, entries.join(", "))
+}
+
+/// A second source publishing `id` with its own bytes, sharing `layout`'s cache.
+async fn other_source(layout: &Layout, id: &str) -> (Server, Layout) {
+    let server = Server::default();
+    server.route(
+        &format!("/{id}/client.toml"),
+        Route::Ok(b"[other]\n".to_vec()),
+    );
+    server.route(&format!("/{id}/services.json"), Route::Ok(b"{}\n".to_vec()));
+    server.route(
+        &format!("/{id}/walletshield-linux-x64"),
+        Route::Ok(vec![8; 1000]),
+    );
+    server.route("/networks.json", Route::Ok(index_of(&[id]).into_bytes()));
+    let base = server.start().await;
+    let other = Layout::new(&base, layout.networks_dir.clone(), layout.platform.clone());
+    (server, other)
 }
 
 fn recorder() -> (OnFetchEvent, Arc<Mutex<Vec<FetchEvent>>>) {
@@ -174,7 +205,21 @@ async fn get(
     opts: FetchOptions,
     on: Option<OnFetchEvent>,
 ) -> Result<std::path::PathBuf, FetchError> {
-    fetch(&http_client().unwrap(), layout, &id(), opts, on).await
+    prepare(&http_client().unwrap(), layout, &id(), opts, on)
+        .await
+        .map(|p| p.dir)
+}
+
+async fn prepare_id(layout: &Layout, id: &str) -> Result<Prepared, FetchError> {
+    let id = NetworkId::parse(id).unwrap();
+    prepare(
+        &http_client().unwrap(),
+        layout,
+        &id,
+        FetchOptions::default(),
+        None,
+    )
+    .await
 }
 
 #[tokio::test]
@@ -185,8 +230,16 @@ async fn fetch_installs_the_complete_asset_set() {
     assert_eq!(dir, layout.network_dir(&id()));
     assert_eq!(
         files(&dir),
-        ["client.toml", "services.json", "walletshield"]
+        [
+            "client.toml",
+            "origin.json",
+            "services.json",
+            "walletshield"
+        ]
     );
+    let origin = layout.cached_origin(&id()).unwrap();
+    assert_eq!(origin.base_url, layout.base_url);
+    assert_eq!(origin.entry.unwrap().created, "2026-10-23T08:00:00Z");
     assert_eq!(
         std::fs::read(dir.join("walletshield")).unwrap(),
         vec![7; 300_000]
@@ -242,7 +295,7 @@ async fn refresh_downloads_again() {
 async fn an_unpublished_network_is_not_found() {
     let (_server, layout, _cache) = published().await;
     let other = NetworkId::parse("devnet-gone").unwrap();
-    let err = fetch(
+    let err = prepare(
         &http_client().unwrap(),
         &layout,
         &other,
@@ -273,7 +326,12 @@ async fn a_cut_download_leaves_no_part_and_keeps_the_cached_set() {
     let dir = layout.network_dir(&id());
     assert_eq!(
         files(&dir),
-        ["client.toml", "services.json", "walletshield"]
+        [
+            "client.toml",
+            "origin.json",
+            "services.json",
+            "walletshield"
+        ]
     );
     assert_eq!(
         std::fs::read(dir.join("walletshield")).unwrap(),
@@ -429,11 +487,13 @@ async fn the_generated_index_fixture_parses() {
 }
 
 #[tokio::test]
-async fn list_merges_live_and_cached_networks() {
+async fn list_gives_every_network_a_status_live_first() {
     let (server, layout, _cache) = published().await;
     server.route("/networks.json", Route::Ok(INDEX.as_bytes().to_vec()));
     get(&layout, FetchOptions::default(), None).await.unwrap();
-    // a retired network still on disk, and an incomplete one that does not count
+    // a copy from another source, one with no origin record, and an incomplete one
+    let (_b, other) = other_source(&layout, "devnet-x").await;
+    prepare_id(&other, "devnet-x").await.unwrap();
     for (dir, names) in [
         (
             "dev-old",
@@ -450,20 +510,41 @@ async fn list_merges_live_and_cached_networks() {
 
     let listing = list(&http_client().unwrap(), &layout).await;
     assert_eq!(listing.index_error, None);
-    let rows: Vec<(&str, bool, bool)> = listing
+    assert_eq!(listing.source, layout.base_url);
+    assert_eq!(
+        listing.source_label.as_deref(),
+        layout.base_url.strip_prefix("http://")
+    );
+    let rows: Vec<(&str, Status)> = listing
         .networks
         .iter()
-        .map(|n| (n.id.as_str(), n.listed.is_some(), n.cached))
+        .map(|n| (n.id.as_str(), n.status))
         .collect();
     assert_eq!(
         rows,
         [
-            ("devnet-2", true, false),
-            ("devnet-1", true, true),
-            ("lab-1", true, false),
-            ("dev-old", false, true)
+            // live together, newest first: an older ready sorts below a newer available
+            ("devnet-2", Status::Available),
+            ("devnet-1", Status::Ready),
+            ("lab-1", Status::Available),
+            ("dev-old", Status::Unlisted),
+            ("devnet-x", Status::OtherSource),
         ]
     );
+    let x = &listing.networks[4];
+    assert_eq!(x.origin.as_deref(), Some(other.base_url.as_str()));
+    assert_eq!(
+        x.origin_label.as_deref(),
+        other.base_url.strip_prefix("http://")
+    );
+    // details of a copy no longer listed come from its origin record
+    assert_eq!(x.entry.as_ref().unwrap().created, "2026-10-23T08:00:00Z");
+    assert!(x.created_ago.as_deref().unwrap().ends_with(" ago"));
+    assert!(listing.networks[3].entry.is_none());
+    assert!(listing
+        .networks
+        .iter()
+        .all(|n| n.id.as_str() != "dev-partial"));
 }
 
 #[tokio::test]
@@ -479,6 +560,64 @@ async fn list_survives_an_unreachable_or_broken_index() {
         assert!(listing.index_error.is_some());
         assert_eq!(listing.networks.len(), 1);
         assert_eq!(listing.networks[0].id.as_str(), ID);
-        assert!(listing.networks[0].cached);
+        assert_eq!(listing.networks[0].status, Status::Cached);
+        // the recorded entry still gives the row its details
+        assert!(listing.networks[0].entry.is_some());
     }
+}
+
+/// ?3-2: the current source doesn't list it, so the copy from elsewhere runs.
+#[tokio::test]
+async fn an_other_source_copy_is_used_when_the_current_source_does_not_list_it() {
+    let (server, layout, _cache) = published().await;
+    let (_b, other) = other_source(&layout, "devnet-x").await;
+    prepare_id(&other, "devnet-x").await.unwrap();
+
+    let before = server.total_hits();
+    let prepared = prepare_id(&layout, "devnet-x").await.unwrap();
+    assert!(prepared.other_source);
+    assert_eq!(prepared.origin, other.base_url);
+    // one index read, no asset requests to the current source
+    assert_eq!(server.total_hits(), before + 1);
+    assert_eq!(server.hits("/devnet-x/client.toml"), 0);
+}
+
+/// ?3-3: the current source lists the same id, so its bytes replace the other copy.
+#[tokio::test]
+async fn another_source_s_bytes_never_run_under_an_id_the_current_source_lists() {
+    let (server, layout, _cache) = published().await;
+    let (_b, other) = other_source(&layout, ID).await;
+    prepare_id(&other, ID).await.unwrap();
+    assert_eq!(
+        std::fs::read(layout.asset_path(&id(), Asset::Walletshield)).unwrap(),
+        vec![8; 1000]
+    );
+
+    let prepared = prepare_id(&layout, ID).await.unwrap();
+    assert!(!prepared.other_source);
+    assert_eq!(prepared.origin, layout.base_url);
+    assert_eq!(server.hits(&format!("/{ID}/walletshield-linux-x64")), 1);
+    assert_eq!(
+        std::fs::read(layout.asset_path(&id(), Asset::Walletshield)).unwrap(),
+        vec![7; 300_000]
+    );
+    assert_eq!(
+        layout.cached_origin(&id()).unwrap().base_url,
+        layout.base_url
+    );
+}
+
+/// An unreachable current source never falls back to another source's copy.
+#[tokio::test]
+async fn an_unreachable_source_does_not_fall_back_to_another_copy() {
+    let (_server, layout, _cache) = published().await;
+    let (_b, other) = other_source(&layout, "devnet-x").await;
+    prepare_id(&other, "devnet-x").await.unwrap();
+    let down = Layout::new(
+        "http://127.0.0.1:9",
+        layout.networks_dir.clone(),
+        layout.platform.clone(),
+    );
+    let err = prepare_id(&down, "devnet-x").await.unwrap_err();
+    assert_eq!(err.kind(), "http", "{err}");
 }

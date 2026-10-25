@@ -19,8 +19,8 @@ INDEX = server.PROJECT / 'index.sh'
 FIXTURE = server.PROJECT / 'fixtures' / 'networks.json'
 # the network.json lines behind FIXTURE, which the clients' tests parse
 FIXTURE_NETWORKS = {
-    'dev-local': {'id': 'dev-local', 'kind': 'local', 'name': 'dev-local', 'created': '2026-10-23T08:00:00Z'},
-    'devnet-78c3de28': {'id': 'devnet-78c3de28', 'kind': 'devnet', 'name': 'Devnet · 2026-10-23 12:00 UTC',
+    'dev-local': {'id': 'dev-local', 'kind': 'local', 'name': 'Local · 2026-10-23', 'created': '2026-10-23T08:00:00Z'},
+    'devnet-78c3de28': {'id': 'devnet-78c3de28', 'kind': 'devnet', 'name': 'Devnet · 2026-10-23',
                         'created': '2026-10-23T12:00:00Z'},
 }
 BINARIES = ['walletshield-linux-arm64', 'walletshield-linux-x64', 'walletshield-macos-arm64', 'walletshield-macos-x64',
@@ -139,8 +139,16 @@ class IndexTest(Fixture):
         self.assertEqual([n['id'] for n in index['networks']], ['devnet-a', 'dev-local'])
         self.assertEqual([n['kind'] for n in index['networks']], ['devnet', 'local'])
         self.assertEqual(index['networks'][0]['name'], 'Devnet "A" \\ one')
-        self.assertEqual(index['networks'][1]['name'], 'dev-local')
+        local = index['networks'][1]
+        # the default name: the kind and the date of `created`, no time
+        self.assertEqual(local['name'], f"Local · {local['created'][:10]}")
         self.assertRegex(index['networks'][0]['created'], r'^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ$')
+
+    def test_the_default_name_is_the_kind_and_the_day(self):
+        self.assemble('devnet-78c3de87')
+        (entry,) = self.index()['networks']
+        self.assertRegex(entry['name'], r'^Devnet · \d{4}-\d\d-\d\d$')
+        self.assertEqual(entry['name'], f"Devnet · {entry['created'][:10]}")
 
     def test_publishes_pages_headers_and_a_real_404(self):
         self.assemble()

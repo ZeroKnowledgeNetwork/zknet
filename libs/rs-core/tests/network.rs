@@ -483,7 +483,7 @@ async fn the_generated_index_fixture_parses() {
     assert_eq!(ids, ["devnet-78c3de28", "dev-local"]);
     assert_eq!(index.networks[0].kind, NetworkKind::Devnet);
     assert_eq!(index.networks[1].kind, NetworkKind::Local);
-    assert_eq!(index.networks[0].name, "Devnet · 2026-10-23 12:00 UTC");
+    assert_eq!(index.networks[0].name, "Devnet · 2026-10-23");
 }
 
 #[tokio::test]

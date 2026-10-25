@@ -31,7 +31,7 @@ apps/network-assets/assemble.sh [--out DIR] --remove <network_id>
 | `--served`      | `dist/woodpecker/walletshield/served`: the export of `.woodpecker/run dist`   |
 | `--out`         | `apps/network-assets/generated`                                               |
 | `--kind`        | `local` for `dev-local`, else the id's prefix: `devnet`, `testnet`, `mainnet` |
-| `--name`        | the network id: the name clients show                                         |
+| `--name`        | `<Kind> · <YYYY-MM-DD>` (UTC date of assembly): the name clients show         |
 | `services.json` | `packages/opt/docker/services.json`, the network's service manifest           |
 
 - `client.toml` is copied verbatim: the caller picks the config its clients run.

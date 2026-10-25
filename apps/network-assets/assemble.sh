@@ -14,7 +14,8 @@
 #   --out      the directory of networks (default: generated/ beside this script)
 #   --kind     local, devnet, testnet or mainnet (default: local for dev-local,
 #              else the id's prefix before its first '-')
-#   --name     the name clients show (default: the network id)
+#   --name     the name clients show (default: "<Kind> · <YYYY-MM-DD>", the
+#              kind and the UTC date of assembly, e.g. "Devnet · 2026-10-24")
 #   --remove   delete a network and drop it from the index
 #   services.json defaults to the network manifest, packages/opt/docker/services.json
 #
@@ -76,7 +77,9 @@ if [ -z "$kind" ]; then
 fi
 [[ $kind =~ ^(local|devnet|testnet|mainnet)$ ]] ||
   die "unknown network kind '$kind': pass --kind local|devnet|testnet|mainnet"
-name=${name:-$network_id}
+created=$(date -u +%FT%TZ)
+Kind=$(printf %s "${kind:0:1}" | tr a-z A-Z)${kind:1} # bash 3.2 has no ${kind^}
+name=${name:-"$Kind · ${created%%T*}"}
 [[ $name =~ ^[^[:cntrl:]]+$ ]] || die "invalid network name: '$name'"
 json() { local s=${1//\\/\\\\}; printf '"%s"' "${s//\"/\\\"}"; }
 [ -f "$client_config" ] || die "no client config at $client_config"
@@ -99,7 +102,7 @@ cp "$served/checksums.txt" "$staging/checksums.txt"
 (cd "$staging" && sha256sum client.toml services.json >>checksums.txt &&
   sha256sum --check --quiet --strict checksums.txt)
 printf '{"id": %s, "kind": %s, "name": %s, "created": %s}\n' \
-  "$(json "$network_id")" "$(json "$kind")" "$(json "$name")" "$(json "$(date -u +%FT%TZ)")" \
+  "$(json "$network_id")" "$(json "$kind")" "$(json "$name")" "$(json "$created")" \
   >"$staging/network.json"
 
 target=$out/$network_id

@@ -1,15 +1,16 @@
-use std::{io::Write, sync::Arc};
+use std::{process::ExitCode, sync::Arc};
 
 use anyhow::Result;
 use clap::{Args, Parser, Subcommand};
 use zknet_core::{
     context::AppContext,
     network::{
-        http_client, list, prepare, FetchEvent, FetchOptions, Layout, Listing, NetworkId,
-        OnFetchEvent, Platform,
+        http_client, list, prepare, FetchEvent, FetchOptions, Layout, NetworkId, OnFetchEvent,
+        Platform,
     },
 };
 
+mod list;
 mod walletshield;
 
 const APP_NAME: &str = env!("CARGO_PKG_NAME");
@@ -38,10 +39,20 @@ struct Cli {
 
 #[derive(Subcommand, Debug)]
 enum Command {
-    /// List live and cached networks: ids on stdout, details on stderr
-    List,
+    /// List the mix networks: live ones first, then those on this device
+    List(ListArgs),
     /// Download a network's assets if needed and run its client
     Connect(ConnectArgs),
+}
+
+#[derive(Args, Debug)]
+struct ListArgs {
+    /// Only print network ids
+    #[arg(short, long)]
+    quiet: bool,
+    /// Output format
+    #[arg(long, value_enum, default_value_t)]
+    format: list::Format,
 }
 
 #[derive(Args, Debug)]
@@ -69,23 +80,6 @@ fn layout(ctx: &AppContext) -> Layout {
     )
 }
 
-/// Ids on `out`, one per line, so they feed `connect`; a table on `err`.
-fn print_listing(listing: &Listing, out: &mut impl Write, err: &mut impl Write) -> Result<()> {
-    if let Some(e) = &listing.index_error {
-        writeln!(err, "No network index: {e}")?;
-    }
-    for n in &listing.networks {
-        writeln!(out, "{}", n.id)?;
-        let (kind, name) = match &n.entry {
-            Some(l) => (format!("{:?}", l.kind).to_lowercase(), l.name.as_str()),
-            None => ("-".into(), "-"),
-        };
-        let status = format!("{:?}", n.status).to_lowercase();
-        writeln!(err, "  {:<24} {:<8} {:<36} {status}", n.id, kind, name)?;
-    }
-    Ok(())
-}
-
 async fn connect(ctx: AppContext, args: ConnectArgs) -> Result<()> {
     let id = args.network_id.expect("clap requires a network id");
     let layout = layout(&ctx);
@@ -100,13 +94,19 @@ async fn connect(ctx: AppContext, args: ConnectArgs) -> Result<()> {
     let options = FetchOptions {
         refresh: args.refresh || ctx.config.walletshield_thin,
     };
-    prepare(&http_client()?, &layout, &id, options, Some(on_event)).await?;
+    let prepared = prepare(&http_client()?, &layout, &id, options, Some(on_event)).await?;
+    if prepared.other_source {
+        let from = prepared
+            .origin_label
+            .map_or_else(|| "the default source".into(), |host| host.to_string());
+        println!("{id} isn't listed here; running the copy downloaded from {from}");
+    }
 
     walletshield::run(&ctx.config, &layout, &id).await
 }
 
 #[tokio::main]
-async fn main() -> Result<()> {
+async fn main() -> Result<ExitCode> {
     let cli = Cli::parse();
 
     let app_name = APP_NAME.replace('_', "-");
@@ -117,9 +117,15 @@ async fn main() -> Result<()> {
     }
 
     let args = match cli.command {
-        Some(Command::List) => {
+        Some(Command::List(a)) => {
             let listing = list(&http_client()?, &layout(&ctx)).await;
-            return print_listing(&listing, &mut std::io::stdout(), &mut std::io::stderr());
+            let (mut out, mut err) = (std::io::stdout(), std::io::stderr());
+            let read = list::print(&listing, a.format, a.quiet, &mut out, &mut err)?;
+            return Ok(if read {
+                ExitCode::SUCCESS
+            } else {
+                ExitCode::FAILURE
+            });
         }
         Some(Command::Connect(args)) => args,
         None => cli.connect,
@@ -127,14 +133,24 @@ async fn main() -> Result<()> {
     println!("Starting {app_name} v{VERSION} on {}", ctx.platform);
     ctx.config.walletshield_thin |= args.thin;
     println!("App data directory: {}", ctx.paths.dir_data().display());
-    println!("Using configuration: {:#?}", ctx.config);
-    connect(ctx, args).await
+    // the built-in network source is never shown; an overridden one is
+    if let Some(host) = layout(&ctx).source_label() {
+        println!("Network source: {host}");
+    }
+    let c = &ctx.config;
+    println!(
+        "WalletShield: listen {} · log {}{}",
+        c.walletshield_listen_address,
+        c.walletshield_log_level,
+        if c.walletshield_thin { " · thin" } else { "" }
+    );
+    connect(ctx, args).await?;
+    Ok(ExitCode::SUCCESS)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use zknet_core::network::{IndexEntry, NetworkEntry, NetworkKind, Status};
 
     fn parse(args: &[&str]) -> Result<Cli, clap::Error> {
         Cli::try_parse_from([&["zknet-client-cli"], args].concat())
@@ -144,15 +160,29 @@ mod tests {
         match cli.command {
             Some(Command::Connect(a)) => a.network_id.unwrap().to_string(),
             None => cli.connect.network_id.unwrap().to_string(),
-            Some(Command::List) => panic!("parsed as list"),
+            Some(Command::List(_)) => panic!("parsed as list"),
         }
     }
 
     #[test]
     fn list_is_a_subcommand() {
         let cli = parse(&["list", "--network-url", "http://127.0.0.1:1"]).unwrap();
-        assert!(matches!(cli.command, Some(Command::List)));
+        assert!(matches!(
+            cli.command,
+            Some(Command::List(ListArgs {
+                quiet: false,
+                format: list::Format::Table
+            }))
+        ));
         assert_eq!(cli.network_url.as_deref(), Some("http://127.0.0.1:1"));
+        let cli = parse(&["list", "-q", "--format", "json"]).unwrap();
+        assert!(matches!(
+            cli.command,
+            Some(Command::List(ListArgs {
+                quiet: true,
+                format: list::Format::Json
+            }))
+        ));
     }
 
     #[test]
@@ -189,45 +219,10 @@ mod tests {
         assert!(parse(&[]).is_err());
     }
 
+    /// "Is this the built-in source?" is answered by zknet_core alone.
     #[test]
-    fn listing_prints_ids_alone_on_stdout() {
-        let id = |s| NetworkId::parse(s).unwrap();
-        let listing = Listing {
-            source: "https://example.test".into(),
-            source_label: Some("example.test".into()),
-            networks: vec![
-                NetworkEntry {
-                    id: id("devnet-2"),
-                    status: Status::Ready,
-                    entry: Some(IndexEntry {
-                        id: "devnet-2".into(),
-                        kind: NetworkKind::Devnet,
-                        name: "Devnet two".into(),
-                        created: "2026-10-23T12:00:00Z".into(),
-                    }),
-                    origin: Some("https://example.test".into()),
-                    origin_label: Some("example.test".into()),
-                    created_ago: Some("11 hours ago".into()),
-                },
-                NetworkEntry {
-                    id: id("dev-old"),
-                    status: Status::Unlisted,
-                    entry: None,
-                    origin: None,
-                    origin_label: None,
-                    created_ago: None,
-                },
-            ],
-            index_error: None,
-        };
-        let (mut out, mut err) = (Vec::new(), Vec::new());
-        print_listing(&listing, &mut out, &mut err).unwrap();
-        assert_eq!(String::from_utf8(out).unwrap(), "devnet-2\ndev-old\n");
-        let err = String::from_utf8(err).unwrap();
-        assert!(
-            err.contains("devnet   Devnet two") && err.contains("ready"),
-            "{err}"
-        );
-        assert!(err.contains("unlisted"), "{err}");
+    fn the_configured_source_is_the_built_in_one() {
+        let config: serde_json::Value = serde_json::from_str(CONFIG_JSON).unwrap();
+        assert_eq!(config["urlNetwork"], zknet_core::network::DEFAULT_SOURCE);
     }
 }

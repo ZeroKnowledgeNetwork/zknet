@@ -10,7 +10,6 @@ pub struct ZKNetClientCfg {
     pub default_walletshield_listen_address: String,
     pub url_network: String,
     pub walletshield_log_level: String,
-    pub walletshield_thin: bool,
     /// Whether the UI checks for app updates; dev builds turn it off.
     pub updater: bool,
 }

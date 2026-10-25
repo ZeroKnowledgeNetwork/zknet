@@ -5,6 +5,7 @@ import {
   NetworkRow,
   anyListed,
   caption,
+  showsSource,
   createdTitle,
   statusHint,
   unreachableText,
@@ -38,6 +39,7 @@ export function NetworkTable(props: {
   onReload: () => void;
 }) {
   const { listing, selected } = props;
+  const source = showsSource(listing);
   return (
     <div className="w-full max-w-2xl rounded-box border border-base-300 bg-base-200">
       <div className="flex items-center justify-between gap-2 px-3 py-2">
@@ -68,7 +70,7 @@ export function NetworkTable(props: {
         </div>
       ))}
       {listing.unreachable.length === 0 && !anyListed(listing) && (
-        <p className="px-3 pb-4 pt-1 text-sm opacity-60">No listed networks.</p>
+        <p className="px-3 pb-4 pt-1 text-sm opacity-60">No published networks.</p>
       )}
       {listing.networks.length > 0 && (
         <table className="table table-sm">
@@ -78,6 +80,7 @@ export function NetworkTable(props: {
               <th>Network</th>
               <th>Kind</th>
               <th>Created</th>
+              {source && <th>Source</th>}
             </tr>
           </thead>
           <tbody>
@@ -101,6 +104,7 @@ export function NetworkTable(props: {
                 <td className="opacity-80" title={createdTitle(n)}>
                   {n.createdAgo ?? '—'}
                 </td>
+                {source && <td className="font-mono text-xs opacity-60">{n.sourceLabel}</td>}
               </tr>
             ))}
           </tbody>

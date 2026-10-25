@@ -1,48 +1,9 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "app": {
-    "security": {
-      "capabilities": [
-        "default",
-        "desktop-capability",
-        {
-          "identifier": "dev-local",
-          "description": "Development only: thin-mode WalletShield",
-          "windows": ["main"],
-          "permissions": [
-            {
-              "identifier": "shell:allow-spawn",
-              "allow": [
-                {
-                  "name": "walletshield-listen-thin",
-                  "cmd": "walletshield",
-                  "args": [
-                    "-listen",
-                    {
-                      "validator": "^(\\S*:\\d+)$"
-                    },
-                    "-config",
-                    "client.toml",
-                    "-log_level",
-                    {
-                      "validator": "^(DEBUG|INFO|WARN|ERROR)$"
-                    },
-                    "-thin"
-                  ],
-                  "sidecar": false
-                }
-              ]
-            }
-          ]
-        }
-      ]
-    }
-  },
   "plugins": {
     "zknet": {
       "urlNetwork": "http://127.0.0.1:8765",
-      "walletshieldLogLevel": "DEBUG",
-      "walletshieldThin": true
+      "walletshieldLogLevel": "DEBUG"
     }
   }
 }

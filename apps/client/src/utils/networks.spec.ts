@@ -5,6 +5,7 @@ import {
   anyListed,
   autoFillId,
   caption,
+  showsSource,
   createdTitle,
   statusHint,
   unreachableText,
@@ -69,6 +70,12 @@ describe('network list presentation', () => {
     expect(anyListed(listing([]))).toBe(false);
     expect(anyListed(listing([row('old', 'unpublished'), row('x', 'cached')]))).toBe(false);
     expect(anyListed(listing([row('old', 'unpublished'), row('new', 'available')]))).toBe(true);
+  });
+
+  it('shows a Source column only once a non-default source is known', () => {
+    expect(showsSource(listing([row('devnet-1', 'ready')]))).toBe(false);
+    const local = row('dev-local', 'ready', { sourceLabel: '127.0.0.1:8765' });
+    expect(showsSource(listing([row('devnet-1', 'ready'), local]))).toBe(true);
   });
 
   it('titles CREATED with the full time in the given locale', () => {

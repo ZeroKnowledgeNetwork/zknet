@@ -66,6 +66,10 @@ export const unreachableText = (e: SourceError) =>
     ? `Couldn't reach ${e.sourceLabel}. Its networks are shown from this device.`
     : "Couldn't reach the network list. Showing networks on this device.";
 
+// A Source column only once a source other than the built-in one is known; its
+// cells stay blank for the built-in source, which is never shown
+export const showsSource = (l: Listing) => l.networks.some((n) => n.sourceLabel !== null);
+
 // Whether any known source publishes a network now
 export const anyListed = (l: Listing) => l.networks.some(isLive);
 

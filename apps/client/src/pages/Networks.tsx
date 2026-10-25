@@ -93,13 +93,11 @@ export function Networks() {
   }
 
   async function clientStart() {
-    const { walletshieldLogLevel, walletshieldThin } = await getZKNetClientCfg();
+    const { walletshieldLogLevel } = await getZKNetClientCfg();
 
     ////////////////////////////////////////////////////////////////////////
-    // ensure the network's assets are on disk (zknet_core::network)
+    // make the network ready at its own source (zknet_core::network::prepare)
     ////////////////////////////////////////////////////////////////////////
-    // A thin-mode network is a local development build: its binary changes with
-    // every rebuild, so a cached copy would be stale.
     setMessage('info', 'Checking network...');
     let percent = -1;
     const onEvent = (e: FetchEvent) => {
@@ -116,14 +114,12 @@ export function Networks() {
       }
       if (e.event === 'finished') setMessage('info', `Downloaded client for OS: ${platformArch}`);
     };
-    const prepared = await fetchNetwork(networkId, walletshieldThin, onEvent).catch(
-      (error: CmdError) => {
-        log.warn(`network fetch: ${error.kind}: ${error.message}`);
-        throw new Error(
-          error.kind === 'notFound' ? `Network ${networkId} is not published` : error.message,
-        );
-      },
-    );
+    const prepared = await fetchNetwork(networkId, false, onEvent).catch((error: CmdError) => {
+      log.warn(`network fetch: ${error.kind}: ${error.message}`);
+      throw new Error(
+        error.kind === 'notFound' ? `Network ${networkId} is not published` : error.message,
+      );
+    });
     const dirNetwork = prepared.dir;
     if (prepared.sourceLabel && prepared.source !== networks.launchSource) {
       consoleAddLine(`${networkId} is published at ${prepared.sourceLabel}`);
@@ -135,7 +131,7 @@ export function Networks() {
     setMessage('info', 'Starting network client...');
     const cmd = 'walletshield';
     const wla = await getWalletshieldListenAddress();
-    const { scope, args } = walletshieldSpawn(wla, walletshieldThin, walletshieldLogLevel);
+    const { scope, args } = walletshieldSpawn(wla, walletshieldLogLevel);
     const command = Command.create(scope, args, {
       cwd: dirNetwork,
       env: {

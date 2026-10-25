@@ -9,6 +9,7 @@ type Arg = string | { validator: string };
 type SpawnScope = { name: string; cmd: string; args: Arg[] };
 type Permission = string | { identifier: string; allow?: unknown[] };
 type Capability = { identifier: string; permissions: Permission[] };
+type Config = { app?: { security?: { capabilities?: (string | Capability)[] } } };
 
 // Without a configured list, a build enables every capability file.
 const capabilityFiles: Capability[] = readdirSync(join(tauri, 'capabilities')).map((f) =>
@@ -17,17 +18,17 @@ const capabilityFiles: Capability[] = readdirSync(join(tauri, 'capabilities')).m
 const shipped = readJson('tauri.conf.json');
 const devLocal = readJson('tauri.dev-local.conf.json');
 
-const enabledCapabilities = (config?: {
-  app: { security: { capabilities: (string | Capability)[] } };
-}): Capability[] =>
-  config
-    ? config.app.security.capabilities.map((c) => {
+const enabledCapabilities = (config?: Config): Capability[] => {
+  const listed = config?.app?.security?.capabilities;
+  return listed
+    ? listed.map((c) => {
         if (typeof c !== 'string') return c;
         const file = capabilityFiles.find((f) => f.identifier === c);
         if (!file) throw new Error(`capability ${c} not found`);
         return file;
       })
     : capabilityFiles;
+};
 
 const spawnScopes = (capabilities: Capability[]) =>
   capabilities
@@ -53,12 +54,12 @@ const resolveArgv = (scopes: SpawnScope[], name: string, args: string[]) => {
 
 describe('walletshield spawn', () => {
   it.each([
-    ['production', enabledCapabilities(), false, shipped.plugins.zknet.walletshieldLogLevel],
-    ['dev-local', enabledCapabilities(devLocal), true, devLocal.plugins.zknet.walletshieldLogLevel],
-  ])('%s executes exactly the arguments the client passes', (_, capabilities, thin, logLevel) => {
-    const { scope, args } = walletshieldSpawn('127.0.0.1:7070', thin, logLevel);
-    expect(resolveArgv(spawnScopes(capabilities), scope, args)).toEqual(args);
-    expect(args.includes('-thin')).toBe(thin);
+    ['production', shipped],
+    ['dev-local', devLocal],
+  ])('%s executes exactly the arguments the client passes', (_, config) => {
+    const logLevel = { ...shipped.plugins.zknet, ...config.plugins.zknet }.walletshieldLogLevel;
+    const { scope, args } = walletshieldSpawn('127.0.0.1:7070', logLevel);
+    expect(resolveArgv(spawnScopes(enabledCapabilities(config)), scope, args)).toEqual(args);
   });
 
   it('runs shipped clients at INFO and the dev-local app at DEBUG', () => {
@@ -67,44 +68,40 @@ describe('walletshield spawn', () => {
   });
 
   it.each(['TRACE', 'info', 'INFO -thin', ''])('rejects the log level %j', (logLevel) => {
-    for (const [capabilities, thin] of [
-      [enabledCapabilities(), false],
-      [enabledCapabilities(devLocal), true],
-    ] as const) {
-      const { scope, args } = walletshieldSpawn(':7070', thin, logLevel);
-      expect(() => resolveArgv(spawnScopes(capabilities), scope, args)).toThrow('rejected');
+    const { scope, args } = walletshieldSpawn(':7070', logLevel);
+    expect(() => resolveArgv(spawnScopes(enabledCapabilities()), scope, args)).toThrow('rejected');
+  });
+
+  // WalletShield picks full or thin mode from the network's config.
+  it('never passes -thin, in any build', () => {
+    expect(walletshieldSpawn(':7070', 'INFO').args).not.toContain('-thin');
+    for (const config of [undefined, devLocal]) {
+      const templates = spawnScopes(enabledCapabilities(config)).flatMap((s) => s.args);
+      expect(templates).not.toContain('-thin');
     }
   });
 
+  it('gives the dev-local app no capability of its own', () => {
+    expect(devLocal.app).toBeUndefined();
+    expect(Object.keys(devLocal.plugins.zknet).sort()).toEqual([
+      'urlNetwork',
+      'walletshieldLogLevel',
+    ]);
+  });
+
   it('keeps spawn scope names unique, so no scope shadows another', () => {
-    const names = spawnScopes(enabledCapabilities(devLocal)).map((s) => s.name);
+    const names = spawnScopes(enabledCapabilities()).map((s) => s.name);
     expect(new Set(names).size).toBe(names.length);
-  });
-
-  it('adds to every production capability rather than replacing one', () => {
-    const ids = enabledCapabilities(devLocal).map((c) => c.identifier);
-    expect(ids).toEqual(expect.arrayContaining(capabilityFiles.map((c) => c.identifier)));
-  });
-
-  it('keeps the thin scope out of production builds', () => {
-    const { scope } = walletshieldSpawn(':7070', true, 'INFO');
-    expect(spawnScopes(enabledCapabilities()).some((s) => s.name === scope)).toBe(false);
   });
 });
 
 // Network assets are fetched in Rust (zknet_core::network through the
 // network_fetch command), so the webview holds no network or download grant.
 describe('network access', () => {
-  const identifiers = (capabilities: Capability[]) =>
-    capabilities
+  it('grants no http, upload or chmod access', () => {
+    const ids = enabledCapabilities()
       .flatMap((c) => c.permissions)
       .map((p) => (typeof p === 'string' ? p : p.identifier));
-
-  it.each([
-    ['production', enabledCapabilities()],
-    ['dev-local', enabledCapabilities(devLocal)],
-  ])('%s grants no http, upload or chmod access', (_, capabilities) => {
-    const ids = identifiers(capabilities);
     expect(ids.filter((id) => /^(http|upload):/.test(id))).toEqual([]);
     expect(ids).not.toContain('shell:allow-execute');
     expect(ids.filter((id) => /^fs:allow-(mkdir|write|exists|read-dir)/.test(id))).toEqual([]);

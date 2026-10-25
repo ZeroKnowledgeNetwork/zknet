@@ -1,13 +1,11 @@
 // The shell plugin resolves a spawn by the first capability scope whose name
 // matches, then builds argv from that scope's argument template: arguments
-// beyond the template are dropped silently. Each argv shape therefore needs its
-// own scope name, kept in step with the capabilities that allow it.
+// beyond the template are dropped silently. The argv here must match the
+// `walletshield-listen` scope in the capabilities. WalletShield picks its mode
+// (full or thin) from the network's config, so no argument chooses it.
 export const WALLETSHIELD_SCOPE = 'walletshield-listen';
-export const WALLETSHIELD_THIN_SCOPE = 'walletshield-listen-thin';
 
-export const walletshieldSpawn = (listenAddress: string, thin: boolean, logLevel: string) => {
-  const args = ['-listen', listenAddress, '-config', 'client.toml', '-log_level', logLevel];
-  return thin
-    ? { scope: WALLETSHIELD_THIN_SCOPE, args: [...args, '-thin'] }
-    : { scope: WALLETSHIELD_SCOPE, args };
-};
+export const walletshieldSpawn = (listenAddress: string, logLevel: string) => ({
+  scope: WALLETSHIELD_SCOPE,
+  args: ['-listen', listenAddress, '-config', 'client.toml', '-log_level', logLevel],
+});

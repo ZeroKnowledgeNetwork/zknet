@@ -10,7 +10,6 @@ export interface ZKNetClientCfg {
   defaultWalletshieldListenAddress: string;
   urlNetwork: string;
   walletshieldLogLevel: string;
-  walletshieldThin: boolean;
   updater: boolean;
 }
 

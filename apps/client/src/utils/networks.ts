@@ -1,7 +1,7 @@
 // The network list as zknet_core::network serializes it, and how it is shown.
 // Status and sorting are decided in Rust; this file only presents them.
 
-export type Status = 'ready' | 'available' | 'cached' | 'unlisted' | 'otherSource';
+export type Status = 'ready' | 'available' | 'cached' | 'unpublished';
 
 export type IndexEntry = { id: string; kind: string; name: string; created: string };
 
@@ -9,23 +9,24 @@ export type NetworkRow = {
   id: string;
   status: Status;
   entry: IndexEntry | null;
-  origin: string | null; // the source of the copy on disk (full URL)
-  originLabel: string | null; // its host; null for the built-in source, which is never shown
+  source: string; // where it connects (full URL)
+  sourceLabel: string | null; // its host; null for the built-in source, which is never shown
   createdAgo: string | null; // "11 hours ago", as docker ps writes CREATED
 };
 
+export type SourceError = { source: string; sourceLabel: string | null; error: string };
+
 export type Listing = {
-  source: string;
-  sourceLabel: string | null; // null for the built-in source
-  networks: NetworkRow[]; // live first, newest first
-  indexError: string | null;
+  launchSource: string;
+  launchLabel: string | null; // null for the built-in source
+  networks: NetworkRow[]; // published at the launch source first, then elsewhere; newest first
+  unreachable: SourceError[]; // known sources whose index couldn't be read
 };
 
 export type Prepared = {
   dir: string;
-  origin: string;
-  originLabel: string | null;
-  otherSource: boolean;
+  source: string;
+  sourceLabel: string | null;
 };
 
 export const isLive = (n: NetworkRow) => n.status === 'ready' || n.status === 'available';
@@ -38,31 +39,34 @@ export const BADGES: Record<Status, Badge> = {
   ready: { label: 'Ready', className: 'badge-soft badge-accent', dot: 'status-accent' },
   available: { label: 'Available', className: 'badge-soft badge-accent', dot: 'status-accent' },
   cached: { label: 'Cached', className: 'badge-soft badge-warning', dot: 'status-warning' },
-  unlisted: { label: 'Unlisted', className: 'badge-ghost', dot: 'status-error' },
-  otherSource: { label: 'Other source', className: 'badge-outline', dot: 'status-secondary' },
+  unpublished: { label: 'Unpublished', className: 'badge-ghost', dot: 'status-error' },
 };
 
 // The badge's tooltip. The built-in source is never named.
 export const statusHint = (n: NetworkRow): string => {
   switch (n.status) {
     case 'ready':
-      return 'Listed now, and already downloaded: connects without a download';
+      return 'Published, and already downloaded: connects without a download';
     case 'available':
-      return 'Listed now; its client is downloaded when you connect';
+      return 'Published; its client is downloaded when you connect';
     case 'cached':
-      return "On this device; the network list couldn't be reached, so it may or may not be running";
-    case 'unlisted':
-      return 'On this device, but no longer in the network list: it has probably stopped';
-    case 'otherSource':
-      return `Downloaded from ${n.originLabel ?? 'the default source'}, which isn't the current source`;
+      return "On this device; its source couldn't be reached, so it may or may not be running";
+    case 'unpublished':
+      return 'On this device, but no longer published: it has probably stopped';
   }
 };
 
-// "Mix Networks", plus where from only when the source isn't the built-in one
+// "Mix Networks", plus where from only when launched at a source that isn't the built-in one
 export const caption = (l: Listing) =>
-  l.sourceLabel ? `Mix Networks at ${l.sourceLabel}` : 'Mix Networks';
+  l.launchLabel ? `Mix Networks at ${l.launchLabel}` : 'Mix Networks';
 
-// Whether the source lists any network now
+// The warning for a source that couldn't be read; the built-in one is never named
+export const unreachableText = (e: SourceError) =>
+  e.sourceLabel
+    ? `Couldn't reach ${e.sourceLabel}. Its networks are shown from this device.`
+    : "Couldn't reach the network list. Showing networks on this device.";
+
+// Whether any known source publishes a network now
 export const anyListed = (l: Listing) => l.networks.some(isLive);
 
 // The network to fill in: the top row when it is live and nothing is chosen

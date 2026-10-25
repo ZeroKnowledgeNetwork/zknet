@@ -7,6 +7,7 @@ import {
   caption,
   createdTitle,
   statusHint,
+  unreachableText,
 } from '../utils/networks';
 
 function StatusBadge({ row }: { row: NetworkRow }) {
@@ -56,16 +57,17 @@ export function NetworkTable(props: {
           )}
         </button>
       </div>
-      {listing.indexError && (
+      {listing.unreachable.map((e) => (
         <div
+          key={e.source}
           role="alert"
           className="alert alert-soft alert-warning mx-3 mb-2 py-2 text-sm"
-          title={listing.indexError}
+          title={e.error}
         >
-          Couldn't reach the network list. Showing networks on this device.
+          {unreachableText(e)}
         </div>
-      )}
-      {!listing.indexError && !anyListed(listing) && (
+      ))}
+      {listing.unreachable.length === 0 && !anyListed(listing) && (
         <p className="px-3 pb-4 pt-1 text-sm opacity-60">No listed networks.</p>
       )}
       {listing.networks.length > 0 && (

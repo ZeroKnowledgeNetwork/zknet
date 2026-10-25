@@ -39,18 +39,13 @@ fn table(rows: &[[String; 5]]) -> String {
     out
 }
 
-/// A row's STATUS: the words of the shared status, and where an other-source
-/// copy came from. The built-in source is never named.
-fn status(n: &NetworkEntry) -> String {
+/// A row's STATUS: the words of the shared status.
+fn status(n: &NetworkEntry) -> &'static str {
     match n.status {
-        Status::Ready => "ready".into(),
-        Status::Available => "available".into(),
-        Status::Cached => "cached".into(),
-        Status::Unlisted => "unlisted".into(),
-        Status::OtherSource => match &n.origin_label {
-            Some(host) => format!("from {host}"),
-            None => "from default source".into(),
-        },
+        Status::Ready => "ready",
+        Status::Available => "available",
+        Status::Cached => "cached",
+        Status::Unpublished => "unpublished",
     }
 }
 
@@ -60,7 +55,7 @@ fn row(n: &NetworkEntry) -> [String; 5] {
         n.id.to_string(),
         entry.map_or("-".into(), |e| format!("{:?}", e.kind).to_lowercase()),
         n.created_ago.clone().unwrap_or_else(|| "-".into()),
-        status(n),
+        status(n).into(),
         // a name that only repeats the id is noise
         entry
             .filter(|e| e.name != n.id.as_str())
@@ -68,7 +63,7 @@ fn row(n: &NetworkEntry) -> [String; 5] {
     ]
 }
 
-/// One network for `--format json`: data, so the origin is the full URL.
+/// One network for `--format json`: data, so the source is the full URL.
 #[derive(Serialize)]
 struct JsonRow<'a> {
     id: &'a str,
@@ -76,7 +71,7 @@ struct JsonRow<'a> {
     kind: Option<String>,
     name: Option<&'a str>,
     created: Option<&'a str>,
-    origin: Option<&'a str>,
+    source: &'a str,
 }
 
 fn json_row(n: &NetworkEntry) -> String {
@@ -87,13 +82,13 @@ fn json_row(n: &NetworkEntry) -> String {
         kind: entry.map(|e| format!("{:?}", e.kind).to_lowercase()),
         name: entry.map(|e| e.name.as_str()),
         created: entry.map(|e| e.created.as_str()),
-        origin: n.origin.as_deref(),
+        source: &n.source,
     })
     .expect("a row serializes")
 }
 
-/// Print a listing; returns whether the index was read. Rows go to `out`,
-/// warnings and the empty notice to `err`, as docker and kubectl do.
+/// Print a listing; returns whether the launch source was read. Rows go to
+/// `out`, warnings and the empty notice to `err`, as docker and kubectl do.
 pub fn print(
     listing: &Listing,
     format: Format,
@@ -102,7 +97,7 @@ pub fn print(
     err: &mut impl Write,
 ) -> std::io::Result<bool> {
     let at = listing
-        .source_label
+        .launch_label
         .as_ref()
         .map_or_else(String::new, |host| format!(" at {host}"));
     let rows = &listing.networks;
@@ -121,69 +116,69 @@ pub fn print(
             .collect();
         write!(out, "{}", table(&all))?;
     }
-    match &listing.index_error {
-        Some(e) => {
-            // the error names an overridden source itself, and never the built-in one
-            writeln!(err, "warning: couldn't read the network list: {e}")?;
-            Ok(false)
-        }
-        None => {
-            // nothing live: say so, above or instead of what is on this device
-            if !rows.iter().any(|n| n.status.is_live()) && !quiet && format == Format::Table {
-                writeln!(err, "No listed networks{at}.")?;
-            }
-            Ok(true)
-        }
+    // each error names an overridden source itself, and never the built-in one
+    for e in &listing.unreachable {
+        let whose = e.source_label.as_ref().map_or_else(
+            || "the network list".to_string(),
+            |host| format!("{host}'s network list"),
+        );
+        writeln!(err, "warning: couldn't read {whose}: {}", e.error)?;
     }
+    // nothing published: say so, above or instead of what is on this device
+    if listing.unreachable.is_empty()
+        && !rows.iter().any(|n| n.status.is_live())
+        && !quiet
+        && format == Format::Table
+    {
+        writeln!(err, "No published networks{at}.")?;
+    }
+    Ok(!listing.launch_unreachable())
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use zknet_core::network::{IndexEntry, NetworkId, NetworkKind};
+    use zknet_core::network::{IndexEntry, NetworkId, NetworkKind, SourceError};
 
     const DIST: &str = "https://dist.zknet.io";
     const LOCAL: &str = "http://127.0.0.1:8765";
 
-    fn entry(id: &str, kind: NetworkKind, name: &str, ago: &str) -> (IndexEntry, String) {
-        let e = IndexEntry {
+    fn net(
+        id: &str,
+        status: Status,
+        kind: Option<(NetworkKind, &str, &str)>,
+        source: &str,
+    ) -> NetworkEntry {
+        let created_ago = kind.as_ref().map(|(_, _, ago)| ago.to_string());
+        let entry = kind.map(|(kind, name, _)| IndexEntry {
             id: id.into(),
             kind,
             name: name.into(),
             created: "2026-10-24T00:00:00Z".into(),
-        };
-        (e, ago.into())
-    }
-
-    fn net(
-        id: &str,
-        status: Status,
-        e: Option<(IndexEntry, String)>,
-        origin: Option<&str>,
-        label: Option<&str>,
-    ) -> NetworkEntry {
-        let (entry, created_ago) = e.map_or((None, None), |(e, a)| (Some(e), Some(a)));
+        });
         NetworkEntry {
             id: NetworkId::parse(id).unwrap(),
             status,
-            entry,
-            origin: origin.map(Into::into),
-            origin_label: label.map(Into::into),
             created_ago,
+            entry,
+            source: source.into(),
+            source_label: zknet_core::network::source_label(source),
         }
     }
 
-    fn listing(
-        source: &str,
-        label: Option<&str>,
-        networks: Vec<NetworkEntry>,
-        error: Option<&str>,
-    ) -> Listing {
+    fn listing(launch: &str, networks: Vec<NetworkEntry>, unreachable: &[&str]) -> Listing {
         Listing {
-            source: source.into(),
-            source_label: label.map(Into::into),
+            launch_source: launch.into(),
+            launch_label: zknet_core::network::source_label(launch),
             networks,
-            index_error: error.map(Into::into),
+            unreachable: unreachable
+                .iter()
+                .map(|s| SourceError {
+                    source: s.to_string(),
+                    source_label: zknet_core::network::source_label(s),
+                    error: "request failed: error sending request".into(),
+                })
+                .collect(),
         }
     }
 
@@ -197,173 +192,113 @@ mod tests {
         )
     }
 
-    fn default_source() -> Listing {
-        let devnet = |id: &str, day: &str, ago: &str| {
-            entry(id, NetworkKind::Devnet, &format!("Devnet · {day}"), ago)
-        };
+    fn devnet(
+        day: &'static str,
+        ago: &'static str,
+    ) -> Option<(NetworkKind, &'static str, &'static str)> {
+        Some((NetworkKind::Devnet, day, ago))
+    }
+
+    fn end_user() -> Listing {
         listing(
             DIST,
-            None,
             vec![
+                net(
+                    "devnet-78c3de90",
+                    Status::Available,
+                    devnet("Devnet · 2026-10-25", "3 hours ago"),
+                    DIST,
+                ),
                 net(
                     "devnet-78c3de87",
                     Status::Ready,
-                    Some(devnet("devnet-78c3de87", "2026-10-24", "11 hours ago")),
-                    Some(DIST),
-                    None,
-                ),
-                net(
-                    "devnet-78c3de86",
-                    Status::Available,
-                    Some(devnet("devnet-78c3de86", "2026-10-23", "12 hours ago")),
-                    None,
-                    None,
+                    devnet("Devnet · 2026-10-24", "22 hours ago"),
+                    DIST,
                 ),
                 net(
                     "devnet-78c3de28",
-                    Status::Unlisted,
-                    Some(devnet("devnet-78c3de28", "2026-10-23", "23 hours ago")),
-                    Some(DIST),
-                    None,
+                    Status::Unpublished,
+                    devnet("Devnet · 2026-10-23", "2 days ago"),
+                    DIST,
                 ),
             ],
-            None,
+            &[],
         )
     }
 
     #[test]
     fn the_default_table() {
-        let (out, err, ok) = run(&default_source(), Format::Table, false);
+        let (out, err, ok) = run(&end_user(), Format::Table, false);
         assert_eq!(
             out,
             "\
-NETWORK ID        KIND      CREATED        STATUS      NAME
-devnet-78c3de87   devnet    11 hours ago   ready       Devnet · 2026-10-24
-devnet-78c3de86   devnet    12 hours ago   available   Devnet · 2026-10-23
-devnet-78c3de28   devnet    23 hours ago   unlisted    Devnet · 2026-10-23
+NETWORK ID        KIND      CREATED        STATUS        NAME
+devnet-78c3de90   devnet    3 hours ago    available     Devnet · 2026-10-25
+devnet-78c3de87   devnet    22 hours ago   ready         Devnet · 2026-10-24
+devnet-78c3de28   devnet    2 days ago     unpublished   Devnet · 2026-10-23
 "
         );
         assert_eq!((err.as_str(), ok), ("", true));
-    }
-
-    #[test]
-    fn an_overridden_source_names_hosts_but_never_the_default() {
-        let l = listing(
-            LOCAL,
-            Some("127.0.0.1:8765"),
-            vec![
-                net(
-                    "dev-local",
-                    Status::Ready,
-                    Some(entry(
-                        "dev-local",
-                        NetworkKind::Local,
-                        "dev-local",
-                        "2 hours ago",
-                    )),
-                    Some(LOCAL),
-                    Some("127.0.0.1:8765"),
-                ),
-                net(
-                    "devnet-78c3de87",
-                    Status::OtherSource,
-                    Some(entry(
-                        "devnet-78c3de87",
-                        NetworkKind::Devnet,
-                        "Devnet · 2026-10-24",
-                        "11 hours ago",
-                    )),
-                    Some(DIST),
-                    None,
-                ),
-                net(
-                    "lab-1",
-                    Status::OtherSource,
-                    None,
-                    Some("http://10.0.0.2:8765"),
-                    Some("10.0.0.2:8765"),
-                ),
-                net("meep", Status::Unlisted, None, None, None),
-            ],
-            None,
-        );
-        let (out, _, _) = run(&l, Format::Table, false);
-        assert_eq!(
-            out,
-            "\
-NETWORK ID        KIND      CREATED        STATUS                NAME
-dev-local         local     2 hours ago    ready
-devnet-78c3de87   devnet    11 hours ago   from default source   Devnet · 2026-10-24
-lab-1             -         -              from 10.0.0.2:8765
-meep              -         -              unlisted
-"
-        );
         assert!(!out.contains("dist.zknet.io"));
     }
 
     #[test]
     fn quiet_prints_ids_in_table_order() {
-        let (out, err, _) = run(&default_source(), Format::Table, true);
-        assert_eq!(out, "devnet-78c3de87\ndevnet-78c3de86\ndevnet-78c3de28\n");
+        let (out, err, _) = run(&end_user(), Format::Table, true);
+        assert_eq!(out, "devnet-78c3de90\ndevnet-78c3de87\ndevnet-78c3de28\n");
         assert_eq!(err, "");
     }
 
     #[test]
-    fn json_is_one_object_per_line_with_the_full_origin() {
-        let (out, _, _) = run(&default_source(), Format::Json, false);
+    fn json_is_one_object_per_line_with_the_full_source() {
+        let (out, _, _) = run(&end_user(), Format::Json, false);
         let rows: Vec<serde_json::Value> = out
             .lines()
             .map(|l| serde_json::from_str(l).unwrap())
             .collect();
         assert_eq!(rows.len(), 3);
         assert_eq!(
-            rows[0],
+            rows[1],
             serde_json::json!({"id": "devnet-78c3de87", "status": "ready", "kind": "devnet",
-                "name": "Devnet · 2026-10-24", "created": "2026-10-24T00:00:00Z", "origin": DIST})
+                "name": "Devnet · 2026-10-24", "created": "2026-10-24T00:00:00Z", "source": DIST})
         );
-        assert_eq!(rows[1]["origin"], serde_json::Value::Null);
     }
 
     #[test]
-    fn nothing_listed_says_so_on_stderr_without_a_header() {
-        let (out, err, ok) = run(&listing(DIST, None, vec![], None), Format::Table, false);
+    fn nothing_published_says_so_on_stderr() {
+        let (out, err, ok) = run(&listing(DIST, vec![], &[]), Format::Table, false);
         assert_eq!(
             (out.as_str(), err.as_str(), ok),
-            ("", "No listed networks.\n", true)
+            ("", "No published networks.\n", true)
         );
-        let (_, err, _) = run(
-            &listing(LOCAL, Some("127.0.0.1:8765"), vec![], None),
-            Format::Table,
-            false,
-        );
-        assert_eq!(err, "No listed networks at 127.0.0.1:8765.\n");
-        let (out, err, _) = run(&listing(DIST, None, vec![], None), Format::Table, true);
+        let (_, err, _) = run(&listing(LOCAL, vec![], &[]), Format::Table, false);
+        assert_eq!(err, "No published networks at 127.0.0.1:8765.\n");
+        let (out, err, _) = run(&listing(DIST, vec![], &[]), Format::Table, true);
         assert_eq!((out.as_str(), err.as_str()), ("", ""));
+        let mut copies = end_user();
+        copies.networks.retain(|n| !n.status.is_live());
+        let (out, err, _) = run(&copies, Format::Table, false);
+        assert!(out.contains("unpublished"));
+        assert_eq!(err, "No published networks.\n");
     }
 
     #[test]
-    fn nothing_listed_is_said_even_with_copies_on_disk() {
-        let mut l = default_source();
-        l.networks.retain(|n| !n.status.is_live());
-        let (out, err, ok) = run(&l, Format::Table, false);
-        assert!(
-            out.starts_with("NETWORK ID") && out.contains("unlisted"),
-            "{out}"
-        );
-        assert_eq!((err.as_str(), ok), ("No listed networks.\n", true));
-    }
+    fn only_an_unreachable_launch_source_fails() {
+        let mut l = end_user();
+        l.networks.truncate(2);
+        l.networks.push(net(
+            "dev-local",
+            Status::Cached,
+            Some((NetworkKind::Local, "Local · 2026-10-25", "2 hours ago")),
+            LOCAL,
+        ));
+        l.unreachable = listing(DIST, vec![], &[LOCAL]).unreachable;
+        let (_, err, ok) = run(&l, Format::Table, false);
+        assert_eq!(err, "warning: couldn't read 127.0.0.1:8765's network list: request failed: error sending request\n");
+        assert!(ok);
 
-    #[test]
-    fn an_unreachable_index_prints_what_is_on_disk_and_fails() {
-        let mut l = default_source();
-        l.networks.truncate(1);
-        l.networks[0].status = Status::Cached;
-        l.index_error = Some("request failed: error sending request".into());
-        let (out, err, ok) = run(&l, Format::Table, false);
-        assert!(
-            out.contains("devnet-78c3de87   devnet    11 hours ago   cached"),
-            "{out}"
-        );
+        l.unreachable = listing(DIST, vec![], &[DIST]).unreachable;
+        let (_, err, ok) = run(&l, Format::Table, false);
         assert_eq!(
             err,
             "warning: couldn't read the network list: request failed: error sending request\n"

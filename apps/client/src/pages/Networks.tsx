@@ -125,9 +125,8 @@ export function Networks() {
       },
     );
     const dirNetwork = prepared.dir;
-    if (prepared.otherSource) {
-      const from = prepared.originLabel ?? 'the default source';
-      consoleAddLine(`${networkId} isn't listed here; running the copy downloaded from ${from}`);
+    if (prepared.sourceLabel && prepared.source !== networks.launchSource) {
+      consoleAddLine(`${networkId} is published at ${prepared.sourceLabel}`);
     }
 
     ////////////////////////////////////////////////////////////////////////

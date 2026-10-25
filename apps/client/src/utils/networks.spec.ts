@@ -7,6 +7,7 @@ import {
   caption,
   createdTitle,
   statusHint,
+  unreachableText,
 } from './networks';
 
 const row = (
@@ -17,17 +18,17 @@ const row = (
   id,
   status,
   entry: { id, kind: 'devnet', name: `Devnet · ${id}`, created: '2026-10-24T07:18:14Z' },
-  origin: null,
-  originLabel: null,
+  source: 'https://built-in.example',
+  sourceLabel: null,
   createdAgo: '11 hours ago',
   ...extra,
 });
 
-const listing = (networks: NetworkRow[], sourceLabel: string | null = null): Listing => ({
-  source: sourceLabel ? `http://${sourceLabel}` : 'https://built-in.example',
-  sourceLabel,
+const listing = (networks: NetworkRow[], launchLabel: string | null = null): Listing => ({
+  launchSource: launchLabel ? `http://${launchLabel}` : 'https://built-in.example',
+  launchLabel,
   networks,
-  indexError: null,
+  unreachable: [],
 });
 
 describe('network list presentation', () => {
@@ -36,17 +37,18 @@ describe('network list presentation', () => {
     expect(caption(listing([], '127.0.0.1:8765'))).toBe('Mix Networks at 127.0.0.1:8765');
   });
 
-  it('never names the built-in source for an other-source copy', () => {
-    expect(statusHint(row('devnet-1', 'otherSource'))).toBe(
-      "Downloaded from the default source, which isn't the current source",
+  it('never names the built-in source when it is unreachable', () => {
+    const error = (sourceLabel: string | null) => ({ source: 'x', sourceLabel, error: 'e' });
+    expect(unreachableText(error(null))).toBe(
+      "Couldn't reach the network list. Showing networks on this device.",
     );
-    expect(statusHint(row('lab-1', 'otherSource', { originLabel: '10.0.0.2:8765' }))).toContain(
-      '10.0.0.2:8765',
+    expect(unreachableText(error('127.0.0.1:8765'))).toBe(
+      "Couldn't reach 127.0.0.1:8765. Its networks are shown from this device.",
     );
   });
 
   it('has a badge and a hint for every status', () => {
-    for (const status of ['ready', 'available', 'cached', 'unlisted', 'otherSource'] as const) {
+    for (const status of ['ready', 'available', 'cached', 'unpublished'] as const) {
       expect(BADGES[status].label).not.toBe('');
       expect(statusHint(row('x', status))).not.toBe('');
     }
@@ -59,20 +61,20 @@ describe('network list presentation', () => {
     const live = listing([row('devnet-2', 'available'), row('devnet-1', 'ready')]);
     expect(autoFillId(live, '')).toBe('devnet-2');
     expect(autoFillId(live, 'typed')).toBeNull();
-    expect(autoFillId(listing([row('old', 'unlisted')]), '')).toBeNull();
+    expect(autoFillId(listing([row('old', 'unpublished')]), '')).toBeNull();
     expect(autoFillId(listing([]), '')).toBeNull();
   });
 
   it('knows when nothing is listed, whatever is on this device', () => {
     expect(anyListed(listing([]))).toBe(false);
-    expect(anyListed(listing([row('old', 'unlisted'), row('x', 'otherSource')]))).toBe(false);
-    expect(anyListed(listing([row('old', 'unlisted'), row('new', 'available')]))).toBe(true);
+    expect(anyListed(listing([row('old', 'unpublished'), row('x', 'cached')]))).toBe(false);
+    expect(anyListed(listing([row('old', 'unpublished'), row('new', 'available')]))).toBe(true);
   });
 
   it('titles CREATED with the full time in the given locale', () => {
     const title = createdTitle(row('devnet-1', 'ready'), 'en-US');
     expect(title).toContain('October');
     expect(title).toContain('2026');
-    expect(createdTitle(row('x', 'unlisted', { entry: null }))).toBeUndefined();
+    expect(createdTitle(row('x', 'unpublished', { entry: null }))).toBeUndefined();
   });
 });

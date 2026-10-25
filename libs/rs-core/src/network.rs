@@ -207,6 +207,11 @@ impl Layout {
     pub fn source_label(&self) -> Option<String> {
         source_label(&self.base_url)
     }
+
+    /// The same cache and platform, at another source.
+    pub fn at(&self, base_url: &str) -> Layout {
+        Layout::new(base_url, self.networks_dir.clone(), self.platform.clone())
+    }
 }
 
 /// A network source as users may see it: its host (and path, if any), or
@@ -274,37 +279,25 @@ pub struct Origin {
     pub entry: Option<IndexEntry>,
 }
 
-/// What a network is to this client now. Both clients render it; neither decides it.
+/// What a network is to this client now, judged at its own source. Both
+/// clients render it; neither decides it.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub enum Status {
-    /// Listed by the current source, and a complete copy from it is on disk.
+    /// Its source publishes it, and the copy on disk is that publication.
     Ready,
-    /// Listed by the current source; connecting downloads it.
+    /// Its source publishes it; connecting downloads it.
     Available,
-    /// A copy from the current source is on disk; its index could not be read.
+    /// A copy is on disk; its source could not be read.
     Cached,
-    /// A copy from the current source is on disk; its index no longer lists it.
-    Unlisted,
-    /// A copy from another source is on disk; the current source doesn't list it.
-    OtherSource,
+    /// A copy is on disk; its source no longer publishes it.
+    Unpublished,
 }
 
 impl Status {
-    /// Listed now: the networks a user most likely wants.
+    /// Published now: the networks a user most likely wants.
     pub fn is_live(self) -> bool {
         matches!(self, Status::Ready | Status::Available)
-    }
-
-    /// Live first (ready and available together), then what still works
-    /// offline, then the rest.
-    fn rank(self) -> u8 {
-        match self {
-            Status::Ready | Status::Available => 0,
-            Status::Cached => 1,
-            Status::Unlisted => 2,
-            Status::OtherSource => 3,
-        }
     }
 }
 
@@ -314,27 +307,48 @@ impl Status {
 pub struct NetworkEntry {
     pub id: NetworkId,
     pub status: Status,
-    /// The current index's entry, else the one recorded with the cached copy.
+    /// The publishing index's entry, else the one recorded with the copy.
     pub entry: Option<IndexEntry>,
-    /// The source of the copy on disk, if any (data: the full URL).
-    pub origin: Option<String>,
-    /// [`source_label`] of `origin`: `None` for the built-in source or no copy.
-    pub origin_label: Option<String>,
+    /// Where it connects (data: the full URL): the source with its newest
+    /// publication, else the source its copy came from.
+    pub source: String,
+    /// [`source_label`] of `source`: `None` for the built-in source.
+    pub source_label: Option<String>,
     /// `entry.created` as `docker ps` writes CREATED, e.g. `11 hours ago`.
     pub created_ago: Option<String>,
+}
+
+/// A known source whose index could not be read.
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SourceError {
+    pub source: String,
+    /// `None` for the built-in source.
+    pub source_label: Option<String>,
+    pub error: String,
 }
 
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Listing {
-    /// The source this listing is for (data: the full URL).
-    pub source: String,
-    /// [`source_label`] of `source`: `None` for the built-in source.
-    pub source_label: Option<String>,
-    /// Live first, newest first within a status, then by id.
+    /// The source the client was launched with (data: the full URL).
+    pub launch_source: String,
+    /// [`source_label`] of `launch_source`: `None` for the built-in source.
+    pub launch_label: Option<String>,
+    /// Published at the launch source first, then published elsewhere, then
+    /// cached, then unpublished; newest first within each; then by id.
     pub networks: Vec<NetworkEntry>,
-    /// Why the index could not be read; the cached networks are listed regardless.
-    pub index_error: Option<String>,
+    /// Known sources whose index could not be read; their copies are listed regardless.
+    pub unreachable: Vec<SourceError>,
+}
+
+impl Listing {
+    /// Whether the launch source itself could not be read.
+    pub fn launch_unreachable(&self) -> bool {
+        self.unreachable
+            .iter()
+            .any(|e| e.source == self.launch_source)
+    }
 }
 
 /// Progress of a fetch, in order per asset. `Progress` is throttled per asset,
@@ -483,65 +497,99 @@ pub fn cached(layout: &Layout) -> Vec<(NetworkId, Option<Origin>)> {
     ids
 }
 
-/// The live networks merged with the cached ones, each with its [`Status`].
+/// The sources this client knows: the launch source, then every source a
+/// copy on disk came from.
+fn known_sources(layout: &Layout, copies: &[(NetworkId, Option<Origin>)]) -> Vec<String> {
+    let mut sources = vec![layout.base_url.clone()];
+    for (_, origin) in copies {
+        if let Some(o) = origin {
+            if !sources.contains(&o.base_url) {
+                sources.push(o.base_url.clone());
+            }
+        }
+    }
+    sources
+}
+
+/// Every network this client knows, at its own source: the launch source and
+/// every source a copy came from are read concurrently, and each network is
+/// judged where it is published.
 pub async fn list(http: &Client, layout: &Layout) -> Listing {
-    let index = fetch_index(http, layout).await;
-    listing(layout, index, std::time::SystemTime::now())
+    let copies = cached(layout);
+    let reads = known_sources(layout, &copies)
+        .into_iter()
+        .map(|source| async {
+            let index = fetch_index(http, &layout.at(&source)).await;
+            (source, index)
+        });
+    let indexes = futures_util::future::join_all(reads).await;
+    listing(layout, copies, indexes, std::time::SystemTime::now())
 }
 
 fn listing(
     layout: &Layout,
-    index: Result<Index, FetchError>,
+    copies: Vec<(NetworkId, Option<Origin>)>,
+    indexes: Vec<(String, Result<Index, FetchError>)>,
     now: std::time::SystemTime,
 ) -> Listing {
-    let here = |o: &Option<Origin>| o.as_ref().is_none_or(|o| o.base_url == layout.base_url);
-    let mut on_disk: std::collections::BTreeMap<NetworkId, Option<Origin>> =
-        cached(layout).into_iter().collect();
-    let (listed, index_error) = match index {
-        Ok(index) => (Some(index.networks), None),
-        Err(e) => (None, Some(e.to_string())),
-    };
-
-    let row = |id: NetworkId, status, entry: Option<IndexEntry>, origin: Option<&Origin>| {
-        let origin = origin.map(|o| o.base_url.clone());
-        NetworkEntry {
-            created_ago: entry.as_ref().and_then(|e| created_ago(&e.created, now)),
-            origin_label: origin.as_deref().and_then(source_label),
-            id,
-            status,
-            entry,
-            origin,
+    let launch = &layout.base_url;
+    let mut unreachable = Vec::new();
+    let mut reachable = BTreeSet::new();
+    // every publication of an id, by source
+    let mut published: std::collections::BTreeMap<NetworkId, Vec<(String, IndexEntry)>> =
+        Default::default();
+    for (source, index) in indexes {
+        match index {
+            Ok(index) => {
+                for entry in index.networks {
+                    if let Ok(id) = NetworkId::parse(&entry.id) {
+                        published
+                            .entry(id)
+                            .or_default()
+                            .push((source.clone(), entry));
+                    }
+                }
+                reachable.insert(source);
+            }
+            Err(e) => unreachable.push(SourceError {
+                source_label: source_label(&source),
+                error: e.to_string(),
+                source,
+            }),
         }
+    }
+    let copies: std::collections::BTreeMap<NetworkId, Option<Origin>> =
+        copies.into_iter().collect();
+    let ids: BTreeSet<NetworkId> = published.keys().chain(copies.keys()).cloned().collect();
+
+    let mut networks: Vec<NetworkEntry> = ids
+        .into_iter()
+        .map(|id| {
+            let copy = copies.get(&id);
+            let origin = copy.and_then(|o| o.as_ref());
+            let (source, status, entry) =
+                judge(launch, &reachable, published.get(&id), copy, origin);
+            NetworkEntry {
+                created_ago: entry.as_ref().and_then(|e| created_ago(&e.created, now)),
+                source_label: source_label(&source),
+                id,
+                status,
+                entry,
+                source,
+            }
+        })
+        .collect();
+
+    let rank = |n: &NetworkEntry| match n.status {
+        Status::Ready | Status::Available if &n.source == launch => 0,
+        Status::Ready | Status::Available => 1,
+        Status::Cached => 2,
+        Status::Unpublished => 3,
     };
-
-    let mut networks = Vec::new();
-    for entry in listed.iter().flatten() {
-        let Ok(id) = NetworkId::parse(&entry.id) else {
-            continue;
-        };
-        let copy = on_disk.remove(&id);
-        let (status, origin) = match copy {
-            Some(Some(o)) if o.base_url == layout.base_url => (Status::Ready, Some(o)),
-            // a copy from elsewhere doesn't count here, and is replaced on connect
-            _ => (Status::Available, None),
-        };
-        networks.push(row(id, status, Some(entry.clone()), origin.as_ref()));
-    }
-    for (id, origin) in on_disk {
-        let status = match (&listed, here(&origin)) {
-            (_, false) => Status::OtherSource,
-            (None, true) => Status::Cached,
-            (Some(_), true) => Status::Unlisted,
-        };
-        let entry = origin.as_ref().and_then(|o| o.entry.clone());
-        networks.push(row(id, status, entry, origin.as_ref()));
-    }
-
     let created = |n: &NetworkEntry| n.entry.as_ref().map(|e| e.created.clone());
     networks.sort_by(|a, b| {
-        a.status
-            .rank()
-            .cmp(&b.status.rank())
+        rank(a)
+            .cmp(&rank(b))
             .then_with(|| match (created(a), created(b)) {
                 (Some(x), Some(y)) => y.cmp(&x),
                 (Some(_), None) => std::cmp::Ordering::Less,
@@ -552,10 +600,66 @@ fn listing(
     });
 
     Listing {
-        source: layout.base_url.clone(),
-        source_label: layout.source_label(),
+        launch_source: launch.clone(),
+        launch_label: layout.source_label(),
         networks,
-        index_error,
+        unreachable,
+    }
+}
+
+/// One network's source, status and details: the source-model rules.
+///
+/// - Its source is the source with its newest publication (ties go to the
+///   launch source), unless the copy on disk was downloaded under a newer
+///   publication than any that can be read now: then it stays with its copy.
+/// - A copy is current, and the network ready, only if it came from that
+///   source under the very publication the source lists now.
+/// - Unpublished anywhere readable: it stays with its copy's source, cached if
+///   that source couldn't be read, unpublished if it could.
+fn judge(
+    launch: &str,
+    reachable: &BTreeSet<String>,
+    publications: Option<&Vec<(String, IndexEntry)>>,
+    copy: Option<&Option<Origin>>,
+    origin: Option<&Origin>,
+) -> (String, Status, Option<IndexEntry>) {
+    let newest = publications.and_then(|p| {
+        p.iter()
+            .max_by(|(s1, e1), (s2, e2)| {
+                e1.created
+                    .cmp(&e2.created)
+                    .then_with(|| (s1 == launch).cmp(&(s2 == launch)))
+            })
+            .cloned()
+    });
+    let copy_created = origin
+        .and_then(|o| o.entry.as_ref())
+        .map(|e| e.created.as_str());
+    let copy_is_newer =
+        matches!((&newest, copy_created), (Some((_, e)), Some(c)) if c > e.created.as_str());
+
+    match newest {
+        Some((source, entry)) if !copy_is_newer => {
+            let current = origin.is_some_and(|o| {
+                o.base_url == source && o.entry.as_ref().is_some_and(|e| e.created == entry.created)
+            });
+            let status = if current {
+                Status::Ready
+            } else {
+                Status::Available
+            };
+            (source, status, Some(entry))
+        }
+        _ => {
+            // a copy that no readable source publishes (or publishes older)
+            let source = origin.map_or_else(|| launch.to_owned(), |o| o.base_url.clone());
+            let status = if copy.is_some() && !reachable.contains(&source) {
+                Status::Cached
+            } else {
+                Status::Unpublished
+            };
+            (source, status, origin.and_then(|o| o.entry.clone()))
+        }
     }
 }
 
@@ -566,23 +670,20 @@ pub struct Prepared {
     /// The network's directory, where WalletShield is spawned.
     pub dir: PathBuf,
     /// The source of the copy that will run (data: the full URL).
-    pub origin: String,
-    /// [`source_label`] of `origin`.
-    pub origin_label: Option<String>,
-    /// The copy came from another source than the current one: the current
-    /// source doesn't list the network, and a copy from elsewhere is on disk.
-    pub other_source: bool,
+    pub source: String,
+    /// [`source_label`] of `source`: `None` for the built-in source.
+    pub source_label: Option<String>,
 }
 
-/// Make a network ready to run; both clients call this before spawning.
+/// Make a network ready to run at its own source; both clients call this
+/// before spawning. The source and status come from [`list`], so connecting
+/// and listing never disagree:
 ///
-/// - A complete copy from the current source is used as is, without a request,
-///   unless `opts.refresh`.
-/// - Otherwise the index is read once. If the current source doesn't list the
-///   network but a copy from another source is on disk, that copy is used.
-/// - Otherwise the assets are downloaded from the current source, replacing any
-///   copy from elsewhere: another source's bytes never run under an id the
-///   current source publishes.
+/// - ready: the copy runs, unless `opts.refresh`;
+/// - available: it is downloaded from its source, replacing any older copy
+///   (from that source or another), so bytes under an id come from one source;
+/// - cached or unpublished: the copy runs as it is;
+/// - unknown: it is downloaded from the launch source.
 pub async fn prepare(
     http: &Client,
     layout: &Layout,
@@ -590,35 +691,33 @@ pub async fn prepare(
     opts: FetchOptions,
     on_event: Option<OnFetchEvent>,
 ) -> Result<Prepared, FetchError> {
-    let here = |dir| Prepared {
-        dir,
-        origin: layout.base_url.clone(),
-        origin_label: layout.source_label(),
-        other_source: false,
-    };
-    if !opts.refresh && layout.is_cached(id) {
-        emit_cached(&on_event);
-        return Ok(here(layout.network_dir(id)));
-    }
-
-    let index = fetch_index(http, layout).await.ok();
-    let entry = index
-        .as_ref()
-        .and_then(|i| i.networks.iter().find(|n| n.id == id.as_str()).cloned());
-    let elsewhere = layout
-        .cached_origin(id)
-        .filter(|o| o.base_url != layout.base_url);
-    if let (Some(_), None, Some(origin)) = (&index, &entry, &elsewhere) {
-        emit_cached(&on_event);
+    let listing = list(http, layout).await;
+    let Some(n) = listing.networks.into_iter().find(|n| &n.id == id) else {
+        let dir = fetch(http, layout, id, None, on_event).await?;
         return Ok(Prepared {
-            dir: layout.network_dir(id),
-            origin_label: source_label(&origin.base_url),
-            origin: origin.base_url.clone(),
-            other_source: true,
+            dir,
+            source: layout.base_url.clone(),
+            source_label: layout.source_label(),
         });
-    }
-
-    fetch(http, layout, id, entry, on_event).await.map(here)
+    };
+    let at = layout.at(&n.source);
+    let run_copy = match n.status {
+        Status::Ready => !opts.refresh,
+        Status::Available => false,
+        Status::Cached | Status::Unpublished => !opts.refresh,
+    };
+    let dir = if run_copy {
+        emit_cached(&on_event);
+        at.network_dir(id)
+    } else {
+        let entry = n.entry.filter(|_| n.status.is_live());
+        fetch(http, &at, id, entry, on_event).await?
+    };
+    Ok(Prepared {
+        dir,
+        source: n.source,
+        source_label: n.source_label,
+    })
 }
 
 fn emit_cached(on_event: &Option<OnFetchEvent>) {

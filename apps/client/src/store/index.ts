@@ -29,7 +29,7 @@ export const useStore = create(
       message: '',
       messageType: '',
       networkConnected: '',
-      networks: { source: '', sourceLabel: null, networks: [], indexError: null } as Listing,
+      networks: { launchSource: '', launchLabel: null, networks: [], unreachable: [] } as Listing,
       platformArch: '',
       updateStatus: '' as UpdateStatus,
       walletshieldListenAddress: '',

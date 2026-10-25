@@ -95,11 +95,10 @@ async fn connect(ctx: AppContext, args: ConnectArgs) -> Result<()> {
         refresh: args.refresh || ctx.config.walletshield_thin,
     };
     let prepared = prepare(&http_client()?, &layout, &id, options, Some(on_event)).await?;
-    if prepared.other_source {
-        let from = prepared
-            .origin_label
-            .map_or_else(|| "the default source".into(), |host| host.to_string());
-        println!("{id} isn't listed here; running the copy downloaded from {from}");
+    if let Some(host) = &prepared.source_label {
+        if prepared.source != layout.base_url {
+            println!("{id} is published at {host}");
+        }
     }
 
     walletshield::run(&ctx.config, &layout, &id).await

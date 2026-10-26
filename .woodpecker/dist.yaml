@@ -36,26 +36,44 @@ steps:
       - cd "$SRC"
       - pnpm exec nx run zknet_client_cli:dist:$(rung)
 
+  # The desktop is two steps of one definition, split by event: only the tag
+  # (release) build maps the updater signing key, so a dev run needs no secret.
+  # A step that depends on the desktop is split the same way (`collect`),
+  # since Woodpecker refuses a dependency on a step `when` filters out.
   desktop:
     # The oldest supported LTS: the bundles need the glibc and WebKitGTK they
     # were built against, so build on old systems to run on newer ones.
     image: ubuntu:22.04
     depends_on: [prepare]
-    commands:
+    when:
+      - event: [push, manual]
+    commands: &desktop
       - . "$CI_WORKSPACE/.woodpecker/lib.sh"
       - apt_install ca-certificates curl git xz-utils build-essential pkg-config file libwebkit2gtk-4.1-dev
       - tools node rust
       - own_target_dir
       - cd "$SRC"
-      # the release rung signs the updater artifacts; fail before building
-      - '[ "$(rung)" = dev ] || [ -n "$TAURI_SIGNING_PRIVATE_KEY" ] || { echo "desktop: the release rung needs TAURI_SIGNING_PRIVATE_KEY"; exit 1; }'
       - pnpm exec nx run @zknet/client:desktop-build:$(rung)
+
+  desktop-release:
+    image: ubuntu:22.04
+    depends_on: [prepare]
+    when:
+      - event: tag
+    environment:
+      # the release rung signs the updater artifacts; without these secrets
+      # woodpecker-cli refuses the run before any step starts
+      TAURI_SIGNING_PRIVATE_KEY:
+        from_secret: tauri_signing_private_key
+      TAURI_SIGNING_PRIVATE_KEY_PASSWORD:
+        from_secret: tauri_signing_private_key_password
+    commands: *desktop
 
   # --- release rung only: stubs until signing and publishing are decided ----
 
   sign:
     image: alpine:latest
-    depends_on: [walletshield, cli, desktop]
+    depends_on: [walletshield, cli, desktop-release]
     when:
       - event: tag
     commands:
@@ -75,8 +93,9 @@ steps:
     image: alpine:latest
     depends_on: [walletshield, cli, desktop]
     when:
-      - status: [success, failure]
-    commands:
+      - event: [push, manual]
+        status: [success, failure]
+    commands: &collect
       - out=$CI_WORKSPACE/dist/woodpecker
       - rm -rf "$out" && mkdir -p "$out"
       - cd /cache/src/dist
@@ -85,3 +104,11 @@ steps:
       - owner=$(stat -c %u:%g "$CI_WORKSPACE")
       - chown "$owner" "$CI_WORKSPACE/dist" && chown -R "$owner" "$out"
       - ls -R "$out" | head -60
+
+  collect-release:
+    image: alpine:latest
+    depends_on: [walletshield, cli, desktop-release]
+    when:
+      - event: tag
+        status: [success, failure]
+    commands: *collect

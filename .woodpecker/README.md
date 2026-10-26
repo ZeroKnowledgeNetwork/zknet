@@ -137,9 +137,13 @@ the binary is 411 MB and the rpm bundler takes over 20 minutes.
 `dist.yaml` is one definition. A `tag` event selects the `release`
 configuration of each Nx target (`rung` in `lib.sh`) and enables the
 release-only steps `sign` and `publish`, which are stubs for now. Any other
-event builds `dev`. Until a signing key is configured, the `desktop` step stops
-a tag run before building. Try the release rung on a throwaway clone with a
-test tag:
+event builds `dev`. The desktop is built by `desktop` on a dev run and by
+`desktop-release` on a tag, one definition split by event: only
+`desktop-release` maps the updater signing key (`tauri_signing_private_key`,
+`tauri_signing_private_key_password`), so a dev run needs no secret and a tag
+run without them is refused before any step starts. `collect` is split the
+same way. Try the release rung on a throwaway clone with a test tag, the
+secrets in a file named by `ZKNET_WOODPECKER_SECRETS`:
 
 ```sh
 .woodpecker/run dist --pipeline-event tag --commit-ref refs/tags/v0.0.0-test

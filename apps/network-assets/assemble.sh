@@ -2,7 +2,8 @@
 # Assemble one network's client assets in the layout the clients download, and
 # list it in the index (index.sh):
 #
-#   <out>/<network_id>/{client.toml,services.json,walletshield-<platform>,checksums.txt,network.json}
+#   <out>/<network_id>/{client.toml,services.json,walletshield-<platform>,checksums.txt,
+#                       checksums.txt.minisig,network.json}
 #   <out>/{networks.json,_headers,404.html}
 #
 #   assemble.sh [--served DIR] [--out DIR] [--kind KIND] [--name NAME]
@@ -20,8 +21,11 @@
 #   services.json defaults to the network manifest, packages/opt/docker/services.json
 #
 # client.toml is copied verbatim: the caller picks the config its clients run.
-# The binaries must match the build's checksums.txt, which is extended with the
-# network files. Only <out>/<network_id>/ is replaced. Needs bash and coreutils.
+# The binaries must match the build's checksums.txt, which is published as it is
+# with its signature, checksums.txt.minisig (by the asset key): the clients
+# run a binary only if both check out. Every kind but local needs the signature;
+# assembly only checks it is there, the clients verify it. Only
+# <out>/<network_id>/ is replaced. Needs bash and coreutils.
 set -euo pipefail
 
 here=$(cd "$(dirname "$0")" && pwd)
@@ -88,6 +92,9 @@ json() { local s=${1//\\/\\\\}; printf '"%s"' "${s//\"/\\\"}"; }
   die "no WalletShield export at $served: build it with \`.woodpecker/run dist\`"
 (cd "$served" && sha256sum --check --quiet --strict checksums.txt) >&2 ||
   die "the WalletShield binaries in $served do not match their build checksums"
+signature=$served/checksums.txt.minisig
+[ -f "$signature" ] || [ "$kind" = local ] ||
+  die "the WalletShield export in $served is unsigned: a published kind needs checksums.txt.minisig"
 
 mkdir -p "$out"
 staging=$(mktemp -d "$out/.assemble-$network_id.XXXXXX")
@@ -99,8 +106,8 @@ while read -r _ binary; do
   cp -p "$served/$binary" "$staging/$binary"
 done <"$served/checksums.txt"
 cp "$served/checksums.txt" "$staging/checksums.txt"
-(cd "$staging" && sha256sum client.toml services.json >>checksums.txt &&
-  sha256sum --check --quiet --strict checksums.txt)
+[ ! -f "$signature" ] || cp "$signature" "$staging/checksums.txt.minisig"
+(cd "$staging" && sha256sum --check --quiet --strict checksums.txt)
 printf '{"id": %s, "kind": %s, "name": %s, "created": %s}\n' \
   "$(json "$network_id")" "$(json "$kind")" "$(json "$name")" "$(json "$created")" \
   >"$staging/network.json"
@@ -115,6 +122,6 @@ rm -rf "$previous"
 modified() { date -r "$1" '+%F %T'; }
 echo "  client.toml    <- $client_config ($(modified "$client_config"))"
 echo "  services.json  <- $services ($(modified "$services"))"
-echo "  walletshield-* <- $served ($(modified "$served/checksums.txt"))"
+echo "  walletshield-* <- $served ($(modified "$served/checksums.txt"), $([ -f "$signature" ] && echo signed || echo UNSIGNED))"
 echo "Assembled $target"
 "$here/index.sh" --out "$out"

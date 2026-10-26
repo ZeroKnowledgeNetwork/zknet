@@ -6,7 +6,8 @@ networks it holds, and serves them on loopback for development:
 ```
 generated/networks.json                  the index of live networks (clients' `list`)
 generated/_headers, generated/404.html   Cloudflare Pages: revalidate the index, real 404s
-generated/<network_id>/{client.toml,services.json,walletshield-<platform>,checksums.txt,network.json}
+generated/<network_id>/{client.toml,services.json,walletshield-<platform>,checksums.txt,
+                        checksums.txt.minisig,network.json}
 ```
 
 The clients read this layout through one contract, `zknet_core::network` in `libs/rs-core`.
@@ -35,8 +36,11 @@ apps/network-assets/assemble.sh [--out DIR] --remove <network_id>
 | `services.json` | `packages/opt/docker/services.json`, the network's service manifest           |
 
 - `client.toml` is copied verbatim: the caller picks the config its clients run.
-- The binaries must match the build's `checksums.txt`, which is then extended with the
-  two network files.
+- The binaries must match the build's `checksums.txt`. It is published as it is, with its
+  signature `checksums.txt.minisig`, by the asset key: the
+  clients run a binary only if the signature is by the key in `libs/rs-core/asset-key.pub`
+  and the binary's hash is the one it lists. Every kind but `local` needs the signature;
+  assembly checks only that it is there, and the clients verify it.
 - Only `<out>/<network_id>/` is replaced, so networks assembled side by side stay as they
   are. `<out>` is the directory to publish.
 - A network id is one lowercase path component, `^[a-z0-9][a-z0-9._-]{0,63}$`, and not

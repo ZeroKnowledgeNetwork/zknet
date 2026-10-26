@@ -25,6 +25,7 @@ FIXTURE_NETWORKS = {
 }
 BINARIES = ['walletshield-linux-arm64', 'walletshield-linux-x64', 'walletshield-macos-arm64', 'walletshield-macos-x64',
             'walletshield-windows-x64']
+SIGNATURE = 'untrusted comment: signature from a test key\nRUS...\ntrusted comment: zknet-assets v1 build=v0\n...\n'
 # a full config dialing a public gateway: assembly copies whatever the caller passes
 CLIENT_CONFIG = '[[PinnedGateways.Gateways]]\n  Addresses = ["tcp://203.0.113.7:30004"]\n'
 
@@ -46,6 +47,8 @@ class Fixture(unittest.TestCase):
         for name in BINARIES:
             (self.served / name).write_text(name)
         subprocess.run(f'sha256sum {" ".join(BINARIES)} > checksums.txt', shell=True, check=True, cwd=self.served)
+        # assembly checks only that the signature is there; the clients verify it
+        (self.served / 'checksums.txt.minisig').write_text(SIGNATURE)
         self.client_config = self.root / 'client.toml'
         self.client_config.write_text(CLIENT_CONFIG)
         self.services = self.root / 'services.json'
@@ -70,16 +73,33 @@ class Fixture(unittest.TestCase):
 
 
 class AssembleTest(Fixture):
-    def test_publishes_the_client_url_layout_with_checksums(self):
+    def test_publishes_the_client_url_layout_with_the_signed_build_list(self):
         self.assemble()
         assets = self.output / 'dev-local'
         self.assertEqual(sorted(p.name for p in assets.iterdir()),
-                         ['checksums.txt', 'client.toml', 'network.json', 'services.json', *BINARIES])
+                         ['checksums.txt', 'checksums.txt.minisig', 'client.toml', 'network.json',
+                          'services.json', *BINARIES])
         self.assertEqual((assets / 'client.toml').read_text(), CLIENT_CONFIG)
+        # the build's list and its signature, as they are: binaries only
+        for name in ['checksums.txt', 'checksums.txt.minisig']:
+            self.assertEqual((assets / name).read_bytes(), (self.served / name).read_bytes(), name)
         check = subprocess.run(['sha256sum', '--check', '--strict', 'checksums.txt'], cwd=assets,
                                capture_output=True, text=True)
         self.assertEqual(check.returncode, 0, check.stdout)
-        self.assertEqual(len(check.stdout.splitlines()), len(BINARIES) + 2)
+        self.assertEqual(len(check.stdout.splitlines()), len(BINARIES))
+
+    def test_refuses_an_unsigned_export_for_a_published_kind(self):
+        (self.served / 'checksums.txt.minisig').unlink()
+        result = self.assemble('devnet-test', check=False)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('is unsigned: a published kind needs checksums.txt.minisig', result.stderr)
+        self.assertFalse(self.output.exists())
+
+    def test_dev_local_may_be_unsigned(self):
+        (self.served / 'checksums.txt.minisig').unlink()
+        result = self.assemble('dev-local')
+        self.assertIn('UNSIGNED', result.stdout)
+        self.assertFalse((self.output / 'dev-local' / 'checksums.txt.minisig').exists())
 
     def test_defaults_to_the_network_services_manifest(self):
         result = subprocess.run([ASSEMBLE, '--served', self.served, '--out', self.output, 'dev-local',

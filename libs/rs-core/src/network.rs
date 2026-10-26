@@ -731,8 +731,8 @@ fn emit_cached(on_event: &Option<OnFetchEvent>) {
 /// Download a network's assets from the layout's source, and return its directory.
 ///
 /// Every asset is downloaded concurrently to `<name>.part`; only when all have
-/// arrived is each one verified, made executable if it is the binary, and
-/// renamed into place, with `origin.json` last. On any failure the `.part`
+/// arrived are they all verified, and only when all pass is each one made
+/// executable if it is the binary and renamed into place, with `origin.json` last. On any failure the `.part`
 /// files are removed and the cached set is untouched.
 async fn fetch(
     http: &Client,
@@ -760,6 +760,11 @@ async fn fetch(
             stage(http, layout, id, b, on_event.clone()),
             stage(http, layout, id, c, on_event.clone()),
         )?;
+        // every asset is verified before any is promoted, so a refused one
+        // leaves the cached set as it was
+        for asset in Asset::ALL {
+            verify(layout, id, asset, &part_path(layout, id, asset))?;
+        }
         for asset in Asset::ALL {
             promote(layout, id, asset).await?;
         }
@@ -840,10 +845,9 @@ async fn stage(
     Ok(())
 }
 
-/// Check, prepare and move a staged asset into place.
+/// Prepare a verified staged asset and move it into place.
 async fn promote(layout: &Layout, id: &NetworkId, asset: Asset) -> Result<(), FetchError> {
     let part = part_path(layout, id, asset);
-    verify(layout, id, asset, &part)?;
     #[cfg(unix)]
     if asset.is_executable() {
         use std::os::unix::fs::PermissionsExt;

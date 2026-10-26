@@ -42,6 +42,20 @@ A cold run (empty cache) takes about 7 minutes and a warm one about 2. The
 cache volume holds about 12 GB after `dist.yaml` and 19 GB once `ci.yaml` has
 added its own Cargo build.
 
+## Secrets in pipelines
+
+A step never sees the host's environment on the docker backend; it gets a
+secret only through `from_secret`. And `woodpecker-cli exec` refuses a pipeline
+whose running steps map a secret it wasn't given (`secret "…" not found`),
+while steps whose `when` doesn't match need none. So:
+
+- a step maps a secret only if it runs exclusively when the secret is
+  supplied: behind a `when` that matches only then (the tag-only
+  `desktop-release` step of `dist.yaml`);
+- `run` passes secrets as a file (`ZKNET_WOODPECKER_SECRETS`). Not
+  `WOODPECKER_SECRETS`: its `name=value,...` form mangles a value with a `,`
+  or `"`.
+
 ## The cache directory
 
 Every step gets one host directory at `/cache`: the toolchains, the Go, Cargo,

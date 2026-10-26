@@ -4,21 +4,29 @@
 #
 #   .woodpecker/run ci|dist|PATH.yaml [woodpecker-cli exec flags...]
 #
-# The host cache directory, first match wins:
-#   1. ZKNET_WOODPECKER_CACHE in the environment
-#   2. ZKNET_WOODPECKER_CACHE in .woodpecker/local.env (git-ignored)
-#   3. /var/tmp/zknet-woodpecker
+# Settings, each from the environment, else from .woodpecker/local.env
+# (git-ignored):
+#   ZKNET_WOODPECKER_CACHE    the host cache directory (default /var/tmp/zknet-woodpecker)
+#   ZKNET_WOODPECKER_SECRETS  a secrets file (woodpecker-cli --secrets-file) for
+#                             any pipeline, e.g. the Tauri key for a tag build
 set -eu
 
 here=$(cd "$(dirname "$0")" && pwd)
-if [ -z "${ZKNET_WOODPECKER_CACHE:-}" ] && [ -f "$here/local.env" ]; then
+env_cache=${ZKNET_WOODPECKER_CACHE:-}
+env_secrets=${ZKNET_WOODPECKER_SECRETS:-}
+if [ -f "$here/local.env" ]; then
   . "$here/local.env"
 fi
-cache=${ZKNET_WOODPECKER_CACHE:-/var/tmp/zknet-woodpecker}
+cache=${env_cache:-${ZKNET_WOODPECKER_CACHE:-/var/tmp/zknet-woodpecker}}
+secrets=${env_secrets:-${ZKNET_WOODPECKER_SECRETS:-}}
 case $cache in
   /*) ;;
   *) echo "run: ZKNET_WOODPECKER_CACHE must be an absolute path: $cache" >&2; exit 1 ;;
 esac
+if [ -n "$secrets" ] && [ ! -f "$secrets" ]; then
+  echo "run: no secrets file at ZKNET_WOODPECKER_SECRETS=$secrets" >&2
+  exit 1
+fi
 
 pipeline=${1:?usage: .woodpecker/run ci|dist|PATH.yaml [woodpecker-cli exec flags...]}
 shift
@@ -26,6 +34,12 @@ case $pipeline in
   ci | dist) pipeline=$here/$pipeline.yaml ;;
 esac
 
+secrets_flags=
+if [ -n "$secrets" ]; then
+  secrets_flags="--secrets-file $secrets"
+fi
+
 echo "run: cache $cache" >&2
 cd "$here/.."
-exec woodpecker-cli exec --local --backend-engine docker --volumes "$cache:/cache" "$@" "$pipeline"
+# shellcheck disable=SC2086 # secrets_flags is empty or one flag and a path without spaces
+woodpecker-cli exec --local --backend-engine docker --volumes "$cache:/cache" $secrets_flags "$@" "$pipeline"

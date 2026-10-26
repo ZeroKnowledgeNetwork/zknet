@@ -84,6 +84,7 @@ describe('walletshield spawn', () => {
   it('gives the dev-local app no capability of its own', () => {
     expect(devLocal.app).toBeUndefined();
     expect(Object.keys(devLocal.plugins.zknet).sort()).toEqual([
+      'allowUnsigned', // unsigned assets from the loopback source (zknet_core gates it)
       'urlNetwork',
       'walletshieldLogLevel',
     ]);

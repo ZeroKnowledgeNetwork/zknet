@@ -44,7 +44,8 @@
       "defaultWalletshieldListenAddress": ":7070",
       "urlNetwork": "https://dist.zknet.io",
       "walletshieldLogLevel": "INFO",
-      "updater": true
+      "updater": true,
+      "allowUnsigned": false
     }
   }
 }

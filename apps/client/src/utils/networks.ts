@@ -27,6 +27,7 @@ export type Prepared = {
   dir: string;
   source: string;
   sourceLabel: string | null;
+  build: string | null; // the signed build that runs; null if unsigned (dev-local only)
 };
 
 export const isLive = (n: NetworkRow) => n.status === 'ready' || n.status === 'available';

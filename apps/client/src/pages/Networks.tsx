@@ -124,6 +124,11 @@ export function Networks() {
     if (prepared.sourceLabel && prepared.source !== networks.launchSource) {
       consoleAddLine(`${networkId} is published at ${prepared.sourceLabel}`);
     }
+    consoleAddLine(
+      prepared.build
+        ? `Network client verified: build ${prepared.build}`
+        : 'Network client UNSIGNED: accepted for a local source in a dev build',
+    );
 
     ////////////////////////////////////////////////////////////////////////
     // execute the walletshield client with the client.toml

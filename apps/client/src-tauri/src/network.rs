@@ -73,7 +73,7 @@ pub async fn network_fetch<R: Runtime>(
     });
     let options = FetchOptions {
         refresh,
-        ..Default::default()
+        allow_unsigned: cfg.allow_unsigned,
     };
     Ok(network::prepare(
         &network::http_client()?,
@@ -107,6 +107,22 @@ mod tests {
             url: "https://h/devnet-1/client.toml".into(),
         });
         assert_eq!(e.kind, "notFound");
+    }
+
+    /// Only the dev-local overlay may ask for unsigned assets.
+    #[test]
+    fn only_the_dev_local_overlay_allows_unsigned_assets() {
+        let conf = |text: &str| -> serde_json::Value { serde_json::from_str(text).unwrap() };
+        let zknet = |v: serde_json::Value| v["plugins"]["zknet"]["allowUnsigned"].clone();
+        assert_eq!(zknet(conf(include_str!("../tauri.conf.json"))), false);
+        assert_eq!(
+            zknet(conf(include_str!("../tauri.dev-local.conf.json"))),
+            true
+        );
+        assert_eq!(
+            zknet(conf(include_str!("../tauri.dev.conf.json"))),
+            serde_json::Value::Null
+        );
     }
 
     /// "Is this the built-in source?" is answered by zknet_core alone.

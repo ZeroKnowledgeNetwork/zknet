@@ -114,6 +114,7 @@ async fn connect(ctx: AppContext, args: ConnectArgs) -> Result<()> {
     });
     let options = FetchOptions {
         refresh: args.refresh,
+        ..Default::default()
     };
     let prepared = prepare(&http_client()?, &layout, &id, options, Some(on_event)).await?;
     if let Some(host) = &prepared.source_label {

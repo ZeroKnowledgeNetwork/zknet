@@ -18,7 +18,10 @@ use std::{
 use reqwest::{Client, StatusCode};
 use serde::{Deserialize, Serialize};
 
-use crate::net::{download, ProgressCallback, ProgressPayload};
+use crate::{
+    auth::{self, AuthError, Policy, TrustRoot, Vouched},
+    net::{download, ProgressCallback, ProgressPayload},
+};
 
 /// Ids the CLI's subcommands own, so no network can be published under them.
 /// `apps/network-assets/assemble.sh` refuses the same list.
@@ -151,6 +154,8 @@ pub struct Layout {
     /// The client's network cache: `<app data>/networks`.
     pub networks_dir: PathBuf,
     pub platform: Platform,
+    /// What vouches for the binaries: the compiled-in asset key.
+    trust: TrustRoot,
 }
 
 impl Layout {
@@ -159,7 +164,15 @@ impl Layout {
             base_url: base_url.trim_end_matches('/').to_owned(),
             networks_dir,
             platform,
+            trust: TrustRoot::builtin(),
         }
+    }
+
+    /// The same layout trusting another root. For tests, which sign with
+    /// throwaway keys; clients always use the compiled-in one.
+    pub fn with_trust_root(mut self, trust: TrustRoot) -> Self {
+        self.trust = trust;
+        self
     }
 
     pub fn index_url(&self) -> String {
@@ -182,10 +195,16 @@ impl Layout {
         self.network_dir(id).join(asset.local_name(&self.platform))
     }
 
-    /// Whether a complete asset set is on disk, from any source. Assets are
-    /// promoted only once fully downloaded, so a present file is a whole one.
+    /// Whether a complete, signed asset set is on disk, from any source.
+    /// Files are promoted only once fully downloaded and verified, so a present
+    /// file is a whole one. A copy without its signed list (unsigned, or from
+    /// before signing) is not complete, so it is downloaded again.
     fn is_complete(&self, id: &NetworkId) -> bool {
+        let dir = self.network_dir(id);
         Asset::ALL.iter().all(|&a| self.asset_path(id, a).is_file())
+            && [auth::SIGNED_LIST, auth::SIGNATURE]
+                .iter()
+                .all(|f| dir.join(f).is_file())
     }
 
     /// Where the copy on disk came from, if a complete one is there.
@@ -208,9 +227,10 @@ impl Layout {
         source_label(&self.base_url)
     }
 
-    /// The same cache and platform, at another source.
+    /// The same cache, platform and trust root, at another source.
     pub fn at(&self, base_url: &str) -> Layout {
         Layout::new(base_url, self.networks_dir.clone(), self.platform.clone())
+            .with_trust_root(self.trust.clone())
     }
 }
 
@@ -277,6 +297,9 @@ pub struct Origin {
     pub fetched: String,
     /// The index entry seen at download time, if the source listed it.
     pub entry: Option<IndexEntry>,
+    /// The signed build the binary came from; `None` if it was unsigned.
+    #[serde(default)]
+    pub build: Option<String>,
 }
 
 /// What a network is to this client now, judged at its own source. Both
@@ -380,6 +403,9 @@ pub type OnFetchEvent = Arc<dyn Fn(FetchEvent) + Send + Sync>;
 pub struct FetchOptions {
     /// Download even when a complete copy is cached.
     pub refresh: bool,
+    /// Accept an unsigned asset set: honoured only for a loopback source in a
+    /// debug build (dev-local), refused otherwise.
+    pub allow_unsigned: bool,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -404,8 +430,12 @@ pub enum FetchError {
     },
     #[error("invalid network index{}: {reason}", at(url))]
     Index { url: String, reason: String },
-    #[error("{asset:?} failed verification: {reason}")]
-    Verification { asset: Asset, reason: String },
+    #[error("{file} for network {id} failed verification: {reason}")]
+    Verification {
+        id: String,
+        file: String,
+        reason: AuthError,
+    },
 }
 
 impl FetchError {
@@ -673,6 +703,8 @@ pub struct Prepared {
     pub source: String,
     /// [`source_label`] of `source`: `None` for the built-in source.
     pub source_label: Option<String>,
+    /// The signed build of the binary that will run; `None` if it is unsigned.
+    pub build: Option<String>,
 }
 
 /// Make a network ready to run at its own source; both clients call this
@@ -693,31 +725,84 @@ pub async fn prepare(
 ) -> Result<Prepared, FetchError> {
     let listing = list(http, layout).await;
     let Some(n) = listing.networks.into_iter().find(|n| &n.id == id) else {
-        let dir = fetch(http, layout, id, None, on_event).await?;
+        let policy = policy(layout, id, opts)?;
+        let (dir, build) = fetch(http, layout, id, None, policy, on_event).await?;
         return Ok(Prepared {
             dir,
             source: layout.base_url.clone(),
             source_label: layout.source_label(),
+            build,
         });
     };
     let at = layout.at(&n.source);
+    let policy = policy(&at, id, opts)?;
     let run_copy = match n.status {
         Status::Ready => !opts.refresh,
         Status::Available => false,
         Status::Cached | Status::Unpublished => !opts.refresh,
     };
-    let dir = if run_copy {
+    let (dir, build) = if run_copy {
+        // the copy is checked again before every run
+        let build = reverify(&at, id)?;
         emit_cached(&on_event);
-        at.network_dir(id)
+        (at.network_dir(id), Some(build))
     } else {
         let entry = n.entry.filter(|_| n.status.is_live());
-        fetch(http, &at, id, entry, on_event).await?
+        fetch(http, &at, id, entry, policy, on_event).await?
     };
     Ok(Prepared {
         dir,
         source: n.source,
         source_label: n.source_label,
+        build,
     })
+}
+
+/// The signature policy for `id` at `layout`'s source.
+fn policy(layout: &Layout, id: &NetworkId, opts: FetchOptions) -> Result<Policy, FetchError> {
+    Policy::for_source(&layout.base_url, opts.allow_unsigned)
+        .map_err(|reason| verification(layout, id, reason))
+}
+
+/// A refusal of `id`'s binary, named as its source publishes it.
+fn verification(layout: &Layout, id: &NetworkId, reason: AuthError) -> FetchError {
+    FetchError::Verification {
+        id: id.to_string(),
+        file: Asset::Walletshield.remote_name(&layout.platform),
+        reason,
+    }
+}
+
+/// Check a cached copy's binary against its cached signed list; its build.
+fn reverify(layout: &Layout, id: &NetworkId) -> Result<String, FetchError> {
+    let dir = layout.network_dir(id);
+    let read =
+        |name: &str| std::fs::read(dir.join(name)).map_err(|e| FetchError::io(&dir.join(name), e));
+    let list = read(auth::SIGNED_LIST)?;
+    let signature = String::from_utf8_lossy(&read(auth::SIGNATURE)?).into_owned();
+    let vouched = layout
+        .trust
+        .vouch(&list, &signature)
+        .map_err(|reason| verification(layout, id, reason))?;
+    check(
+        &vouched,
+        layout,
+        id,
+        &layout.asset_path(id, Asset::Walletshield),
+    )?;
+    Ok(vouched.build)
+}
+
+/// Check the binary at `path` against what `vouched` lists for this platform.
+fn check(
+    vouched: &Vouched,
+    layout: &Layout,
+    id: &NetworkId,
+    path: &Path,
+) -> Result<(), FetchError> {
+    vouched
+        .check(&Asset::Walletshield.remote_name(&layout.platform), path)
+        .map_err(|reason| verification(layout, id, reason))
 }
 
 fn emit_cached(on_event: &Option<OnFetchEvent>) {
@@ -739,8 +824,9 @@ async fn fetch(
     layout: &Layout,
     id: &NetworkId,
     entry: Option<IndexEntry>,
+    policy: Policy,
     on_event: Option<OnFetchEvent>,
-) -> Result<PathBuf, FetchError> {
+) -> Result<(PathBuf, Option<String>), FetchError> {
     let emit = |event| {
         if let Some(cb) = &on_event {
             cb(event)
@@ -754,37 +840,121 @@ async fn fetch(
         .map_err(|e| FetchError::io(&dir, e))?;
 
     let staged = async {
+        // the signed list first: a wrong key or an edited list fails before
+        // the binary is downloaded
+        let evidence = fetch_evidence(http, layout, id).await?;
+        let vouched = match &evidence {
+            Some((list, signature)) => Some(
+                layout
+                    .trust
+                    .vouch(list, signature)
+                    .map_err(|reason| verification(layout, id, reason))?,
+            ),
+            None => None,
+        };
         let [a, b, c] = Asset::ALL;
         tokio::try_join!(
             stage(http, layout, id, a, on_event.clone()),
             stage(http, layout, id, b, on_event.clone()),
             stage(http, layout, id, c, on_event.clone()),
         )?;
+        // the network is published; an unsigned one runs only by policy
+        if vouched.is_none() && policy != Policy::AllowUnsignedLocal {
+            return Err(verification(layout, id, AuthError::Unsigned));
+        }
         // every asset is verified before any is promoted, so a refused one
         // leaves the cached set as it was
         for asset in Asset::ALL {
-            verify(layout, id, asset, &part_path(layout, id, asset))?;
+            verify(
+                vouched.as_ref(),
+                layout,
+                id,
+                asset,
+                &part_path(layout, id, asset),
+            )?;
         }
         for asset in Asset::ALL {
             promote(layout, id, asset).await?;
         }
-        write_origin(layout, id, entry).await
+        write_evidence(layout, id, evidence.as_ref()).await?;
+        let build = vouched.map(|v| v.build);
+        write_origin(layout, id, entry, build.clone()).await?;
+        Ok(build)
     }
     .await;
 
-    if let Err(e) = staged {
-        for asset in Asset::ALL {
-            let _ = tokio::fs::remove_file(part_path(layout, id, asset)).await;
+    let build = match staged {
+        Ok(build) => build,
+        Err(e) => {
+            for asset in Asset::ALL {
+                let _ = tokio::fs::remove_file(part_path(layout, id, asset)).await;
+            }
+            if created {
+                let _ = tokio::fs::remove_dir(&dir).await; // only if still empty
+            }
+            return Err(e);
         }
-        if created {
-            let _ = tokio::fs::remove_dir(&dir).await; // only if still empty
-        }
-        return Err(e);
-    }
+    };
     for asset in Asset::ALL {
         emit(FetchEvent::Finished { asset });
     }
-    Ok(dir)
+    Ok((dir, build))
+}
+
+/// The signed list and its signature, if the network's source publishes both.
+async fn fetch_evidence(
+    http: &Client,
+    layout: &Layout,
+    id: &NetworkId,
+) -> Result<Option<(Vec<u8>, String)>, FetchError> {
+    let get = |name: &'static str| async move {
+        let url = format!("{}/{id}/{name}", layout.base_url);
+        let http_err = |source| FetchError::http(&url, source);
+        let response = http.get(&url).send().await.map_err(http_err)?;
+        if response.status() == StatusCode::NOT_FOUND {
+            return Ok(None);
+        }
+        let response = response.error_for_status().map_err(http_err)?;
+        Ok(Some(response.bytes().await.map_err(http_err)?.to_vec()))
+    };
+    let (list, signature) = tokio::try_join!(get(auth::SIGNED_LIST), get(auth::SIGNATURE))?;
+    Ok(match (list, signature) {
+        (Some(list), Some(signature)) => {
+            Some((list, String::from_utf8_lossy(&signature).into_owned()))
+        }
+        _ => None,
+    })
+}
+
+/// Keep the signed list beside the copy it vouches for, so the copy can be
+/// checked again before it runs; an unsigned copy keeps none.
+async fn write_evidence(
+    layout: &Layout,
+    id: &NetworkId,
+    evidence: Option<&(Vec<u8>, String)>,
+) -> Result<(), FetchError> {
+    let dir = layout.network_dir(id);
+    let files = [auth::SIGNED_LIST, auth::SIGNATURE];
+    let Some((list, signature)) = evidence else {
+        for name in files {
+            let _ = tokio::fs::remove_file(dir.join(name)).await;
+        }
+        return Ok(());
+    };
+    for (name, bytes) in files
+        .into_iter()
+        .zip([list.as_slice(), signature.as_bytes()])
+    {
+        let path = dir.join(name);
+        let part = dir.join(format!("{name}{PART_SUFFIX}"));
+        tokio::fs::write(&part, bytes)
+            .await
+            .map_err(|e| FetchError::io(&part, e))?;
+        tokio::fs::rename(&part, &path)
+            .await
+            .map_err(|e| FetchError::io(&path, e))?;
+    }
+    Ok(())
 }
 
 /// Record where the promoted set came from, atomically.
@@ -792,11 +962,13 @@ async fn write_origin(
     layout: &Layout,
     id: &NetworkId,
     entry: Option<IndexEntry>,
+    build: Option<String>,
 ) -> Result<(), FetchError> {
     let origin = Origin {
         base_url: layout.base_url.clone(),
         fetched: rfc3339(std::time::SystemTime::now()),
         entry,
+        build,
     };
     let path = layout.network_dir(id).join(ORIGIN_FILE);
     let part = layout
@@ -861,16 +1033,22 @@ async fn promote(layout: &Layout, id: &NetworkId, asset: Asset) -> Result<(), Fe
         .map_err(|e| FetchError::io(&path, e))
 }
 
-/// The verification slot: called on the staged bytes of every asset before it is
-/// promoted, so nothing unverified becomes runnable. It accepts everything until
-/// asset authentication lands; its arguments are what that must bind together.
+/// The verification slot: called on the staged bytes of every asset before any
+/// is promoted, so nothing unverified becomes runnable. The binary must hold
+/// the bytes the signed list vouches for under this platform's name; `None`
+/// means the source's policy allowed an unsigned set. The configs are not
+/// signed yet, so they pass.
 fn verify(
-    _layout: &Layout,
-    _id: &NetworkId,
-    _asset: Asset,
-    _staged: &Path,
+    vouched: Option<&Vouched>,
+    layout: &Layout,
+    id: &NetworkId,
+    asset: Asset,
+    staged: &Path,
 ) -> Result<(), FetchError> {
-    Ok(())
+    match (asset, vouched) {
+        (Asset::Walletshield, Some(v)) => check(v, layout, id, staged),
+        _ => Ok(()),
+    }
 }
 
 fn download_error(error: anyhow::Error, id: &NetworkId, url: &str, part: &Path) -> FetchError {

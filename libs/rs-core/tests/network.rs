@@ -4,7 +4,7 @@ use std::{
     collections::HashMap,
     convert::Infallible,
     path::Path,
-    sync::{Arc, Mutex},
+    sync::{Arc, LazyLock, Mutex},
     time::Duration,
 };
 
@@ -15,12 +15,68 @@ use hyper::{body::Frame, server::conn::http1, service::service_fn, Request, Resp
 use hyper_util::rt::TokioIo;
 use tempfile::TempDir;
 
-use zknet_core::network::{
-    cached, fetch_index, http_client, list, prepare, Asset, FetchError, FetchEvent, FetchOptions,
-    Layout, NetworkId, NetworkKind, OnFetchEvent, Platform, Prepared, Status,
+use sha2::{Digest, Sha256};
+use zknet_core::{
+    auth::TrustRoot,
+    network::{
+        cached, fetch_index, http_client, list, prepare, Asset, FetchError, FetchEvent,
+        FetchOptions, Layout, NetworkId, NetworkKind, OnFetchEvent, Platform, Prepared, Status,
+    },
 };
 
 type Body = BoxBody<Bytes, std::io::Error>;
+
+/// A throwaway minisign key pair: the publisher in these tests.
+struct Signer {
+    pk: minisign::PublicKey,
+    sk: minisign::SecretKey,
+}
+
+impl Signer {
+    fn new() -> Self {
+        let minisign::KeyPair { pk, sk } =
+            minisign::KeyPair::generate_unencrypted_keypair().unwrap();
+        Self { pk, sk }
+    }
+
+    fn root(&self) -> TrustRoot {
+        TrustRoot::minisign(&self.pk.to_base64()).unwrap()
+    }
+
+    fn sign(&self, list: &[u8], trusted: &str) -> Vec<u8> {
+        minisign::sign(
+            Some(&self.pk),
+            &self.sk,
+            std::io::Cursor::new(list),
+            Some(trusted),
+            Some("signature from a test key"),
+        )
+        .unwrap()
+        .to_string()
+        .into_bytes()
+    }
+}
+
+/// The key every test server signs with, and every test layout trusts.
+static PUBLISHER: LazyLock<Signer> = LazyLock::new(Signer::new);
+const BUILD: &str = "v0.4.3-424-gfe69171";
+const TRUSTED: &str =
+    "zknet-assets v1 build=v0.4.3-424-gfe69171 commit=fe69171 timestamp:1793042057";
+
+/// `sha256sum` lines for `(name, bytes)`.
+fn checksums(files: &[(String, Vec<u8>)]) -> Vec<u8> {
+    files
+        .iter()
+        .map(|(name, bytes)| {
+            let hash: String = Sha256::digest(bytes)
+                .iter()
+                .map(|b| format!("{b:02x}"))
+                .collect();
+            format!("{hash}  {name}\n")
+        })
+        .collect::<String>()
+        .into_bytes()
+}
 
 /// How the server answers one path.
 #[derive(Clone)]
@@ -56,13 +112,52 @@ impl Server {
         self.hits.lock().unwrap().values().sum()
     }
 
+    /// The signed list of a network's binaries as routed now, as the publish
+    /// flow would sign it.
+    fn signed_list(&self, network: &str) -> Vec<u8> {
+        let prefix = format!("/{network}/walletshield-");
+        let routes = self.routes.lock().unwrap();
+        let mut files: Vec<(String, Vec<u8>)> = routes
+            .iter()
+            .filter(|(p, _)| p.starts_with(&prefix))
+            .filter_map(|(p, r)| {
+                let bytes = match r {
+                    Route::Ok(b) | Route::Cut(b) => b.clone(),
+                    Route::Slow { chunk, n, .. } => vec![b'x'; chunk * n],
+                    Route::Status(_) => return None,
+                };
+                Some((p.rsplit('/').next().unwrap().to_owned(), bytes))
+            })
+            .collect();
+        files.sort();
+        checksums(&files)
+    }
+
+    /// A route, or else the network's signed list and its signature.
+    fn route_for(&self, path: &str) -> Option<Route> {
+        let routed = |p: &str| self.routes.lock().unwrap().get(p).cloned();
+        if let Some(route) = routed(path) {
+            return Some(route);
+        }
+        let (network, file) = path.trim_start_matches('/').split_once('/')?;
+        let list = || match routed(&format!("/{network}/checksums.txt")) {
+            Some(Route::Ok(b)) => b,
+            _ => self.signed_list(network),
+        };
+        match file {
+            "checksums.txt" => Some(Route::Ok(list())),
+            "checksums.txt.minisig" => Some(Route::Ok(PUBLISHER.sign(&list(), TRUSTED))),
+            _ => None,
+        }
+    }
+
     async fn handle(
         &self,
         req: Request<hyper::body::Incoming>,
     ) -> Result<Response<Body>, Infallible> {
         let path = req.uri().path().to_owned();
         *self.hits.lock().unwrap().entry(path.clone()).or_default() += 1;
-        let route = self.routes.lock().unwrap().get(&path).cloned();
+        let route = self.route_for(&path);
         let full = |b: Vec<u8>| Full::from(b).map_err(|e| match e {}).boxed();
         Ok(match route {
             None => status(StatusCode::NOT_FOUND),
@@ -151,7 +246,8 @@ async fn published() -> (Server, Layout, TempDir) {
     let base = server.start().await;
     let cache = TempDir::new().unwrap();
     let platform = Platform::from_os_arch(PLATFORM.0, PLATFORM.1).unwrap();
-    let layout = Layout::new(&base, cache.path().join("networks"), platform);
+    let layout = Layout::new(&base, cache.path().join("networks"), platform)
+        .with_trust_root(PUBLISHER.root());
     (server, layout, cache)
 }
 
@@ -241,6 +337,8 @@ async fn fetch_installs_the_complete_asset_set() {
     assert_eq!(
         files(&dir),
         [
+            "checksums.txt",
+            "checksums.txt.minisig",
             "client.toml",
             "origin.json",
             "services.json",
@@ -295,9 +393,16 @@ async fn refresh_downloads_again() {
         Route::Ok(b"[client] # new\n".to_vec()),
     );
 
-    get(&layout, FetchOptions { refresh: true }, None)
-        .await
-        .unwrap();
+    get(
+        &layout,
+        FetchOptions {
+            refresh: true,
+            ..Default::default()
+        },
+        None,
+    )
+    .await
+    .unwrap();
     assert_eq!(server.hits(&format!("/{ID}/client.toml")), 2);
     let toml = std::fs::read_to_string(layout.asset_path(&id(), Asset::ClientToml)).unwrap();
     assert_eq!(toml, "[client] # new\n");
@@ -331,14 +436,23 @@ async fn a_cut_download_leaves_no_part_and_keeps_the_cached_set() {
         Route::Ok(b"[client] # new\n".to_vec()),
     );
 
-    let err = get(&layout, FetchOptions { refresh: true }, None)
-        .await
-        .unwrap_err();
+    let err = get(
+        &layout,
+        FetchOptions {
+            refresh: true,
+            ..Default::default()
+        },
+        None,
+    )
+    .await
+    .unwrap_err();
     assert_eq!(err.kind(), "http", "{err}");
     let dir = layout.network_dir(&id());
     assert_eq!(
         files(&dir),
         [
+            "checksums.txt",
+            "checksums.txt.minisig",
             "client.toml",
             "origin.json",
             "services.json",
@@ -525,7 +639,13 @@ async fn every_network_is_judged_at_its_own_source() {
     for (dir, names) in [
         (
             "dev-old",
-            &["client.toml", "services.json", "walletshield"][..],
+            &[
+                "checksums.txt",
+                "checksums.txt.minisig",
+                "client.toml",
+                "services.json",
+                "walletshield",
+            ][..],
         ),
         ("dev-partial", &["client.toml"][..]),
     ] {
@@ -727,4 +847,315 @@ async fn an_unpublished_or_unreachable_copy_still_runs() {
     );
     get(&layout, FetchOptions::default(), None).await.unwrap();
     assert_eq!(server.hits(&format!("/{ID}/walletshield-linux-x64")), 1);
+}
+
+// --- asset authentication: the signed binary list --------------------------
+
+const BINARY: &str = "walletshield-linux-x64";
+
+fn binary_path() -> String {
+    format!("/{ID}/{BINARY}")
+}
+
+/// Pin the published list and signature to `files`, signed with `trusted`.
+fn publish_list(server: &Server, files: &[(&str, Vec<u8>)], trusted: &str) {
+    let files: Vec<(String, Vec<u8>)> = files
+        .iter()
+        .map(|(n, b)| (n.to_string(), b.clone()))
+        .collect();
+    let list = checksums(&files);
+    server.route(
+        &format!("/{ID}/checksums.txt.minisig"),
+        Route::Ok(PUBLISHER.sign(&list, trusted)),
+    );
+    server.route(&format!("/{ID}/checksums.txt"), Route::Ok(list));
+}
+
+/// Fetch `ID`, expecting a verification refusal; its message.
+async fn refused(layout: &Layout, opts: FetchOptions) -> String {
+    let err = get(layout, opts, None).await.unwrap_err();
+    assert_eq!(err.kind(), "verification", "{err}");
+    err.to_string()
+}
+
+/// Nothing of a refused first download is left behind.
+fn nothing_cached(layout: &Layout) {
+    assert!(!layout.network_dir(&id()).exists());
+    assert!(cached(layout).is_empty());
+}
+
+fn prefix() -> String {
+    format!("{BINARY} for network {ID} failed verification: ")
+}
+
+#[tokio::test]
+async fn a_signed_binary_runs_and_its_build_is_recorded() {
+    let (_server, layout, _cache) = published().await;
+    let prepared = prepare_id(&layout, ID).await.unwrap();
+    assert_eq!(prepared.build.as_deref(), Some(BUILD));
+    assert_eq!(
+        layout.cached_origin(&id()).unwrap().build.as_deref(),
+        Some(BUILD)
+    );
+}
+
+#[tokio::test]
+async fn a_tampered_binary_is_refused_and_never_installed() {
+    let (server, layout, _cache) = published().await;
+    publish_list(&server, &[(BINARY, vec![7; 300_000])], TRUSTED);
+    let mut tampered = vec![7; 300_000];
+    tampered.push(b'!');
+    server.route(&binary_path(), Route::Ok(tampered));
+
+    let msg = refused(&layout, FetchOptions::default()).await;
+    assert!(
+        msg.starts_with(&format!("{}its sha256 is ", prefix())),
+        "{msg}"
+    );
+    nothing_cached(&layout);
+}
+
+#[tokio::test]
+async fn an_unsigned_network_is_refused() {
+    let (server, layout, _cache) = published().await;
+    server.route(
+        &format!("/{ID}/checksums.txt.minisig"),
+        Route::Status(StatusCode::NOT_FOUND),
+    );
+    let msg = refused(&layout, FetchOptions::default()).await;
+    assert_eq!(
+        msg,
+        format!(
+            "{}the source publishes no signature (checksums.txt.minisig)",
+            prefix()
+        )
+    );
+    nothing_cached(&layout);
+}
+
+#[tokio::test]
+async fn another_key_is_refused_before_the_binary_downloads() {
+    let (server, layout, _cache) = published().await;
+    let stranger = Signer::new();
+    let layout = layout.with_trust_root(stranger.root());
+    let msg = refused(&layout, FetchOptions::default()).await;
+    assert_eq!(
+        msg,
+        format!(
+            "{}the asset list is signed by key {}, not by this client's key {}",
+            prefix(),
+            PUBLISHER.root().key_id(),
+            stranger.root().key_id()
+        )
+    );
+    assert_eq!(server.hits(&binary_path()), 0);
+    nothing_cached(&layout);
+}
+
+#[tokio::test]
+async fn another_platforms_binary_is_refused_and_named() {
+    let (server, layout, _cache) = published().await;
+    let arm = vec![3; 1000];
+    server.route(
+        &format!("/{ID}/walletshield-linux-arm64"),
+        Route::Ok(arm.clone()),
+    );
+    publish_list(
+        &server,
+        &[
+            ("walletshield-linux-arm64", arm.clone()),
+            (BINARY, vec![7; 300_000]),
+        ],
+        TRUSTED,
+    );
+    server.route(&binary_path(), Route::Ok(arm));
+    let msg = refused(&layout, FetchOptions::default()).await;
+    assert!(
+        msg.ends_with("(these are the bytes of walletshield-linux-arm64)"),
+        "{msg}"
+    );
+    nothing_cached(&layout);
+}
+
+#[tokio::test]
+async fn a_binary_from_another_build_is_refused() {
+    let (server, layout, _cache) = published().await;
+    publish_list(&server, &[(BINARY, vec![7; 300_000])], TRUSTED);
+    server.route(&binary_path(), Route::Ok(vec![6; 300_000]));
+    let msg = refused(&layout, FetchOptions::default()).await;
+    assert!(msg.contains("but the signed asset list says"), "{msg}");
+    nothing_cached(&layout);
+}
+
+#[tokio::test]
+async fn an_edited_list_is_refused_before_the_binary_downloads() {
+    let (server, layout, _cache) = published().await;
+    publish_list(&server, &[(BINARY, vec![7; 300_000])], TRUSTED);
+    server.route(
+        &format!("/{ID}/checksums.txt"),
+        Route::Ok(checksums(&[(BINARY.into(), vec![6; 300_000])])),
+    );
+    let msg = refused(&layout, FetchOptions::default()).await;
+    assert_eq!(
+        msg,
+        format!(
+            "{}the asset list's signature is invalid for key {}",
+            prefix(),
+            PUBLISHER.root().key_id()
+        )
+    );
+    assert_eq!(server.hits(&binary_path()), 0);
+    nothing_cached(&layout);
+}
+
+#[tokio::test]
+async fn a_signature_that_is_not_for_an_asset_list_is_refused() {
+    let (server, layout, _cache) = published().await;
+    publish_list(
+        &server,
+        &[(BINARY, vec![7; 300_000])],
+        "timestamp:1793042057\tfile:checksums.txt\thashed",
+    );
+    let msg = refused(&layout, FetchOptions::default()).await;
+    assert_eq!(
+        msg,
+        format!("{}the signature is not for a zknet asset list", prefix())
+    );
+    nothing_cached(&layout);
+}
+
+#[tokio::test]
+async fn any_signed_build_is_accepted_and_named() {
+    let (server, layout, _cache) = published().await;
+    publish_list(
+        &server,
+        &[(BINARY, vec![7; 300_000])],
+        "zknet-assets v1 build=v0.4.3-198-g1196008 commit=1196008 timestamp:1792700000",
+    );
+    let prepared = prepare_id(&layout, ID).await.unwrap();
+    assert_eq!(prepared.build.as_deref(), Some("v0.4.3-198-g1196008"));
+}
+
+#[tokio::test]
+async fn a_refused_refresh_keeps_the_cached_set_as_it_was() {
+    let (server, layout, _cache) = published().await;
+    get(&layout, FetchOptions::default(), None).await.unwrap();
+    let dir = layout.network_dir(&id());
+    let before: Vec<(String, Vec<u8>)> = files(&dir)
+        .into_iter()
+        .map(|f| {
+            let bytes = std::fs::read(dir.join(&f)).unwrap();
+            (f, bytes)
+        })
+        .collect();
+
+    // a new config arrives with a binary the list doesn't vouch for
+    publish_list(&server, &[(BINARY, vec![7; 300_000])], TRUSTED);
+    server.route(
+        &format!("/{ID}/client.toml"),
+        Route::Ok(b"[client] # new\n".to_vec()),
+    );
+    server.route(&binary_path(), Route::Ok(vec![6; 300_000]));
+    let opts = FetchOptions {
+        refresh: true,
+        ..Default::default()
+    };
+    refused(&layout, opts).await;
+
+    let after: Vec<(String, Vec<u8>)> = files(&dir)
+        .into_iter()
+        .map(|f| {
+            let bytes = std::fs::read(dir.join(&f)).unwrap();
+            (f, bytes)
+        })
+        .collect();
+    assert_eq!(before, after, "the cached set changed");
+}
+
+#[tokio::test]
+async fn a_cached_binary_is_checked_again_before_it_runs() {
+    let (_server, layout, _cache) = published().await;
+    get(&layout, FetchOptions::default(), None).await.unwrap();
+    std::fs::write(
+        layout.asset_path(&id(), Asset::Walletshield),
+        b"changed on disk",
+    )
+    .unwrap();
+
+    let msg = refused(&layout, FetchOptions::default()).await;
+    assert!(
+        msg.starts_with(&format!("{}its sha256 is ", prefix())),
+        "{msg}"
+    );
+}
+
+#[tokio::test]
+async fn a_copy_without_its_signed_list_is_downloaded_again() {
+    let (server, layout, _cache) = published().await;
+    get(&layout, FetchOptions::default(), None).await.unwrap();
+    std::fs::remove_file(layout.network_dir(&id()).join("checksums.txt.minisig")).unwrap();
+
+    let prepared = prepare_id(&layout, ID).await.unwrap();
+    assert_eq!(prepared.build.as_deref(), Some(BUILD));
+    assert_eq!(server.hits(&binary_path()), 2);
+}
+
+#[tokio::test]
+async fn a_loopback_source_may_serve_an_unsigned_set_when_asked() {
+    // the test server is on 127.0.0.1 and tests are debug builds
+    let (server, layout, _cache) = published().await;
+    server.route(
+        &format!("/{ID}/checksums.txt.minisig"),
+        Route::Status(StatusCode::NOT_FOUND),
+    );
+    let opts = FetchOptions {
+        allow_unsigned: true,
+        ..Default::default()
+    };
+    let prepared = prepare(&http_client().unwrap(), &layout, &id(), opts, None)
+        .await
+        .unwrap();
+    assert_eq!(prepared.build, None);
+    let dir = layout.network_dir(&id());
+    assert!(dir.join("walletshield").is_file());
+    assert!(!dir.join("checksums.txt").exists());
+    assert_eq!(
+        layout.cached_origin(&id()),
+        None,
+        "an unsigned copy is not complete"
+    );
+}
+
+#[tokio::test]
+async fn asking_for_unsigned_still_verifies_a_signed_set() {
+    let (server, layout, _cache) = published().await;
+    publish_list(&server, &[(BINARY, vec![7; 300_000])], TRUSTED);
+    server.route(&binary_path(), Route::Ok(vec![6; 300_000]));
+    let opts = FetchOptions {
+        allow_unsigned: true,
+        ..Default::default()
+    };
+    let msg = refused(&layout, opts).await;
+    assert!(msg.contains("but the signed asset list says"), "{msg}");
+}
+
+#[tokio::test]
+async fn unsigned_is_refused_for_a_remote_source() {
+    let (_server, layout, _cache) = published().await;
+    // `.invalid` never resolves (RFC 2606), so no request leaves the host
+    let remote = layout.at("https://zknet.invalid");
+    let opts = FetchOptions {
+        allow_unsigned: true,
+        ..Default::default()
+    };
+    let err = prepare(&http_client().unwrap(), &remote, &id(), opts, None)
+        .await
+        .unwrap_err();
+    assert_eq!(
+        err.to_string(),
+        format!(
+            "{}unsigned assets are allowed only from a local source (127.0.0.1, ::1 or localhost), not zknet.invalid",
+            prefix()
+        )
+    );
 }

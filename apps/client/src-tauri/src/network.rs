@@ -71,7 +71,10 @@ pub async fn network_fetch<R: Runtime>(
     let on_event: OnFetchEvent = std::sync::Arc::new(move |event| {
         let _ = on_event.send(event);
     });
-    let options = FetchOptions { refresh };
+    let options = FetchOptions {
+        refresh,
+        ..Default::default()
+    };
     Ok(network::prepare(
         &network::http_client()?,
         &layout,

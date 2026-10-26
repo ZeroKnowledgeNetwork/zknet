@@ -32,23 +32,27 @@ struct Cli {
     /// Discover networks at this base URL as well as those already known
     #[arg(long, global = true)]
     network_url: Option<String>,
+    /// Accept a network whose binary is unsigned: only from a local
+    /// (loopback) source, and only in a debug build. The dev-local target sets it.
+    #[arg(long, global = true)]
+    allow_unsigned: bool,
 }
 
 const SUBCOMMANDS: [&str; 3] = ["list", "connect", "help"];
 
-/// Put `connect` before the first argument that isn't the global `--network-url`,
-/// unless it is a subcommand or a help/version flag, so `<network_id>` and
-/// `--refresh <network_id>` connect. Clap's own shorthand
-/// (`args_conflicts_with_subcommands`) would refuse a global `--network-url`
-/// given before the subcommand, which is how the Nx `dev-local` target forwards
-/// its arguments.
+/// Put `connect` before the first argument that isn't a global option
+/// (`--network-url`, `--allow-unsigned`), unless it is a subcommand or a
+/// help/version flag, so `<network_id>` and `--refresh <network_id>` connect.
+/// Clap's own shorthand (`args_conflicts_with_subcommands`) would refuse a
+/// global option given before the subcommand, which is how the Nx `dev-local`
+/// target forwards its arguments.
 fn with_default_subcommand(args: impl IntoIterator<Item = String>) -> Vec<String> {
     let mut args: Vec<String> = args.into_iter().collect();
     let mut i = 1;
     while i < args.len() {
         match args[i].as_str() {
             "--network-url" => i += 2,
-            a if a.starts_with("--network-url=") => i += 1,
+            a if a.starts_with("--network-url=") || a == "--allow-unsigned" => i += 1,
             a if SUBCOMMANDS.contains(&a) || ["-h", "--help", "-V", "--version"].contains(&a) => {
                 break
             }
@@ -101,7 +105,7 @@ fn layout(ctx: &AppContext) -> Layout {
     )
 }
 
-async fn connect(ctx: AppContext, args: ConnectArgs) -> Result<()> {
+async fn connect(ctx: AppContext, args: ConnectArgs, allow_unsigned: bool) -> Result<()> {
     let id = args.network_id;
     let layout = layout(&ctx);
     println!("Connecting to network {id}...");
@@ -114,9 +118,15 @@ async fn connect(ctx: AppContext, args: ConnectArgs) -> Result<()> {
     });
     let options = FetchOptions {
         refresh: args.refresh,
-        ..Default::default()
+        allow_unsigned,
     };
     let prepared = prepare(&http_client()?, &layout, &id, options, Some(on_event)).await?;
+    match &prepared.build {
+        Some(build) => println!("  Walletshield: verified, build {build}"),
+        None => println!(
+            "  Walletshield: UNSIGNED, accepted for a local source in a debug build (--allow-unsigned)"
+        ),
+    }
     if let Some(host) = &prepared.source_label {
         if prepared.source != layout.base_url {
             println!("{id} is published at {host}");
@@ -161,7 +171,7 @@ async fn main() -> Result<ExitCode> {
         "WalletShield: listen {} · log {}",
         c.walletshield_listen_address, c.walletshield_log_level
     );
-    connect(ctx, args).await?;
+    connect(ctx, args, cli.allow_unsigned).await?;
     Ok(ExitCode::SUCCESS)
 }
 
@@ -236,6 +246,19 @@ mod tests {
         ));
         // thin mode is the network's, not the launch's
         assert!(parse(&["dev-local", "--thin"]).is_err());
+    }
+
+    #[test]
+    fn allow_unsigned_is_global_so_the_dev_local_target_can_pass_it() {
+        // the dev-local target's own arguments, then whatever the user adds
+        let target = ["--network-url", "http://127.0.0.1:8765", "--allow-unsigned"];
+        let cli = parse(&[&target[..], &["dev-local"]].concat()).unwrap();
+        assert!(cli.allow_unsigned);
+        assert_eq!(connect_id(cli), "dev-local");
+        let cli = parse(&[&target[..], &["list", "-q"]].concat()).unwrap();
+        assert!(cli.allow_unsigned);
+        assert!(matches!(cli.command, Command::List(_)));
+        assert!(!parse(&["devnet-1"]).unwrap().allow_unsigned);
     }
 
     #[test]

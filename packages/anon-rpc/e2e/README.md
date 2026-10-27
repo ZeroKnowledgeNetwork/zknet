@@ -78,11 +78,13 @@ observes them on the browser layer.
 
 ### Fork
 
-`network.policy` (`WorkerInit.network`, PROPOSED upstream) is not in the published harness. With
-`ANON_RPC_REPO` set to an anon-rpc checkout that has it (`feat/worker-network-policy`), this tier
-builds that checkout's `impl/browser-harness` (`npm run build`; its dependencies must be
-installed) and bundles the page against it. Without the variable, only a check runs that nothing
-in this package depends on a checkout.
+`WorkerInit.network.policy` (anon-rpc SPEC 0.4.1 §6.1, on the fork branch
+`feat/worker-network-policy` until upstream merges it) is not in the published harness this
+package pins (`0.3.3`, which only the `e2e` tier uses). With `ANON_RPC_REPO` set to an anon-rpc
+checkout that has it — an absolute path, since Nx runs the tier from this package's directory —
+this tier builds that checkout's `impl/harness-core` and `impl/browser-harness` (`npm run build`;
+run `npm ci` in its `impl/` first) and bundles the page against them. Without the variable, only a
+check runs that nothing in this package depends on a checkout.
 
 The page is served over `https://127.0.0.1` with a throwaway self-signed certificate. Two
 **controls** stand in for a real deployment:

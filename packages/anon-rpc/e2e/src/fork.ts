@@ -23,17 +23,24 @@ export interface ForkHarness {
 /**
  * Build impl/browser-harness in `repo` (an anon-rpc checkout whose
  * dependencies are installed) and return its entry. Refuses a checkout
- * without WorkerInit.network support, which is the point of this tier.
+ * without WorkerInit.network support (SPEC §6.1, where the browser harness
+ * validates and delegates in src/host/local-network.ts), which is the point
+ * of this tier.
  */
 export function buildForkHarness(repo: string): ForkHarness {
   const dir = join(repo, 'impl/browser-harness');
-  const source = join(dir, 'src/host/AnonRpcWorker.ts');
-  if (!existsSync(source)) throw new Error(`${repo} is not an anon-rpc checkout (no ${source})`);
-  if (!readFileSync(source, 'utf8').includes('networkAllow')) {
+  if (!existsSync(join(dir, 'src/host/AnonRpcWorker.ts'))) {
+    throw new Error(`${repo} is not an anon-rpc checkout (no impl/browser-harness/src/host/AnonRpcWorker.ts)`);
+  }
+  const support = join(dir, 'src/host/local-network.ts');
+  if (!existsSync(support) || !readFileSync(support, 'utf8').includes('networkSpaces')) {
     throw new Error(
       `${repo} has no WorkerInit.network support: check out feat/worker-network-policy (or a branch with it)`,
     );
   }
+  // The browser harness imports @anon-rpc/harness-core, whose dist it does
+  // not build itself.
+  execFileSync('npm', ['run', 'build'], { cwd: join(repo, 'impl/harness-core'), stdio: 'pipe' });
   execFileSync('npm', ['run', 'build'], { cwd: dir, stdio: 'pipe' });
   const revision = execFileSync('git', ['describe', '--always', '--dirty', '--all', '--long'], {
     cwd: repo,

@@ -1,4 +1,3 @@
 {
-  "singleQuote": true,
   "ignorePatterns": ["packages/opt/tests/e2e/walletshield/**/*.json"]
 }

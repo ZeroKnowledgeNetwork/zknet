@@ -213,7 +213,7 @@ class IndexTest(Fixture):
             (self.output / network_id).mkdir()
             (self.output / network_id / 'network.json').write_text(json.dumps(entry, ensure_ascii=False) + '\n')
         self.run_script(INDEX, '--out', self.output)
-        self.assertEqual((self.output / 'networks.json').read_text(), FIXTURE.read_text())
+        self.assertEqual(self.index(), json.loads(FIXTURE.read_text()))
 
 
 class ServeTest(Fixture):

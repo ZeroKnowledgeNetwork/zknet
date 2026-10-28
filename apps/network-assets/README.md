@@ -50,6 +50,10 @@ apps/network-assets/assemble.sh [--out DIR] --remove <network_id>
   `networks.json` from those files, newest first, so a network is listed exactly while
   its directory exists.
 
+`fixtures/networks.json` is the clients' sample index. The index test compares its
+parsed JSON with `index.sh` output, including network order; the fixture may use
+the repository's JSON formatting without changing the published index format.
+
 ## Publish
 
 `<out>` is a complete static site. Each deploy replaces the whole site, so removing a

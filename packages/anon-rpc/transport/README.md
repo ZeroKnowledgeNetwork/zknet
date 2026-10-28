@@ -12,12 +12,12 @@ named after the peer it talks to, not the protocol:
 
 ```ts
 interface Transport {
-  readonly peer: 'walletshield' | 'kpclientd';
+  readonly peer: "walletshield" | "kpclientd";
   request(
     req: ({ network: string } | { url: string }) & { body: Uint8Array; contentType: string },
     opts?: { signal?: AbortSignal },
   ): Promise<{ status: number; headers: HeaderList; body: Uint8Array }>;
-  probe(opts?: { signal?: AbortSignal; depth?: 'peer' | 'exit' }): Promise<ProbeResult>; // never rejects
+  probe(opts?: { signal?: AbortSignal; depth?: "peer" | "exit" }): Promise<ProbeResult>; // never rejects
   close(): Promise<void>;
 }
 ```

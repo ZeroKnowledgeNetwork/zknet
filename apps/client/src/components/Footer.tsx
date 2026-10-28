@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react';
-import { useStore } from '../store';
-import { getZKNetClientCfg } from '../utils';
-import { IconArrowPath, IconCheckBadge, IconCommandLine } from '.';
-import { Updater } from './Updater';
+import { useEffect, useState } from "react";
+import { useStore } from "../store";
+import { getZKNetClientCfg } from "../utils";
+import { IconArrowPath, IconCheckBadge, IconCommandLine } from ".";
+import { Updater } from "./Updater";
 
 export function Footer() {
   const appVersion = useStore((s) => s.appVersion);
@@ -20,7 +20,7 @@ export function Footer() {
   }, []);
 
   useEffect(() => {
-    if (updateStatus === 'checked-current') {
+    if (updateStatus === "checked-current") {
       const timer = setTimeout(() => setUpdaterVisibility(false), 3000);
       return () => clearTimeout(timer); // Cleanup on unmount
     }
@@ -29,10 +29,10 @@ export function Footer() {
 
   const isUpdaterVisible =
     updaterEnabled === true &&
-    (updaterVisibility || updateStatus === 'checked-updatable' || updateStatus === 'installed');
+    (updaterVisibility || updateStatus === "checked-updatable" || updateStatus === "installed");
 
   const showUpdater = () =>
-    updateStatus === 'error'
+    updateStatus === "error"
       ? setUpdaterKey((p) => p + 1) // remount to re-try updates
       : setUpdaterVisibility(true); // show but don't toggle
 
@@ -49,7 +49,7 @@ export function Footer() {
             Version: {appVersion}
             {updaterEnabled && (
               <button className="btn btn-ghost btn-xs btn-primary p-1">
-                {updateStatus === 'checked-current' ? (
+                {updateStatus === "checked-current" ? (
                   <IconCheckBadge className="size-5" />
                 ) : (
                   <IconArrowPath className="size-5" />

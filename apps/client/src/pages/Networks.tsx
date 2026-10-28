@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react';
-import * as log from '@tauri-apps/plugin-log';
-import { Child, Command } from '@tauri-apps/plugin-shell';
-import { NetworkTable } from '../components';
-import { useStore } from '../store';
-import { notifyAPIClientsOfStatusChange } from '../services/api';
+import { useEffect, useState } from "react";
+import * as log from "@tauri-apps/plugin-log";
+import { Child, Command } from "@tauri-apps/plugin-shell";
+import { NetworkTable } from "../components";
+import { useStore } from "../store";
+import { notifyAPIClientsOfStatusChange } from "../services/api";
 import {
   CmdError,
   FetchEvent,
@@ -12,17 +12,17 @@ import {
   getWalletshieldListenAddress,
   getZKNetClientCfg,
   listNetworks,
-} from '../utils';
-import { walletshieldSpawn } from '../utils/walletshield';
+} from "../utils";
+import { walletshieldSpawn } from "../utils/walletshield";
 
 // A rejected command carries a CmdError; anything else is shown as is.
 const errorText = (error: unknown) =>
-  typeof error === 'object' && error !== null && 'message' in error
+  typeof error === "object" && error !== null && "message" in error
     ? (error as CmdError).message
     : `${error}`;
 
 export function Networks() {
-  const [networkId, setNetworkId] = useState('');
+  const [networkId, setNetworkId] = useState("");
   const [reloading, setReloading] = useState(false);
 
   const clientPid = useStore((s) => s.clientPid);
@@ -45,13 +45,13 @@ export function Networks() {
       consoleAddLine(`Connecting to network: ${networkId}`);
       const pid = await clientStart();
       setClientPid(pid);
-      setMessage('info', '');
+      setMessage("info", "");
       setIsConnected(true);
       setNetworkConnected(networkId);
       notifyAPIClientsOfStatusChange();
     } catch (error: unknown) {
       log.error(errorText(error));
-      setMessage('error', errorText(error));
+      setMessage("error", errorText(error));
       consoleAddLine(errorText(error));
     }
     refreshNetworks();
@@ -78,10 +78,10 @@ export function Networks() {
     try {
       setIsStopping(true);
       await clientStop();
-      setMessage('info', 'Disconnected from Network');
+      setMessage("info", "Disconnected from Network");
     } catch (error: any) {
       log.error(`${error}`);
-      setMessage('error', `${error}`);
+      setMessage("error", `${error}`);
     }
   }
 
@@ -98,26 +98,26 @@ export function Networks() {
     ////////////////////////////////////////////////////////////////////////
     // make the network ready at its own source (zknet_core::network::prepare)
     ////////////////////////////////////////////////////////////////////////
-    setMessage('info', 'Checking network...');
+    setMessage("info", "Checking network...");
     let percent = -1;
     const onEvent = (e: FetchEvent) => {
-      if (e.data.asset !== 'walletshield') return;
-      if (e.event === 'cached') setMessage('info', 'Using the cached network client');
-      if (e.event === 'started') setMessage('info', 'Downloading network client...');
-      if (e.event === 'progress' && e.data.progress.total > 0) {
+      if (e.data.asset !== "walletshield") return;
+      if (e.event === "cached") setMessage("info", "Using the cached network client");
+      if (e.event === "started") setMessage("info", "Downloading network client...");
+      if (e.event === "progress" && e.data.progress.total > 0) {
         const { progressTotal, total } = e.data.progress;
         const p = Math.floor((progressTotal / total) * 100);
         if (p !== percent) {
           percent = p;
-          setMessage('info', `Downloading client... ${p}%`);
+          setMessage("info", `Downloading client... ${p}%`);
         }
       }
-      if (e.event === 'finished') setMessage('info', `Downloaded client for OS: ${platformArch}`);
+      if (e.event === "finished") setMessage("info", `Downloaded client for OS: ${platformArch}`);
     };
     const prepared = await fetchNetwork(networkId, false, onEvent).catch((error: CmdError) => {
       log.warn(`network fetch: ${error.kind}: ${error.message}`);
       throw new Error(
-        error.kind === 'notFound' ? `Network ${networkId} is not published` : error.message,
+        error.kind === "notFound" ? `Network ${networkId} is not published` : error.message,
       );
     });
     const dirNetwork = prepared.dir;
@@ -127,14 +127,14 @@ export function Networks() {
     consoleAddLine(
       prepared.build
         ? `Network client verified: build ${prepared.build}`
-        : 'Network client UNSIGNED: accepted for a local source in a dev build',
+        : "Network client UNSIGNED: accepted for a local source in a dev build",
     );
 
     ////////////////////////////////////////////////////////////////////////
     // execute the walletshield client with the client.toml
     ////////////////////////////////////////////////////////////////////////
-    setMessage('info', 'Starting network client...');
-    const cmd = 'walletshield';
+    setMessage("info", "Starting network client...");
+    const cmd = "walletshield";
     const wla = await getWalletshieldListenAddress();
     const { scope, args } = walletshieldSpawn(wla, walletshieldLogLevel);
     const command = Command.create(scope, args, {
@@ -144,32 +144,32 @@ export function Networks() {
       },
     });
     const o = (d: string) => `${d.trim()}`;
-    log.debug(`spawning command: ${cmd} ${args.join(' ')}`);
+    log.debug(`spawning command: ${cmd} ${args.join(" ")}`);
 
-    command.on('close', (data) => {
+    command.on("close", (data) => {
       log.debug(`closed: ${cmd} code=${data.code} signal=${data.signal}`);
       const isStopping = useStore.getState().isStopping;
       if (isStopping !== true) {
-        setMessage('error', 'Error: Network connection failed.');
+        setMessage("error", "Error: Network connection failed.");
         consoleAddLine(`Network connection failed: ${networkId}`);
       }
       consoleAddLine(`Disconnected from network: ${networkId}`);
       setClientPid(0);
       setIsConnected(false);
       setIsStopping(false);
-      setNetworkConnected('');
+      setNetworkConnected("");
       notifyAPIClientsOfStatusChange();
       refreshNetworks();
     });
 
-    command.on('error', (e) => log.error(o(e)));
+    command.on("error", (e) => log.error(o(e)));
 
-    command.stdout.on('data', (d) => {
+    command.stdout.on("data", (d) => {
       log.info(o(d));
       if (d.match(/client2/) === null) consoleAddLine(o(d));
     });
 
-    command.stderr.on('data', (d) => {
+    command.stderr.on("data", (d) => {
       log.error(o(d));
       if (d.match(/client2/) === null) consoleAddLine(o(d));
     });
@@ -184,7 +184,7 @@ export function Networks() {
         src="/zkn.svg"
         alt="ZKN"
         onClick={() => isConnected && disconnect()}
-        className={`logo ${isConnected ? 'pulsing' : ''}`}
+        className={`logo ${isConnected ? "pulsing" : ""}`}
       />
 
       {isPlatformSupported &&
@@ -198,7 +198,7 @@ export function Networks() {
                 connect();
 
                 // blur the input field to clear visual artifact
-                e.currentTarget.querySelector('input')?.blur();
+                e.currentTarget.querySelector("input")?.blur();
               }}
             >
               <input

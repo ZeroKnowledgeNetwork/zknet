@@ -10,14 +10,14 @@
 //                     need an https stub the exit can reach (src/exit-testbed.ts
 //                     rewrites that exit's config and restarts its service node)
 
-import { expect, test, type Page } from '@playwright/test';
-import type { FetchResult } from '../page/api.js';
-import { startChain, type Chain } from '../src/chain.js';
-import { PRIVATE_HOST, startExitTestbed, type ExitTestbed } from '../src/exit-testbed.js';
-import { bundlePage, pinnedHarness, servePage, type PageServer } from '../src/page.js';
-import { WORKER_BUNDLE } from '../src/paths.js';
+import { expect, test, type Page } from "@playwright/test";
+import type { FetchResult } from "../page/api.js";
+import { startChain, type Chain } from "../src/chain.js";
+import { PRIVATE_HOST, startExitTestbed, type ExitTestbed } from "../src/exit-testbed.js";
+import { bundlePage, pinnedHarness, servePage, type PageServer } from "../src/page.js";
+import { WORKER_BUNDLE } from "../src/paths.js";
 
-const WALLETSHIELD = process.env.WALLETSHIELD_URL ?? 'http://127.0.0.1:7070';
+const WALLETSHIELD = process.env.WALLETSHIELD_URL ?? "http://127.0.0.1:7070";
 const TIMEOUT_MS = Number(process.env.LIVE_TIMEOUT_MS ?? 60_000);
 const RTT_PROBES = Number(process.env.LIVE_RTT_PROBES ?? 20);
 const EXIT_BED = process.env.LIVE_EXIT_BED;
@@ -25,16 +25,16 @@ const EXIT_BED = process.env.LIVE_EXIT_BED;
 // Per chain: the anon-rpc demo's prefilled public provider, and the exit's [Networks] key.
 const CHAINS = [
   {
-    chain: 'mainnet',
-    provider: 'https://ethereum-rpc.publicnode.com',
-    network: 'ethereum',
-    chainId: '0x1',
+    chain: "mainnet",
+    provider: "https://ethereum-rpc.publicnode.com",
+    network: "ethereum",
+    chainId: "0x1",
   },
   {
-    chain: 'sepolia',
-    provider: 'https://ethereum-sepolia-rpc.publicnode.com',
-    network: 'ethereum/sepolia',
-    chainId: '0xaa36a7',
+    chain: "sepolia",
+    provider: "https://ethereum-sepolia-rpc.publicnode.com",
+    network: "ethereum/sepolia",
+    chainId: "0xaa36a7",
   },
 ];
 
@@ -42,7 +42,7 @@ let chain: Chain;
 let site: PageServer;
 let address: string;
 
-const say = (line = '') => console.log(line);
+const say = (line = "") => console.log(line);
 
 test.beforeAll(async () => {
   say(`live tier: worker → WalletShield ${WALLETSHIELD} → mixnet → exit`);
@@ -72,7 +72,7 @@ async function bootWorker(page: Page): Promise<void> {
   await page.goto(`${site.origin}/`);
   await page.waitForFunction(() => window.e2e !== undefined);
   const booted = await page.evaluate((req) => window.e2e.boot(req), {
-    id: 'w',
+    id: "w",
     address,
     rpcUrl: chain.rpcUrl,
     config: { walletshield: WALLETSHIELD, timeoutMs: TIMEOUT_MS },
@@ -81,11 +81,11 @@ async function bootWorker(page: Page): Promise<void> {
   expect(booted.error).toBeUndefined();
 }
 
-function rpc(page: Page, url: string, method = 'eth_chainId'): Promise<FetchResult> {
+function rpc(page: Page, url: string, method = "eth_chainId"): Promise<FetchResult> {
   return page.evaluate((req) => window.e2e.fetch(req), {
-    id: 'w',
+    id: "w",
     url,
-    body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params: [] }),
+    body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params: [] }),
     timeoutMs: TIMEOUT_MS + 5_000,
   });
 }
@@ -98,21 +98,21 @@ function report(label: string, r: FetchResult): void {
   );
 }
 
-const result = (r: FetchResult) => (JSON.parse(r.bodyText ?? '{}') as { result?: unknown }).result;
+const result = (r: FetchResult) => (JSON.parse(r.bodyText ?? "{}") as { result?: unknown }).result;
 
 /** The exit answered a probe: it answers as an upstream would, 200 with an empty body. */
 const exitAnswered = (res: Response | undefined) =>
-  res?.status === 200 && !res.headers.has('zknet-error');
+  res?.status === 200 && !res.headers.has("zknet-error");
 
 /** The mix round trip, from WalletShield's exit probe: one mixnet round trip, the exit answers without an upstream. */
-test('mix round-trip time', async () => {
+test("mix round-trip time", async () => {
   const ms: number[] = [];
   let failed = 0;
   for (let i = 0; i < RTT_PROBES; i++) {
     const t = performance.now();
     const res = await fetch(`${WALLETSHIELD}/_/probe/0`, {
-      method: 'POST',
-      body: '',
+      method: "POST",
+      body: "",
       signal: AbortSignal.timeout(30_000),
     }).catch(() => undefined);
     if (exitAnswered(res)) ms.push(performance.now() - t);
@@ -138,18 +138,18 @@ test('mix round-trip time', async () => {
 const UPSTREAM_TIMEOUT_MS = 3_500;
 const JUST_UNDER_MS = 3_000;
 
-test('an exit-side delay just under the upstream timeout still comes back', async () => {
+test("an exit-side delay just under the upstream timeout still comes back", async () => {
   for (let i = 0; i < 3; i++) {
     const t = performance.now();
     const res = await fetch(`${WALLETSHIELD}/_/probe/${JUST_UNDER_MS / 1000}`, {
-      method: 'POST',
-      body: '',
+      method: "POST",
+      body: "",
       signal: AbortSignal.timeout(30_000),
     }).catch(() => undefined);
     await res?.arrayBuffer();
     const ms = Math.round(performance.now() - t);
     say(
-      `exit probe delayed ${JUST_UNDER_MS} ms (upstream timeout ${UPSTREAM_TIMEOUT_MS} ms): ${res?.headers.get('zknet-error') ?? res?.status} in ${ms} ms`,
+      `exit probe delayed ${JUST_UNDER_MS} ms (upstream timeout ${UPSTREAM_TIMEOUT_MS} ms): ${res?.headers.get("zknet-error") ?? res?.status} in ${ms} ms`,
     );
     expect(exitAnswered(res), `a reply delayed ${JUST_UNDER_MS} ms at the exit was lost`).toBe(
       true,
@@ -171,33 +171,33 @@ for (const { chain: name, provider, network, chainId } of CHAINS) {
   });
 }
 
-test('private provider addresses are refused: literals by the worker, names by the exit after DNS', async ({
+test("private provider addresses are refused: literals by the worker, names by the exit after DNS", async ({
   page,
 }) => {
   await bootWorker(page);
-  for (const url of ['https://10.0.0.1/', 'https://127.0.0.1:8545/']) {
+  for (const url of ["https://10.0.0.1/", "https://127.0.0.1:8545/"]) {
     const r = await rpc(page, url);
     report(`refusal ${url}`, r);
     expect({ url, code: r.error?.code, name: r.error?.name }).toEqual({
       url,
-      code: 'unsupported',
-      name: 'UnsupportedRequest',
+      code: "unsupported",
+      name: "UnsupportedRequest",
     });
   }
   // A public name that resolves to loopback: only the exit can tell.
-  for (const url of ['https://localtest.me/']) {
+  for (const url of ["https://localtest.me/"]) {
     const r = await rpc(page, url);
     report(`refusal ${url}`, r);
     expect({ url, code: r.error?.code, name: r.error?.name }).toEqual({
       url,
-      code: 'permission-denied',
-      name: 'ExitRefused',
+      code: "permission-denied",
+      name: "ExitRefused",
     });
   }
 });
 
-test.describe('against an https stub the exit can reach', () => {
-  test.skip(!EXIT_BED, 'set LIVE_EXIT_BED to the dev mix net directory');
+test.describe("against an https stub the exit can reach", () => {
+  test.skip(!EXIT_BED, "set LIVE_EXIT_BED to the dev mix net directory");
   let bed: ExitTestbed;
 
   test.beforeAll(async () => {
@@ -208,12 +208,12 @@ test.describe('against an https stub the exit can reach', () => {
     const until = Date.now() + 180_000;
     for (;;) {
       const res = await fetch(`${WALLETSHIELD}/_/probe/0`, {
-        method: 'POST',
-        body: '',
+        method: "POST",
+        body: "",
         signal: AbortSignal.timeout(25_000),
       }).catch(() => undefined);
       if (exitAnswered(res)) break;
-      if (Date.now() > until) throw new Error('the exit did not come back after its restart');
+      if (Date.now() > until) throw new Error("the exit did not come back after its restart");
       await new Promise((r) => setTimeout(r, 2_000));
     }
   });
@@ -222,60 +222,60 @@ test.describe('against an https stub the exit can reach', () => {
     await bed?.close();
   });
 
-  test('the allowed stub answers, so the refusals below are the policy and limits at work', async ({
+  test("the allowed stub answers, so the refusals below are the policy and limits at work", async ({
     page,
   }) => {
     await bootWorker(page);
     const r = await rpc(page, `${bed.origin}/ok`);
-    report('stub /ok', r);
-    expect([r.status, result(r)]).toEqual([200, '0xstub']);
+    report("stub /ok", r);
+    expect([r.status, result(r)]).toEqual([200, "0xstub"]);
   });
 
-  test('a name that resolves to an RFC 1918 address the bed does not allow is refused after DNS', async ({
+  test("a name that resolves to an RFC 1918 address the bed does not allow is refused after DNS", async ({
     page,
   }) => {
     await bootWorker(page);
     const r = await rpc(page, `https://${PRIVATE_HOST}/`);
     report(`refusal ${PRIVATE_HOST}`, r);
     expect({ code: r.error?.code, name: r.error?.name }).toEqual({
-      code: 'permission-denied',
-      name: 'ExitRefused',
+      code: "permission-denied",
+      name: "ExitRefused",
     });
   });
 
-  test('a provider answering just under the upstream timeout is relayed', async ({ page }) => {
+  test("a provider answering just under the upstream timeout is relayed", async ({ page }) => {
     await bootWorker(page);
     const r = await rpc(page, `${bed.origin}/delay/${JUST_UNDER_MS}`);
     report(`stub /delay/${JUST_UNDER_MS}`, r);
-    expect([r.status, result(r)]).toEqual([200, '0xdelay']);
+    expect([r.status, result(r)]).toEqual([200, "0xdelay"]);
   });
 
-  test('a hung provider fails as the upstream, not as a mix timeout', async ({ page }) => {
+  test("a hung provider fails as the upstream, not as a mix timeout", async ({ page }) => {
     await bootWorker(page);
     const r = await rpc(page, `${bed.origin}/slow`);
-    report('stub /slow', r);
+    report("stub /slow", r);
     expect({ code: r.error?.code, name: r.error?.name }).toEqual({
-      code: 'network-error',
-      name: 'UpstreamUnreachable',
+      code: "network-error",
+      name: "UpstreamUnreachable",
     });
     expect(r.ms).toBeLessThan(15_000); // WalletShield's mix timeout is 20 s
   });
 
-  test('an oversized reply is too large', async ({ page }) => {
+  test("an oversized reply is too large", async ({ page }) => {
     await bootWorker(page);
     const r = await rpc(page, `${bed.origin}/big`);
-    report('stub /big', r);
+    report("stub /big", r);
     expect({ code: r.error?.code, name: r.error?.name }).toEqual({
-      code: 'too-large',
-      name: 'TooLarge',
+      code: "too-large",
+      name: "TooLarge",
     });
   });
 
-  test('a redirect to a private address is relayed, never followed', async ({ page }) => {
+  test("a redirect to a private address is relayed, never followed", async ({ page }) => {
     await bootWorker(page);
     const r = await rpc(page, `${bed.origin}/redirect-private`);
-    report('stub /redirect-private', r);
+    report("stub /redirect-private", r);
     expect(r.status).toBe(307);
-    expect(r.headers?.some(([k]) => k === 'location')).toBe(false);
+    expect(r.headers?.some(([k]) => k === "location")).toBe(false);
   });
 });

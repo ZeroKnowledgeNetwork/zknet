@@ -14,21 +14,21 @@
 // Exits 1 unless at least one resolver admits the bundle and none serves
 // other bytes.
 
-import { parseArgs } from 'node:util';
-import { digestFile } from './lib/digest.mjs';
+import { parseArgs } from "node:util";
+import { digestFile } from "./lib/digest.mjs";
 import {
   DEFAULT_RPC_URL,
   DEPLOYMENTS_DIR,
   LOCAL_CONFIG,
   POSTED_RECORDS_DIR,
   WORKING_RECORDS_DIR,
-} from './lib/paths.mjs';
-import { CliError, isMain, runMain } from './lib/proc.mjs';
-import { findRecord } from './lib/record.mjs';
-import { chainId } from './lib/rpc.mjs';
-import { checkResolver, readSpecifier, REFERENCE_CODEHASH } from './lib/specifier.mjs';
-import { assertChain, banner, loadTierConfig, tierOf } from './lib/tiers.mjs';
-import { readDeployment } from './deploy.mjs';
+} from "./lib/paths.mjs";
+import { CliError, isMain, runMain } from "./lib/proc.mjs";
+import { findRecord } from "./lib/record.mjs";
+import { chainId } from "./lib/rpc.mjs";
+import { checkResolver, readSpecifier, REFERENCE_CODEHASH } from "./lib/specifier.mjs";
+import { assertChain, banner, loadTierConfig, tierOf } from "./lib/tiers.mjs";
+import { readDeployment } from "./deploy.mjs";
 
 /**
  * Print what the specifier pins and whether its resolvers admit it.
@@ -42,7 +42,7 @@ export async function verifySpecifier(rpcUrl, address, bundle) {
   if (!spec) throw new CliError(`no code at ${address}`);
   console.log(`specifier ${address}`);
   console.log(
-    `  codehash        ${spec.codehash}${spec.codehash === REFERENCE_CODEHASH ? '  (EF reference WorkerSpecifier)' : '  (NOT the reference)'}`,
+    `  codehash        ${spec.codehash}${spec.codehash === REFERENCE_CODEHASH ? "  (EF reference WorkerSpecifier)" : "  (NOT the reference)"}`,
   );
   console.log(`  owner           ${spec.owner}`);
   console.log(`  workerHash()    ${spec.workerHash}`);
@@ -53,7 +53,7 @@ export async function verifySpecifier(rpcUrl, address, bundle) {
   if (bundle) {
     const digest = await digestFile(bundle);
     const same = digest.keccak256 === spec.workerHash;
-    console.log(`${same ? '✓' : '✗'} bundle ${bundle} hashes to ${digest.keccak256}`);
+    console.log(`${same ? "✓" : "✗"} bundle ${bundle} hashes to ${digest.keccak256}`);
     if (!same) failures++;
   }
 
@@ -61,12 +61,12 @@ export async function verifySpecifier(rpcUrl, address, bundle) {
   for (const r of spec.resolvers) {
     const check = await checkResolver(r, spec.workerHash);
     const fetched = /^https?:\/\//.test(r);
-    console.log(`${check.ok ? (fetched ? '✓' : '·') : '✗'} ${r}: ${check.detail}`);
+    console.log(`${check.ok ? (fetched ? "✓" : "·") : "✗"} ${r}: ${check.detail}`);
     if (!check.ok) failures++;
     else if (fetched) admitted++;
   }
   if (admitted === 0) {
-    console.log('✗ no resolver served bytes matching workerHash()');
+    console.log("✗ no resolver served bytes matching workerHash()");
     failures++;
   }
   return failures;
@@ -77,21 +77,21 @@ async function main(argv) {
   const { values } = parseArgs({
     args: argv,
     options: {
-      tier: { type: 'string' },
-      address: { type: 'string' },
-      'rpc-url': { type: 'string' },
-      bundle: { type: 'string' },
-      deployments: { type: 'string', default: DEPLOYMENTS_DIR },
-      config: { type: 'string', default: LOCAL_CONFIG },
-      records: { type: 'string', default: WORKING_RECORDS_DIR },
-      posted: { type: 'string', default: POSTED_RECORDS_DIR },
+      tier: { type: "string" },
+      address: { type: "string" },
+      "rpc-url": { type: "string" },
+      bundle: { type: "string" },
+      deployments: { type: "string", default: DEPLOYMENTS_DIR },
+      config: { type: "string", default: LOCAL_CONFIG },
+      records: { type: "string", default: WORKING_RECORDS_DIR },
+      posted: { type: "string", default: POSTED_RECORDS_DIR },
     },
   });
   const tier = values.tier === undefined ? undefined : tierOf(values.tier);
   if (tier) console.log(banner(tier));
 
-  let rpcUrl = values['rpc-url'] || process.env.RPC_URL || DEFAULT_RPC_URL;
-  if (tier?.public && !values['rpc-url'])
+  let rpcUrl = values["rpc-url"] || process.env.RPC_URL || DEFAULT_RPC_URL;
+  if (tier?.public && !values["rpc-url"])
     rpcUrl = loadTierConfig(tier, /** @type {string} */ (values.config), {
       resolvers: false,
     }).rpcUrl;

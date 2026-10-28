@@ -5,19 +5,19 @@
 // esbuild metafile records which harness file actually went into the page, so
 // a spec can prove what it ran against.
 
-import { build } from 'esbuild';
-import { readFileSync } from 'node:fs';
+import { build } from "esbuild";
+import { readFileSync } from "node:fs";
 import {
   createServer as createHttpServer,
   type IncomingMessage,
   type Server,
   type ServerResponse,
-} from 'node:http';
-import { createServer as createHttpsServer } from 'node:https';
-import type { AddressInfo } from 'node:net';
-import { createRequire } from 'node:module';
-import { join } from 'node:path';
-import { E2E_DIR } from './paths.js';
+} from "node:http";
+import { createServer as createHttpsServer } from "node:https";
+import type { AddressInfo } from "node:net";
+import { createRequire } from "node:module";
+import { join } from "node:path";
+import { E2E_DIR } from "./paths.js";
 
 export interface HarnessSource {
   /** Label surfaced as window.e2e.harness. */
@@ -28,13 +28,13 @@ export interface HarnessSource {
 
 /** The npm-pinned harness: name@version from its installed package.json. */
 export function pinnedHarness(): HarnessSource & { version: string; dir: string } {
-  const require = createRequire(join(E2E_DIR, 'package.json'));
-  const pkgFile = require.resolve('@anon-rpc/browser-harness/package.json');
-  const { name, version } = JSON.parse(readFileSync(pkgFile, 'utf8')) as {
+  const require = createRequire(join(E2E_DIR, "package.json"));
+  const pkgFile = require.resolve("@anon-rpc/browser-harness/package.json");
+  const { name, version } = JSON.parse(readFileSync(pkgFile, "utf8")) as {
     name: string;
     version: string;
   };
-  return { label: `npm:${name}@${version}`, version, dir: join(pkgFile, '..') };
+  return { label: `npm:${name}@${version}`, version, dir: join(pkgFile, "..") };
 }
 
 export interface PageBundle {
@@ -47,18 +47,18 @@ export interface PageBundle {
 export async function bundlePage(harness: HarnessSource): Promise<PageBundle> {
   const result = await build({
     absWorkingDir: E2E_DIR,
-    entryPoints: ['page/main.ts'],
+    entryPoints: ["page/main.ts"],
     bundle: true,
     write: false,
-    format: 'esm',
-    platform: 'browser',
-    target: 'es2022',
+    format: "esm",
+    platform: "browser",
+    target: "es2022",
     metafile: true,
-    logLevel: 'warning',
+    logLevel: "warning",
     define: { __HARNESS__: JSON.stringify(harness.label) },
-    ...(harness.file ? { alias: { '@anon-rpc/browser-harness': harness.file } } : {}),
+    ...(harness.file ? { alias: { "@anon-rpc/browser-harness": harness.file } } : {}),
   });
-  const js = result.outputFiles[0]?.text ?? '';
+  const js = result.outputFiles[0]?.text ?? "";
   const harnessInputs = Object.keys(result.metafile.inputs).filter((p) =>
     /browser-harness/.test(p),
   );
@@ -87,20 +87,20 @@ export async function servePage(
   tls?: { key: string; cert: string },
 ): Promise<PageServer> {
   const handler = (req: IncomingMessage, res: ServerResponse) => {
-    const path = (req.url ?? '/').split('?')[0];
-    if (path === '/' || path === '/index.html') {
-      res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' }).end(INDEX);
-    } else if (path === '/page.js') {
-      res.writeHead(200, { 'content-type': 'text/javascript; charset=utf-8' }).end(page.js);
+    const path = (req.url ?? "/").split("?")[0];
+    if (path === "/" || path === "/index.html") {
+      res.writeHead(200, { "content-type": "text/html; charset=utf-8" }).end(INDEX);
+    } else if (path === "/page.js") {
+      res.writeHead(200, { "content-type": "text/javascript; charset=utf-8" }).end(page.js);
     } else {
       res.writeHead(404).end();
     }
   };
   const server: Server = tls ? createHttpsServer(tls, handler) : createHttpServer(handler);
-  await new Promise<void>((r) => server.listen(0, '127.0.0.1', () => r()));
+  await new Promise<void>((r) => server.listen(0, "127.0.0.1", () => r()));
   const { port } = server.address() as AddressInfo;
   return {
-    origin: `${tls ? 'https' : 'http'}://127.0.0.1:${port}`,
+    origin: `${tls ? "https" : "http"}://127.0.0.1:${port}`,
     port,
     close: () =>
       new Promise<void>((r) => {

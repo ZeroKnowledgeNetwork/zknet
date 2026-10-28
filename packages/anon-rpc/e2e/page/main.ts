@@ -3,7 +3,7 @@
 // page.evaluate(). The harness is whichever build the page bundle aliased:
 // the npm-pinned package by default, a fork checkout in the fork tier.
 
-import { AnonRpcWorker } from '@anon-rpc/browser-harness';
+import { AnonRpcWorker } from "@anon-rpc/browser-harness";
 import type {
   BootRequest,
   BootResult,
@@ -11,7 +11,7 @@ import type {
   FetchRequest,
   FetchResult,
   LogLine,
-} from './api.js';
+} from "./api.js";
 
 declare const __HARNESS__: string;
 
@@ -20,9 +20,9 @@ const workers = new Map<string, AnonRpcWorker>();
 function errorInfo(e: unknown): ErrorInfo {
   const err = e as { name?: unknown; message?: unknown; code?: unknown };
   return {
-    name: typeof err?.name === 'string' ? err.name : 'Error',
-    message: typeof err?.message === 'string' ? err.message : String(e),
-    ...(typeof err?.code === 'string' ? { code: err.code } : {}),
+    name: typeof err?.name === "string" ? err.name : "Error",
+    message: typeof err?.message === "string" ? err.message : String(e),
+    ...(typeof err?.code === "string" ? { code: err.code } : {}),
   };
 }
 
@@ -32,12 +32,12 @@ function provider(url: string) {
   return {
     async request({ method, params }: { method: string; params?: unknown[] }): Promise<unknown> {
       const res = await fetch(url, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ jsonrpc: '2.0', id: ++id, method, params: params ?? [] }),
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ jsonrpc: "2.0", id: ++id, method, params: params ?? [] }),
       });
       const body = (await res.json()) as { result?: unknown; error?: { message?: string } };
-      if (body.error) throw new Error(body.error.message ?? 'rpc error');
+      if (body.error) throw new Error(body.error.message ?? "rpc error");
       return body.result;
     },
   };
@@ -58,20 +58,20 @@ async function boot(req: BootRequest): Promise<BootResult> {
     return { ok: false, readyMs: 0, error: errorInfo(e), sandbox: null, allow: null };
   }
   workers.set(req.id, worker);
-  const frame = () => [...document.querySelectorAll('iframe')].at(-1) ?? null;
+  const frame = () => [...document.querySelectorAll("iframe")].at(-1) ?? null;
   try {
     await Promise.race([
       worker.ready,
       new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('ready timed out')), req.readyTimeoutMs),
+        setTimeout(() => reject(new Error("ready timed out")), req.readyTimeoutMs),
       ),
     ]);
     const f = frame();
     return {
       ok: true,
       readyMs: performance.now() - started,
-      sandbox: f?.getAttribute('sandbox') ?? null,
-      allow: f?.getAttribute('allow') ?? null,
+      sandbox: f?.getAttribute("sandbox") ?? null,
+      allow: f?.getAttribute("allow") ?? null,
     };
   } catch (e) {
     return {
@@ -90,8 +90,8 @@ async function call(req: FetchRequest): Promise<FetchResult> {
   const started = performance.now();
   try {
     const res = await worker.fetch(req.url, {
-      method: req.method ?? 'POST',
-      headers: req.headers ?? { 'content-type': 'application/json' },
+      method: req.method ?? "POST",
+      headers: req.headers ?? { "content-type": "application/json" },
       ...(req.body === undefined ? {} : { body: req.body }),
       signal: AbortSignal.timeout(req.timeoutMs),
     });

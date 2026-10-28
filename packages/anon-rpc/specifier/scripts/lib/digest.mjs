@@ -1,10 +1,10 @@
 // Bundle digests: keccak-256 is the identity a specifier pins (SPEC §4);
 // sha256 and the byte count are informational build fingerprints.
 
-import { createHash } from 'node:crypto';
-import { createReadStream } from 'node:fs';
-import { Keccak256 } from './keccak.mjs';
-import { CliError } from './proc.mjs';
+import { createHash } from "node:crypto";
+import { createReadStream } from "node:fs";
+import { Keccak256 } from "./keccak.mjs";
+import { CliError } from "./proc.mjs";
 
 /**
  * @typedef {object} FileDigest
@@ -21,7 +21,7 @@ import { CliError } from './proc.mjs';
  */
 export async function digestFile(file) {
   const keccak = new Keccak256();
-  const sha = createHash('sha256');
+  const sha = createHash("sha256");
   let bytes = 0;
   try {
     for await (const chunk of createReadStream(file)) {
@@ -37,8 +37,8 @@ export async function digestFile(file) {
   return {
     file,
     bytes,
-    keccak256: `0x${Buffer.from(keccak.digest()).toString('hex')}`,
-    sha256: sha.digest('hex'),
+    keccak256: `0x${Buffer.from(keccak.digest()).toString("hex")}`,
+    sha256: sha.digest("hex"),
   };
 }
 
@@ -48,7 +48,7 @@ export async function digestFile(file) {
  * @param {string} keccak256 0x-prefixed hex
  */
 export function contentPath(keccak256) {
-  const hex = keccak256.replace(/^0x/, '');
+  const hex = keccak256.replace(/^0x/, "");
   if (!/^[0-9a-f]{64}$/.test(hex)) throw new CliError(`not a keccak256 digest: ${keccak256}`);
   return `${hex.slice(0, 2)}/${hex.slice(2)}`;
 }

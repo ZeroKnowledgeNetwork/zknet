@@ -1,38 +1,38 @@
-import { LazyStore } from '@tauri-apps/plugin-store';
-import { create } from 'zustand';
-import { combine } from 'zustand/middleware';
-import type { Listing } from '../utils/networks';
+import { LazyStore } from "@tauri-apps/plugin-store";
+import { create } from "zustand";
+import { combine } from "zustand/middleware";
+import type { Listing } from "../utils/networks";
 
-const store = new LazyStore('settings.json');
+const store = new LazyStore("settings.json");
 
 type UpdateStatus =
-  | ''
-  | 'error'
-  | 'checking'
-  | 'checked-current'
-  | 'checked-updatable'
-  | 'starting'
-  | 'downloading'
-  | 'downloaded'
-  | 'installed';
+  | ""
+  | "error"
+  | "checking"
+  | "checked-current"
+  | "checked-updatable"
+  | "starting"
+  | "downloading"
+  | "downloaded"
+  | "installed";
 
 export const useStore = create(
   combine(
     {
-      appVersion: '',
+      appVersion: "",
       clientPid: 0,
       consoleLines: [] as string[],
       consoleLinesLimit: 100,
       isConnected: false,
       isStopping: false,
       isPlatformSupported: false,
-      message: '',
-      messageType: '',
-      networkConnected: '',
-      networks: { launchSource: '', launchLabel: null, networks: [], unreachable: [] } as Listing,
-      platformArch: '',
-      updateStatus: '' as UpdateStatus,
-      walletshieldListenAddress: '',
+      message: "",
+      messageType: "",
+      networkConnected: "",
+      networks: { launchSource: "", launchLabel: null, networks: [], unreachable: [] } as Listing,
+      platformArch: "",
+      updateStatus: "" as UpdateStatus,
+      walletshieldListenAddress: "",
     },
     (set) => ({
       consoleAddLine: (line: string) =>
@@ -46,7 +46,7 @@ export const useStore = create(
       setIsConnected: (isConnected: boolean) => set({ isConnected }),
       setIsStopping: (isStopping: boolean) => set({ isStopping }),
       setIsPlatformSupported: (isPlatformSupported: boolean) => set({ isPlatformSupported }),
-      setMessage: (messageType: 'error' | 'info' | 'success', message: string) =>
+      setMessage: (messageType: "error" | "info" | "success", message: string) =>
         set({ message, messageType }),
       setNetworkConnected: (networkConnected: string) => set({ networkConnected }),
       setNetworks: (networks: Listing) => set({ networks }),
@@ -55,12 +55,12 @@ export const useStore = create(
 
       setWalletshieldListenAddress: async (walletshieldListenAddress: string) => {
         set({ walletshieldListenAddress });
-        await store.set('walletshieldListenAddress', walletshieldListenAddress);
+        await store.set("walletshieldListenAddress", walletshieldListenAddress);
         await store.save();
       },
 
       loadPersistedSettings: async () => {
-        const wla = await store.get<string>('walletshieldListenAddress');
+        const wla = await store.get<string>("walletshieldListenAddress");
         if (wla) set({ walletshieldListenAddress: wla });
       },
     }),

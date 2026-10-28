@@ -1,4 +1,4 @@
-import { IconArrowPath } from './icons';
+import { IconArrowPath } from "./icons";
 import {
   BADGES,
   Listing,
@@ -9,7 +9,7 @@ import {
   createdTitle,
   statusHint,
   unreachableText,
-} from '../utils/networks';
+} from "../utils/networks";
 
 function StatusBadge({ row }: { row: NetworkRow }) {
   const badge = BADGES[row.status];
@@ -29,7 +29,7 @@ function StatusBadge({ row }: { row: NetworkRow }) {
 // Tailwind declares its utilities layer before daisyUI's, so .btn's own border
 // would otherwise win.
 export const RELOAD_BUTTON =
-  'btn btn-sm btn-square btn-ghost border-base-content/20! hover:border-base-content/70! hover:bg-base-300!';
+  "btn btn-sm btn-square btn-ghost border-base-content/20! hover:border-base-content/70! hover:bg-base-300!";
 
 export function NetworkTable(props: {
   listing: Listing;
@@ -87,7 +87,7 @@ export function NetworkTable(props: {
             {listing.networks.map((n) => (
               <tr
                 key={n.id}
-                className={`cursor-pointer hover:bg-base-300 ${selected === n.id ? 'bg-base-300 outline outline-1 -outline-offset-1 outline-primary' : ''}`}
+                className={`cursor-pointer hover:bg-base-300 ${selected === n.id ? "bg-base-300 outline outline-1 -outline-offset-1 outline-primary" : ""}`}
                 onClick={() => props.onSelect(n.id)}
                 aria-selected={selected === n.id}
               >
@@ -100,9 +100,9 @@ export function NetworkTable(props: {
                     <div className="font-mono text-xs opacity-60">{n.id}</div>
                   )}
                 </td>
-                <td className="opacity-80">{n.entry?.kind ?? '—'}</td>
+                <td className="opacity-80">{n.entry?.kind ?? "—"}</td>
                 <td className="opacity-80" title={createdTitle(n)}>
-                  {n.createdAgo ?? '—'}
+                  {n.createdAgo ?? "—"}
                 </td>
                 {source && <td className="font-mono text-xs opacity-60">{n.sourceLabel}</td>}
               </tr>

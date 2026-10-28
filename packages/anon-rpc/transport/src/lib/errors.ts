@@ -1,4 +1,4 @@
-import type { TransportErrorCode, TransportErrorShape, TransportFailure } from './types.js';
+import type { TransportErrorCode, TransportErrorShape, TransportFailure } from "./types.js";
 
 /**
  * A transport failure. `code` is the Anon-RPC SPEC v0.3.2 §12 value a host branches on;
@@ -32,13 +32,13 @@ export class TransportError extends Error implements TransportErrorShape {
 export const ZKNET_ERROR_REASONS: Readonly<
   Record<string, { code: TransportErrorCode; name: TransportFailure }>
 > = {
-  'mix-timeout': { code: 'timeout', name: 'MixTimeout' },
-  'exit-refused': { code: 'permission-denied', name: 'ExitRefused' },
-  'upstream-unreachable': { code: 'network-error', name: 'UpstreamUnreachable' },
-  'too-large': { code: 'too-large', name: 'TooLarge' },
-  'bad-reply': { code: 'protocol-error', name: 'BadReply' },
-  'exit-busy': { code: 'queue-full', name: 'ExitBusy' },
-  'provider-selection-off': { code: 'permission-denied', name: 'ExitRefused' },
+  "mix-timeout": { code: "timeout", name: "MixTimeout" },
+  "exit-refused": { code: "permission-denied", name: "ExitRefused" },
+  "upstream-unreachable": { code: "network-error", name: "UpstreamUnreachable" },
+  "too-large": { code: "too-large", name: "TooLarge" },
+  "bad-reply": { code: "protocol-error", name: "BadReply" },
+  "exit-busy": { code: "queue-full", name: "ExitBusy" },
+  "provider-selection-off": { code: "permission-denied", name: "ExitRefused" },
 };
 
 /** The TransportError for a peer reply carrying `ZKNet-Error: <reason>`. */
@@ -47,8 +47,8 @@ export function zknetError(reason: string, message?: string): TransportError {
     ? ZKNET_ERROR_REASONS[reason]
     : undefined;
   const { code, name } = known ?? {
-    code: 'protocol-error' as const,
-    name: 'UnexpectedReply' as const,
+    code: "protocol-error" as const,
+    name: "UnexpectedReply" as const,
   };
   return new TransportError(code, name, message ? `${reason}: ${message}` : reason);
 }

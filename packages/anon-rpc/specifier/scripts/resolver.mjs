@@ -20,15 +20,15 @@
 //   node scripts/resolver.mjs start  [--store <dir>] [--port N] [--host H]   (background)
 //   node scripts/resolver.mjs stop | status
 
-import { copyFileSync, existsSync, mkdirSync } from 'node:fs';
-import { readFile } from 'node:fs/promises';
-import { createServer } from 'node:http';
-import { dirname, join } from 'node:path';
-import { parseArgs } from 'node:util';
-import { contentPath, digestFile } from './lib/digest.mjs';
-import { keccak256Hex } from './lib/keccak.mjs';
-import { DEFAULT_BUNDLE, DEFAULT_RESOLVER_PORT, RESOLVER_STORE, STATE_DIR } from './lib/paths.mjs';
-import { CliError, Daemon, isMain, runMain } from './lib/proc.mjs';
+import { copyFileSync, existsSync, mkdirSync } from "node:fs";
+import { readFile } from "node:fs/promises";
+import { createServer } from "node:http";
+import { dirname, join } from "node:path";
+import { parseArgs } from "node:util";
+import { contentPath, digestFile } from "./lib/digest.mjs";
+import { keccak256Hex } from "./lib/keccak.mjs";
+import { DEFAULT_BUNDLE, DEFAULT_RESOLVER_PORT, RESOLVER_STORE, STATE_DIR } from "./lib/paths.mjs";
+import { CliError, Daemon, isMain, runMain } from "./lib/proc.mjs";
 
 const ROUTE = /^\/keccak\/([0-9a-f]{2})\/([0-9a-f]{62})$/;
 
@@ -39,16 +39,16 @@ const ROUTE = /^\/keccak\/([0-9a-f]{2})\/([0-9a-f]{62})$/;
  */
 export function createResolverServer(store, { log = () => {} } = {}) {
   return createServer(async (req, res) => {
-    const path = (req.url ?? '').split('?')[0] ?? '';
+    const path = (req.url ?? "").split("?")[0] ?? "";
     const reply = (
       /** @type {number} */ status,
       /** @type {Record<string, string | number>} */ headers = {},
     ) => {
       log(`${req.method} ${path} ${status}`);
-      res.writeHead(status, { 'access-control-allow-origin': '*', ...headers });
+      res.writeHead(status, { "access-control-allow-origin": "*", ...headers });
     };
-    if (req.method !== 'GET' && req.method !== 'HEAD') {
-      reply(405, { allow: 'GET, HEAD' });
+    if (req.method !== "GET" && req.method !== "HEAD") {
+      reply(405, { allow: "GET, HEAD" });
       res.end();
       return;
     }
@@ -60,7 +60,7 @@ export function createResolverServer(store, { log = () => {} } = {}) {
     }
     let bytes;
     try {
-      bytes = await readFile(join(store, match[1] ?? '', match[2] ?? ''));
+      bytes = await readFile(join(store, match[1] ?? "", match[2] ?? ""));
     } catch {
       reply(404);
       res.end();
@@ -72,11 +72,11 @@ export function createResolverServer(store, { log = () => {} } = {}) {
       return;
     }
     reply(200, {
-      'content-type': 'text/javascript',
-      'content-length': bytes.byteLength,
-      'cache-control': 'public, max-age=31536000, immutable',
+      "content-type": "text/javascript",
+      "content-length": bytes.byteLength,
+      "cache-control": "public, max-age=31536000, immutable",
     });
-    res.end(req.method === 'HEAD' ? undefined : bytes);
+    res.end(req.method === "HEAD" ? undefined : bytes);
   });
 }
 
@@ -102,10 +102,10 @@ export async function put(bundle, store) {
 
 /** @param {string} host @param {number} port */
 export function resolverDaemon(host, port) {
-  return new Daemon('resolver', join(STATE_DIR, `resolver-${port}.pid`), async () => {
+  return new Daemon("resolver", join(STATE_DIR, `resolver-${port}.pid`), async () => {
     try {
       const resp = await fetch(`http://${host}:${port}/`, {
-        redirect: 'manual',
+        redirect: "manual",
         signal: AbortSignal.timeout(1000),
       });
       await resp.arrayBuffer();
@@ -122,10 +122,10 @@ async function main(argv) {
     args: argv,
     allowPositionals: true,
     options: {
-      bundle: { type: 'string', default: process.env.WORKER_BUNDLE || DEFAULT_BUNDLE },
-      store: { type: 'string', default: RESOLVER_STORE },
-      host: { type: 'string', default: '127.0.0.1' },
-      port: { type: 'string', default: process.env.RESOLVER_PORT || String(DEFAULT_RESOLVER_PORT) },
+      bundle: { type: "string", default: process.env.WORKER_BUNDLE || DEFAULT_BUNDLE },
+      store: { type: "string", default: RESOLVER_STORE },
+      host: { type: "string", default: "127.0.0.1" },
+      port: { type: "string", default: process.env.RESOLVER_PORT || String(DEFAULT_RESOLVER_PORT) },
     },
   });
   const store = /** @type {string} */ (values.store);
@@ -134,39 +134,39 @@ async function main(argv) {
   const daemon = resolverDaemon(host, port);
 
   switch (positionals[0]) {
-    case 'put': {
+    case "put": {
       const digest = await put(/** @type {string} */ (values.bundle), store);
       console.log(resolverUrl(host, port, digest.keccak256));
       return;
     }
-    case 'serve': {
+    case "serve": {
       const server = createResolverServer(store, { log: (line) => console.log(line) });
       server.listen(port, host, () =>
         console.log(`resolver serving ${store} at http://${host}:${port}/keccak/`),
       );
-      await new Promise((resolve) => server.on('close', resolve));
+      await new Promise((resolve) => server.on("close", resolve));
       return;
     }
-    case 'start': {
+    case "start": {
       const self = new URL(import.meta.url).pathname;
-      const args = [self, 'serve', '--store', store, '--host', host, '--port', String(port)];
+      const args = [self, "serve", "--store", store, "--host", host, "--port", String(port)];
       const { pid, started } = await daemon.start(process.execPath, args);
       console.log(
-        `resolver ${started ? 'started' : 'already running'} (pid ${pid}) at http://${host}:${port}/keccak/`,
+        `resolver ${started ? "started" : "already running"} (pid ${pid}) at http://${host}:${port}/keccak/`,
       );
       return;
     }
-    case 'stop':
-      console.log((await daemon.stop()) ? 'resolver stopped' : 'resolver was not running');
+    case "stop":
+      console.log((await daemon.stop()) ? "resolver stopped" : "resolver was not running");
       return;
-    case 'status': {
+    case "status": {
       const pid = daemon.pid();
-      console.log(pid === undefined ? 'resolver not running' : `resolver running (pid ${pid})`);
+      console.log(pid === undefined ? "resolver not running" : `resolver running (pid ${pid})`);
       return pid === undefined ? 3 : 0;
     }
     default:
       throw new CliError(
-        'usage: resolver.mjs put|serve|start|stop|status [--bundle P] [--store D] [--host H] [--port N]',
+        "usage: resolver.mjs put|serve|start|stop|status [--bundle P] [--store D] [--host H] [--port N]",
       );
   }
 }

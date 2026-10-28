@@ -1,10 +1,10 @@
-import { useEffect, useState } from 'react';
-import reactLogo from './assets/react.svg';
-import viteLogo from '/vite.svg';
-import zknLogo from './assets/zkn.svg';
-import { ZKNetSDK } from '@zknet/sdk';
-import type { ZKNetSDKOptions } from '@zknet/sdk';
-import './App.css';
+import { useEffect, useState } from "react";
+import reactLogo from "./assets/react.svg";
+import viteLogo from "/vite.svg";
+import zknLogo from "./assets/zkn.svg";
+import { ZKNetSDK } from "@zknet/sdk";
+import type { ZKNetSDKOptions } from "@zknet/sdk";
+import "./App.css";
 
 function App() {
   const zknetOpts: ZKNetSDKOptions = {};
@@ -19,20 +19,20 @@ function App() {
   }, []);
 
   async function handleFetch() {
-    setFetchResult('');
+    setFetchResult("");
 
     try {
       const zknet = await ZKNetSDK.init(zknetOpts);
 
-      const r = await zknet.fetch('/ethereum', {
-        method: 'POST',
+      const r = await zknet.fetch("/ethereum", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          id: '1729115977487',
-          jsonrpc: '2.0',
-          method: 'eth_chainId',
+          id: "1729115977487",
+          jsonrpc: "2.0",
+          method: "eth_chainId",
           params: [],
         }),
       });
@@ -40,10 +40,10 @@ function App() {
       if (!r.ok) throw new Error(`[demo] Fetch failed: ${r.status} ${r.statusText}`);
 
       const data = await r.json();
-      console.log('[demo] Fetch successful:', data);
+      console.log("[demo] Fetch successful:", data);
       setFetchResult(JSON.stringify(data));
     } catch (err) {
-      console.log('[demo] Fetch error:', err);
+      console.log("[demo] Fetch error:", err);
       setFetchResult(`${err}`);
     }
   }

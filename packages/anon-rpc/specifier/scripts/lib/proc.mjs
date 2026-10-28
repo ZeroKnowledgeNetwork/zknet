@@ -1,7 +1,7 @@
 // Child processes: Foundry tool lookup, captured runs, and detached daemons
 // tracked by a pid file (anvil and the resolver share the lifecycle).
 
-import { spawn } from 'node:child_process';
+import { spawn } from "node:child_process";
 import {
   existsSync,
   mkdirSync,
@@ -10,11 +10,11 @@ import {
   realpathSync,
   rmSync,
   writeFileSync,
-} from 'node:fs';
-import { homedir } from 'node:os';
-import { delimiter, dirname, join } from 'node:path';
-import { pathToFileURL } from 'node:url';
-import { PROJECT_DIR } from './paths.mjs';
+} from "node:fs";
+import { homedir } from "node:os";
+import { delimiter, dirname, join } from "node:path";
+import { pathToFileURL } from "node:url";
+import { PROJECT_DIR } from "./paths.mjs";
 
 export class CliError extends Error {}
 
@@ -27,8 +27,8 @@ export class CliError extends Error {}
 export function foundry(name) {
   const dirs = [
     process.env.FOUNDRY_BIN,
-    ...(process.env.PATH ?? '').split(delimiter),
-    join(homedir(), '.foundry/bin'),
+    ...(process.env.PATH ?? "").split(delimiter),
+    join(homedir(), ".foundry/bin"),
   ];
   for (const dir of dirs) {
     if (dir && existsSync(join(dir, name))) return join(dir, name);
@@ -47,24 +47,24 @@ export function foundry(name) {
  */
 export function run(cmd, args, { cwd = PROJECT_DIR, env = process.env, echo = false } = {}) {
   return new Promise((resolve, reject) => {
-    const p = spawn(cmd, args, { cwd, env, stdio: ['ignore', 'pipe', 'pipe'] });
-    let out = '';
-    let err = '';
-    p.stdout.on('data', (b) => {
+    const p = spawn(cmd, args, { cwd, env, stdio: ["ignore", "pipe", "pipe"] });
+    let out = "";
+    let err = "";
+    p.stdout.on("data", (b) => {
       out += b;
       if (echo) process.stdout.write(b);
     });
-    p.stderr.on('data', (b) => {
+    p.stderr.on("data", (b) => {
       err += b;
       if (echo) process.stderr.write(b);
     });
-    p.on('error', reject);
-    p.on('exit', (code) =>
+    p.on("error", reject);
+    p.on("exit", (code) =>
       code === 0
         ? resolve(out.trim())
         : reject(
             new CliError(
-              `${cmd.split('/').pop()} ${args[0]} exited ${code}:\n${(err || out).trim()}`,
+              `${cmd.split("/").pop()} ${args[0]} exited ${code}:\n${(err || out).trim()}`,
             ),
           ),
     );
@@ -85,17 +85,17 @@ export function runSigning(cmd, args, { cwd = PROJECT_DIR, env = process.env } =
     const p = spawn(cmd, args, {
       cwd,
       env,
-      stdio: ['inherit', 'pipe', 'inherit'],
+      stdio: ["inherit", "pipe", "inherit"],
     });
-    let out = '';
-    p.stdout.on('data', (b) => {
+    let out = "";
+    p.stdout.on("data", (b) => {
       out += b;
     });
-    p.on('error', reject);
-    p.on('exit', (code) =>
+    p.on("error", reject);
+    p.on("exit", (code) =>
       code === 0
         ? resolve(out.trim())
-        : reject(new CliError(`${cmd.split('/').pop()} ${args[0]} exited ${code}`)),
+        : reject(new CliError(`${cmd.split("/").pop()} ${args[0]} exited ${code}`)),
     );
   });
 }
@@ -126,14 +126,14 @@ export class Daemon {
   constructor(name, pidFile, ready) {
     this.name = name;
     this.pidFile = pidFile;
-    this.logFile = pidFile.replace(/\.pid$/, '.log');
+    this.logFile = pidFile.replace(/\.pid$/, ".log");
     this.ready = ready;
   }
 
   /** @returns {number | undefined} pid of the recorded process, if it is still running */
   pid() {
     if (!existsSync(this.pidFile)) return undefined;
-    const pid = Number(readFileSync(this.pidFile, 'utf8').trim());
+    const pid = Number(readFileSync(this.pidFile, "utf8").trim());
     return Number.isInteger(pid) && pid > 0 && alive(pid) ? pid : undefined;
   }
 
@@ -157,11 +157,11 @@ export class Daemon {
       );
     }
     mkdirSync(dirname(this.pidFile), { recursive: true });
-    const log = openSync(this.logFile, 'w');
+    const log = openSync(this.logFile, "w");
     const child = spawn(cmd, args, {
       cwd: PROJECT_DIR,
       detached: true,
-      stdio: ['ignore', log, log],
+      stdio: ["ignore", log, log],
     });
     if (child.pid === undefined) throw new CliError(`${this.name}: failed to spawn ${cmd}`);
     child.unref();
@@ -183,9 +183,9 @@ export class Daemon {
     const pid = this.pid();
     rmSync(this.pidFile, { force: true });
     if (pid === undefined) return false;
-    process.kill(pid, 'SIGTERM');
+    process.kill(pid, "SIGTERM");
     for (let i = 0; i < 50 && alive(pid); i++) await sleep(100);
-    if (alive(pid)) process.kill(pid, 'SIGKILL');
+    if (alive(pid)) process.kill(pid, "SIGKILL");
     return true;
   }
 }

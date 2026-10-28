@@ -36,7 +36,7 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: 24
-          cache: 'pnpm'
+          cache: "pnpm"
 
       # Native prerequisites for the Tauri crate (apps/client/src-tauri). The
       # lockfile's linked system libraries are WebKitGTK 4.1, JavaScriptCore,

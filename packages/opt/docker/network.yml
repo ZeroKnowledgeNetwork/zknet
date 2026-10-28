@@ -1,5 +1,5 @@
 # Example network configuration file; configures local test network using appchain pki
-build_datetime: '1728353595'
+build_datetime: "1728353595"
 kp_client_debug_DisableDecoyTraffic: true
 kp_client_debug_EnableTimeSync: false
 kp_client_debug_InitialMaxPKIRetrievalDelay: 0
@@ -10,7 +10,7 @@ kp_config_LambdaM: 0.0005
 kp_config_LambdaP: 0.001
 kp_config_Mu: 0.005
 kp_config_UserForwardPayloadLength: 30000
-kp_config_kem: ''
+kp_config_kem: ""
 kp_config_nike: x25519
 kp_config_pkiSignatureScheme: ed25519
 kp_config_wirekem: xwing
@@ -37,7 +37,7 @@ kp_debug_UnwrapDelay: 200
 kp_misc_topology_layers: 3
 kp_misc_transport: tcp
 kp_plugin_MaxConcurrency: 10
-network_id: '0x00000000'
+network_id: "0x00000000"
 version_deployer: abd99a369f19677d9b92bbf0481ab1d58fd4273c
 version_katzenpost: v0.0.38
 version_zkn_opt: v0.3.0

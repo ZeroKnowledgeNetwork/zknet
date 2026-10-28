@@ -1,13 +1,13 @@
-import { useEffect } from 'react';
-import { MemoryRouter, Route, Routes } from 'react-router';
-import * as app from '@tauri-apps/api/app';
-import * as log from '@tauri-apps/plugin-log';
-import { arch, platform } from '@tauri-apps/plugin-os';
-import { Footer, Header, Message } from './components';
-import { Networks, Settings, WalletShield } from './pages';
-import { useStore } from './store';
-import { getPlatform, listNetworks } from './utils';
-import './App.css';
+import { useEffect } from "react";
+import { MemoryRouter, Route, Routes } from "react-router";
+import * as app from "@tauri-apps/api/app";
+import * as log from "@tauri-apps/plugin-log";
+import { arch, platform } from "@tauri-apps/plugin-os";
+import { Footer, Header, Message } from "./components";
+import { Networks, Settings, WalletShield } from "./pages";
+import { useStore } from "./store";
+import { getPlatform, listNetworks } from "./utils";
+import "./App.css";
 
 function App() {
   const setAppVersion = useStore((s) => s.setAppVersion);
@@ -21,7 +21,7 @@ function App() {
     (async () => {
       try {
         const name = await app.getName();
-        const v = 'v' + (await app.getVersion());
+        const v = "v" + (await app.getVersion());
         log.info(`Starting ${name} ${v} on ${platform()}-${arch()}`);
 
         setAppVersion(v);
@@ -30,7 +30,7 @@ function App() {
         setNetworks(await listNetworks());
       } catch (error: any) {
         log.error(`${error?.message ?? error}`);
-        setMessage('error', `${error?.message ?? error}`);
+        setMessage("error", `${error?.message ?? error}`);
       }
     })();
   }, []);

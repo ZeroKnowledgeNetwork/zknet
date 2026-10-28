@@ -2,20 +2,20 @@
 // local anvil, a content-addressed keccak resolver, and WorkerSpecifier
 // deployments pinning bundles by keccak256.
 
-import { execFile } from 'node:child_process';
-import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
-import { createServer as createNetServer, type AddressInfo } from 'node:net';
-import { join } from 'node:path';
-import type { Server } from 'node:http';
-import { createResolverServer, put, resolverUrl } from '../../specifier/scripts/resolver.mjs';
-import { RUN_DIR, SPECIFIER_SCRIPTS } from './paths.js';
+import { execFile } from "node:child_process";
+import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
+import { createServer as createNetServer, type AddressInfo } from "node:net";
+import { join } from "node:path";
+import type { Server } from "node:http";
+import { createResolverServer, put, resolverUrl } from "../../specifier/scripts/resolver.mjs";
+import { RUN_DIR, SPECIFIER_SCRIPTS } from "./paths.js";
 
 /** A free TCP port on loopback (anvil needs one up front). */
 export function freePort(): Promise<number> {
   return new Promise((resolve, reject) => {
     const s = createNetServer();
-    s.once('error', reject);
-    s.listen(0, '127.0.0.1', () => {
+    s.once("error", reject);
+    s.listen(0, "127.0.0.1", () => {
       const { port } = s.address() as AddressInfo;
       s.close(() => resolve(port));
     });
@@ -29,7 +29,7 @@ function specifierCli(script: string, args: string[]): Promise<string> {
       process.execPath,
       [join(SPECIFIER_SCRIPTS, script), ...args],
       (error, stdout, stderr) => {
-        if (error) reject(new Error(`${script} ${args.join(' ')} failed:\n${stdout}${stderr}`));
+        if (error) reject(new Error(`${script} ${args.join(" ")} failed:\n${stdout}${stderr}`));
         else resolve(stdout);
       },
     );
@@ -53,14 +53,14 @@ export interface Chain {
 
 export async function startChain(): Promise<Chain> {
   const port = await freePort();
-  await specifierCli('anvil.mjs', ['start', '--port', String(port)]);
+  await specifierCli("anvil.mjs", ["start", "--port", String(port)]);
   const rpcUrl = `http://127.0.0.1:${port}`;
 
   mkdirSync(RUN_DIR, { recursive: true });
-  const scratch = mkdtempSync(join(RUN_DIR, 'chain-'));
-  const store = join(scratch, 'keccak');
+  const scratch = mkdtempSync(join(RUN_DIR, "chain-"));
+  const store = join(scratch, "keccak");
   const resolver: Server = createResolverServer(store);
-  await new Promise<void>((r) => resolver.listen(0, '127.0.0.1', () => r()));
+  await new Promise<void>((r) => resolver.listen(0, "127.0.0.1", () => r()));
   const resolverPort = (resolver.address() as AddressInfo).port;
   let deployments = 0;
 
@@ -69,23 +69,23 @@ export async function startChain(): Promise<Chain> {
     resolverOrigin: `http://127.0.0.1:${resolverPort}`,
     async serve(bundle) {
       const digest = await put(bundle, store);
-      return resolverUrl('127.0.0.1', resolverPort, digest.keccak256);
+      return resolverUrl("127.0.0.1", resolverPort, digest.keccak256);
     },
     async deploy(bundle, opts = {}) {
       const resolvers = opts.resolvers ?? [await this.serve(bundle)];
       // A record directory per deployment: every call deploys a new contract.
       const dir = join(scratch, `deployment-${deployments++}`);
-      const args = ['--bundle', bundle, '--rpc-url', rpcUrl, '--deployments', dir];
-      for (const r of resolvers) args.push('--resolver', r);
-      if (opts.unchecked) args.push('--skip-resolver-check');
-      const out = (await specifierCli('deploy.mjs', args)).trim().split('\n');
-      const address = out[out.length - 1] ?? '';
+      const args = ["--bundle", bundle, "--rpc-url", rpcUrl, "--deployments", dir];
+      for (const r of resolvers) args.push("--resolver", r);
+      if (opts.unchecked) args.push("--skip-resolver-check");
+      const out = (await specifierCli("deploy.mjs", args)).trim().split("\n");
+      const address = out[out.length - 1] ?? "";
       if (!/^0x[0-9a-fA-F]{40}$/.test(address))
-        throw new Error(`deploy printed no address:\n${out.join('\n')}`);
+        throw new Error(`deploy printed no address:\n${out.join("\n")}`);
       return address;
     },
     async stop() {
-      await specifierCli('anvil.mjs', ['stop', '--port', String(port)]);
+      await specifierCli("anvil.mjs", ["stop", "--port", String(port)]);
       await new Promise<void>((r) => resolver.close(() => r()));
       rmSync(scratch, { recursive: true, force: true });
     },

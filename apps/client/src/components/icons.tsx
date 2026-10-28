@@ -1,6 +1,6 @@
 // https://heroicons.com/
 
-export const IconArrowPath = ({ className = 'size-6' }: { className?: string }) => (
+export const IconArrowPath = ({ className = "size-6" }: { className?: string }) => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
     viewBox="0 0 24 24"
@@ -30,7 +30,7 @@ export const IconBars3 = () => (
   </svg>
 );
 
-export const IconCheckBadge = ({ className = 'size-6' }: { className?: string }) => (
+export const IconCheckBadge = ({ className = "size-6" }: { className?: string }) => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
     fill="none"
@@ -48,7 +48,7 @@ export const IconCheckBadge = ({ className = 'size-6' }: { className?: string })
 );
 
 export const IconClipboard = ({
-  className = 'size-6',
+  className = "size-6",
   withCheck = false,
 }: {
   className?: string;
@@ -114,7 +114,7 @@ export const IconGlobe = () => (
   </svg>
 );
 
-export const IconShieldCheck = ({ className = 'size-6' }: { className?: string }) => (
+export const IconShieldCheck = ({ className = "size-6" }: { className?: string }) => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
     viewBox="0 0 24 24"

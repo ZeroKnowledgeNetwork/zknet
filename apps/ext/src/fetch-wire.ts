@@ -8,16 +8,16 @@ export type FetchRequest = {
 };
 
 export type FetchSuccess = {
-  tag: 'success';
+  tag: "success";
   status: number;
   statusText: string;
   headers: Record<string, string>;
-  bodyType: 'json' | 'text' | 'arrayBuffer';
+  bodyType: "json" | "text" | "arrayBuffer";
   body: unknown; // json | string | Uint8Array
 };
 
 export type FetchFailure = {
-  tag: 'failure';
+  tag: "failure";
   name: string;
   message: string;
 };
@@ -26,15 +26,15 @@ export type PackedFetchResponse = FetchSuccess | FetchFailure;
 
 export async function packFetchResponse(resOrErr: Response | Error): Promise<PackedFetchResponse> {
   if (resOrErr instanceof Error) {
-    return { tag: 'failure', name: resOrErr.name, message: resOrErr.message };
+    return { tag: "failure", name: resOrErr.name, message: resOrErr.message };
   }
 
   const res = resOrErr.clone(); // keep original stream
-  const ct = res.headers.get('content-type') ?? '';
+  const ct = res.headers.get("content-type") ?? "";
 
-  const body = ct.includes('application/json')
+  const body = ct.includes("application/json")
     ? await res.json()
-    : ct.startsWith('text/')
+    : ct.startsWith("text/")
       ? await res.text()
       : new Uint8Array(await res.arrayBuffer());
 
@@ -42,35 +42,35 @@ export async function packFetchResponse(resOrErr: Response | Error): Promise<Pac
   res.headers.forEach((v, k) => (hdrs[k] = v));
 
   return {
-    tag: 'success',
+    tag: "success",
     status: res.status,
     statusText: res.statusText,
     headers: hdrs,
-    bodyType: ct.includes('application/json')
-      ? 'json'
-      : ct.startsWith('text/')
-        ? 'text'
-        : 'arrayBuffer',
+    bodyType: ct.includes("application/json")
+      ? "json"
+      : ct.startsWith("text/")
+        ? "text"
+        : "arrayBuffer",
     body,
   };
 }
 
 export function unpackFetchResponse(p: PackedFetchResponse): Response {
-  if (p.tag === 'failure') {
+  if (p.tag === "failure") {
     const Ctor = (globalThis as any)[p.name] as (new (msg: string) => Error) | undefined;
     throw Ctor ? new Ctor(p.message) : new Error(p.message);
   }
 
   const headers = new Headers(p.headers);
-  if (!headers.has('content-type')) {
-    if (p.bodyType === 'json') headers.set('content-type', 'application/json');
-    else if (p.bodyType === 'text') headers.set('content-type', 'text/plain');
+  if (!headers.has("content-type")) {
+    if (p.bodyType === "json") headers.set("content-type", "application/json");
+    else if (p.bodyType === "text") headers.set("content-type", "text/plain");
   }
 
   const bodyInit: BodyInit | null =
-    p.bodyType === 'json'
+    p.bodyType === "json"
       ? JSON.stringify(p.body)
-      : p.bodyType === 'text'
+      : p.bodyType === "text"
         ? (p.body as string)
         : // packed from res.arrayBuffer(), so ArrayBuffer-backed
           (p.body as Uint8Array<ArrayBuffer>);

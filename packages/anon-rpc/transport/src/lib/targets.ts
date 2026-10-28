@@ -5,18 +5,18 @@
 // IP ranges follow the browsers' Local Network Access address spaces.
 
 /** Peer classes. A remote peer has no class: it is refused. */
-export type TargetClass = 'loopback' | 'lan';
+export type TargetClass = "loopback" | "lan";
 
 /** CIDR ranges per class. IPv6 is written without brackets. */
 export const TARGET_CIDRS: Readonly<Record<TargetClass, readonly string[]>> = {
-  loopback: ['127.0.0.0/8', '::1/128'],
+  loopback: ["127.0.0.0/8", "::1/128"],
   lan: [
-    '10.0.0.0/8',
-    '172.16.0.0/12',
-    '192.168.0.0/16',
-    '169.254.0.0/16', // IPv4 link-local
-    'fc00::/7', // IPv6 unique local
-    'fe80::/10', // IPv6 link-local
+    "10.0.0.0/8",
+    "172.16.0.0/12",
+    "192.168.0.0/16",
+    "169.254.0.0/16", // IPv4 link-local
+    "fc00::/7", // IPv6 unique local
+    "fe80::/10", // IPv6 link-local
   ],
 };
 
@@ -25,26 +25,26 @@ export const TARGET_CIDRS: Readonly<Record<TargetClass, readonly string[]>> = {
  * Matched case-insensitively.
  */
 export const TARGET_HOSTNAMES: Readonly<Record<TargetClass, readonly string[]>> = {
-  loopback: ['localhost'],
-  lan: ['.local'], // mDNS, e.g. a ZKNet device on the LAN
+  loopback: ["localhost"],
+  lan: [".local"], // mDNS, e.g. a ZKNet device on the LAN
 };
 
 /** URL schemes a peer may use, per transport. */
 export const TARGET_SCHEMES = {
-  walletshield: ['http:', 'https:'],
-  kpclientd: ['ws:', 'wss:'],
+  walletshield: ["http:", "https:"],
+  kpclientd: ["ws:", "wss:"],
 } as const;
 
 /** The class of `url`'s host, or `undefined` when it is not a local peer. */
 export function classifyTarget(url: URL): TargetClass | undefined {
-  const host = url.hostname.toLowerCase().replace(/^\[|\]$/g, '');
+  const host = url.hostname.toLowerCase().replace(/^\[|\]$/g, "");
   const ip = parseIp(host);
-  for (const cls of ['loopback', 'lan'] as const) {
+  for (const cls of ["loopback", "lan"] as const) {
     if (ip) {
       if (TARGET_CIDRS[cls].some((cidr) => inCidr(ip, cidr))) return cls;
     } else if (
       TARGET_HOSTNAMES[cls].some((name) =>
-        name.startsWith('.') ? host.endsWith(name) : host === name,
+        name.startsWith(".") ? host.endsWith(name) : host === name,
       )
     ) {
       return cls;
@@ -56,7 +56,7 @@ export function classifyTarget(url: URL): TargetClass | undefined {
 type Ip = { v: 4 | 6; bytes: Uint8Array };
 
 function inCidr(ip: Ip, cidr: string): boolean {
-  const [base, bitsText] = cidr.split('/');
+  const [base, bitsText] = cidr.split("/");
   const net = parseIp(base);
   if (!net || net.v !== ip.v) return false;
   const bits = Number(bitsText);
@@ -71,13 +71,13 @@ function inCidr(ip: Ip, cidr: string): boolean {
 function parseIp(text: string): Ip | undefined {
   const v4 = parseIpv4(text);
   if (v4) return { v: 4, bytes: v4 };
-  if (!text.includes(':')) return undefined;
-  const halves = text.split('::');
+  if (!text.includes(":")) return undefined;
+  const halves = text.split("::");
   if (halves.length > 2) return undefined;
   const words = (part: string): number[] | undefined => {
-    if (part === '') return [];
+    if (part === "") return [];
     const out: number[] = [];
-    for (const group of part.split(':')) {
+    for (const group of part.split(":")) {
       // An embedded IPv4 tail (`::ffff:1.2.3.4`); WHATWG URL rewrites it to hex, but be lenient.
       const tail = parseIpv4(group);
       if (tail) out.push((tail[0] << 8) | tail[1], (tail[2] << 8) | tail[3]);
@@ -104,7 +104,7 @@ function parseIp(text: string): Ip | undefined {
 }
 
 function parseIpv4(text: string): Uint8Array | undefined {
-  const parts = text.split('.');
+  const parts = text.split(".");
   if (parts.length !== 4 || !parts.every((p) => /^\d{1,3}$/.test(p) && Number(p) <= 255))
     return undefined;
   return Uint8Array.from(parts.map(Number));

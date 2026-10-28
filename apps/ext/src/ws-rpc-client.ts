@@ -1,12 +1,12 @@
 /* JSON-RPC 2.0 WebSocket client */
 
 export interface JsonRpcSuccess<T = any> {
-  jsonrpc: '2.0';
+  jsonrpc: "2.0";
   result: T;
   id: number | string;
 }
 export interface JsonRpcError {
-  jsonrpc: '2.0';
+  jsonrpc: "2.0";
   error: { code: number; message: string; data?: any };
   id: number | string | null;
 }
@@ -64,10 +64,10 @@ export class JsonRpcWebSocket {
     if (this.ws && this.ws.readyState === WebSocket.OPEN) return;
 
     this.ws = new WebSocket(this.url);
-    this.ws.addEventListener('open', () => this.onOpen());
-    this.ws.addEventListener('message', (ev) => this.onMessage(ev));
-    this.ws.addEventListener('close', () => this.onClose());
-    this.ws.addEventListener('error', () => {
+    this.ws.addEventListener("open", () => this.onOpen());
+    this.ws.addEventListener("message", (ev) => this.onMessage(ev));
+    this.ws.addEventListener("close", () => this.onClose());
+    this.ws.addEventListener("error", () => {
       /* ignore – close will follow */
     });
   }
@@ -85,10 +85,10 @@ export class JsonRpcWebSocket {
 
   // JSON-RPC request that expects a response
   public call<T = any>(method: string, params?: any): Promise<T> {
-    if (!this.connected) return Promise.reject(new Error('WS not connected'));
+    if (!this.connected) return Promise.reject(new Error("WS not connected"));
 
     const id = this.nextId++;
-    const msg = { jsonrpc: '2.0', method, params, id };
+    const msg = { jsonrpc: "2.0", method, params, id };
 
     return new Promise<T>((resolve, reject) => {
       this.pending.set(id, { resolve, reject });
@@ -105,8 +105,8 @@ export class JsonRpcWebSocket {
 
   // JSON-RPC notification (no response expected)
   public notify(method: string, params?: any) {
-    if (!this.connected) throw new Error('WS not connected');
-    this.ws!.send(JSON.stringify({ jsonrpc: '2.0', method, params }));
+    if (!this.connected) throw new Error("WS not connected");
+    this.ws!.send(JSON.stringify({ jsonrpc: "2.0", method, params }));
   }
 
   // replace / add a notification handler
@@ -124,7 +124,7 @@ export class JsonRpcWebSocket {
 
   private onClose() {
     this.connected = false;
-    this.rejectAllPending(new Error('WebSocket closed'));
+    this.rejectAllPending(new Error("WebSocket closed"));
     this.scheduleReconnect();
     if (this.closeCb) this.closeCb(this);
   }
@@ -134,17 +134,17 @@ export class JsonRpcWebSocket {
     try {
       packet = JSON.parse(ev.data);
     } catch {
-      return console.warn('Non-JSON message ignored:', ev.data);
+      return console.warn("Non-JSON message ignored:", ev.data);
     }
 
     // response to our request
-    if ('id' in packet) {
+    if ("id" in packet) {
       const pending = this.pending.get(packet.id);
       if (!pending) return; // ignore unknown id
 
       this.pending.delete(packet.id);
-      if ('result' in packet) pending.resolve(packet.result);
-      else pending.reject(new Error(packet.error?.message || 'RPC error'));
+      if ("result" in packet) pending.resolve(packet.result);
+      else pending.reject(new Error(packet.error?.message || "RPC error"));
       return;
     }
 

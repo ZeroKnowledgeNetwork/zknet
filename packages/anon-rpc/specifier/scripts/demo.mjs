@@ -10,13 +10,13 @@
 //   WORKER_BUNDLE      bundle to serve (default: the worker project's dist)
 //   DEMO_WALLETSHIELD  WalletShield URL for the printed worker config and RPC URL (default http://127.0.0.1:7070)
 
-import { spawn } from 'node:child_process';
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
-import { parseArgs } from 'node:util';
-import { digestFile } from './lib/digest.mjs';
-import { DEFAULT_BUNDLE, DEFAULT_RESOLVER_PORT, PROJECT_DIR, STATE_DIR } from './lib/paths.mjs';
-import { CliError, isMain, runMain } from './lib/proc.mjs';
+import { spawn } from "node:child_process";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import { parseArgs } from "node:util";
+import { digestFile } from "./lib/digest.mjs";
+import { DEFAULT_BUNDLE, DEFAULT_RESOLVER_PORT, PROJECT_DIR, STATE_DIR } from "./lib/paths.mjs";
+import { CliError, isMain, runMain } from "./lib/proc.mjs";
 
 export const ANVIL_PORT = 8545;
 export const RPC_URL = `http://127.0.0.1:${ANVIL_PORT}`;
@@ -29,63 +29,63 @@ export const CHAIN_ID = 31337;
  * entry hardcodes the result. It holds while this is account #9's first
  * transaction on the chain; `--update` keeps the address afterwards.
  */
-export const DEPLOYER = '0xa0Ee7A142d267C1f36714E4a8F75612F20a79720';
-export const EXPECTED_ADDRESS = '0x700b6A60ce7EaaEA56F065753d8dcB9653dbAD35';
+export const DEPLOYER = "0xa0Ee7A142d267C1f36714E4a8F75612F20a79720";
+export const EXPECTED_ADDRESS = "0x700b6A60ce7EaaEA56F065753d8dcB9653dbAD35";
 
 /** The demo's own deployment record, apart from the local loop's `deploy`. */
-const DEPLOYMENTS = join(STATE_DIR, 'demo-deployments');
+const DEPLOYMENTS = join(STATE_DIR, "demo-deployments");
 
 /** Run one of this project's scripts, streaming its output. */
 function script(name, args) {
   return new Promise((resolve, reject) => {
-    const p = spawn(process.execPath, [join(PROJECT_DIR, 'scripts', name), ...args], {
+    const p = spawn(process.execPath, [join(PROJECT_DIR, "scripts", name), ...args], {
       cwd: PROJECT_DIR,
-      stdio: ['ignore', 'pipe', 'inherit'],
+      stdio: ["ignore", "pipe", "inherit"],
     });
-    let out = '';
-    p.stdout.on('data', (b) => {
+    let out = "";
+    p.stdout.on("data", (b) => {
       out += b;
       process.stdout.write(b);
     });
-    p.on('error', reject);
-    p.on('exit', (code) =>
-      code === 0 ? resolve(out) : reject(new CliError(`${name} ${args[0] ?? ''} exited ${code}`)),
+    p.on("error", reject);
+    p.on("exit", (code) =>
+      code === 0 ? resolve(out) : reject(new CliError(`${name} ${args[0] ?? ""} exited ${code}`)),
     );
   });
 }
 
 async function up() {
   const bundle = process.env.WORKER_BUNDLE || DEFAULT_BUNDLE;
-  const port = ['--port', String(DEFAULT_RESOLVER_PORT)];
-  const resolver = (await script('resolver.mjs', ['put', '--bundle', bundle, ...port])).trim();
-  await script('resolver.mjs', ['start', ...port]);
-  await script('anvil.mjs', ['start', '--port', String(ANVIL_PORT)]);
+  const port = ["--port", String(DEFAULT_RESOLVER_PORT)];
+  const resolver = (await script("resolver.mjs", ["put", "--bundle", bundle, ...port])).trim();
+  await script("resolver.mjs", ["start", ...port]);
+  await script("anvil.mjs", ["start", "--port", String(ANVIL_PORT)]);
   // --update: same bundle → no-op; new bundle → setWorker on the same address.
-  await script('deploy.mjs', [
-    '--from',
+  await script("deploy.mjs", [
+    "--from",
     DEPLOYER,
-    '--bundle',
+    "--bundle",
     bundle,
-    '--rpc-url',
+    "--rpc-url",
     RPC_URL,
-    '--resolver',
+    "--resolver",
     resolver,
-    '--deployments',
+    "--deployments",
     DEPLOYMENTS,
-    '--update',
+    "--update",
   ]);
-  await script('verify.mjs', [
-    '--rpc-url',
+  await script("verify.mjs", [
+    "--rpc-url",
     RPC_URL,
-    '--bundle',
+    "--bundle",
     bundle,
-    '--deployments',
+    "--deployments",
     DEPLOYMENTS,
   ]);
 
-  const record = JSON.parse(readFileSync(join(DEPLOYMENTS, `${CHAIN_ID}.json`), 'utf8'));
+  const record = JSON.parse(readFileSync(join(DEPLOYMENTS, `${CHAIN_ID}.json`), "utf8"));
   const digest = await digestFile(bundle);
-  const config = { walletshield: process.env.DEMO_WALLETSHIELD || 'http://127.0.0.1:7070' };
+  const config = { walletshield: process.env.DEMO_WALLETSHIELD || "http://127.0.0.1:7070" };
   const moved = record.address.toLowerCase() !== EXPECTED_ADDRESS.toLowerCase();
   console.log(`
 ZKNet anon-rpc demo backend is up.
@@ -104,16 +104,16 @@ Stop it with: nx run @zknet/anon-rpc-specifier:demo-down`);
 }
 
 async function down() {
-  await script('anvil.mjs', ['stop', '--port', String(ANVIL_PORT)]);
-  await script('resolver.mjs', ['stop', '--port', String(DEFAULT_RESOLVER_PORT)]);
+  await script("anvil.mjs", ["stop", "--port", String(ANVIL_PORT)]);
+  await script("resolver.mjs", ["stop", "--port", String(DEFAULT_RESOLVER_PORT)]);
 }
 
 /** @param {string[]} argv */
 async function main(argv) {
   const { positionals } = parseArgs({ args: argv, allowPositionals: true });
-  if (positionals[0] === 'up') return up();
-  if (positionals[0] === 'down') return down();
-  throw new CliError('usage: demo.mjs up|down');
+  if (positionals[0] === "up") return up();
+  if (positionals[0] === "down") return down();
+  throw new CliError("usage: demo.mjs up|down");
 }
 
 if (isMain(import.meta.url)) runMain(main);

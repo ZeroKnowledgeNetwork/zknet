@@ -3,14 +3,14 @@
 // grants seeded as persisted site settings, and a WalletShield stand-in that
 // can listen on a LAN address.
 
-import { chromium, type BrowserContext } from '@playwright/test';
-import { execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { createServer, type Server } from 'node:http';
-import type { AddressInfo } from 'node:net';
-import { networkInterfaces } from 'node:os';
-import { join } from 'node:path';
-import { RUN_DIR } from './paths.js';
+import { chromium, type BrowserContext } from "@playwright/test";
+import { execFileSync } from "node:child_process";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { createServer, type Server } from "node:http";
+import type { AddressInfo } from "node:net";
+import { networkInterfaces } from "node:os";
+import { join } from "node:path";
+import { RUN_DIR } from "./paths.js";
 
 export interface ForkHarness {
   /** dist/host.js of the checkout's browser-harness, built just now. */
@@ -28,60 +28,60 @@ export interface ForkHarness {
  * of this tier.
  */
 export function buildForkHarness(repo: string): ForkHarness {
-  const dir = join(repo, 'impl/browser-harness');
-  if (!existsSync(join(dir, 'src/host/AnonRpcWorker.ts'))) {
+  const dir = join(repo, "impl/browser-harness");
+  if (!existsSync(join(dir, "src/host/AnonRpcWorker.ts"))) {
     throw new Error(
       `${repo} is not an anon-rpc checkout (no impl/browser-harness/src/host/AnonRpcWorker.ts)`,
     );
   }
-  const support = join(dir, 'src/host/local-network.ts');
-  if (!existsSync(support) || !readFileSync(support, 'utf8').includes('networkSpaces')) {
+  const support = join(dir, "src/host/local-network.ts");
+  if (!existsSync(support) || !readFileSync(support, "utf8").includes("networkSpaces")) {
     throw new Error(
       `${repo} has no WorkerInit.network support: check out feat/worker-network-policy (or a branch with it)`,
     );
   }
   // The browser harness imports @anon-rpc/harness-core, whose dist it does
   // not build itself.
-  execFileSync('npm', ['run', 'build'], { cwd: join(repo, 'impl/harness-core'), stdio: 'pipe' });
-  execFileSync('npm', ['run', 'build'], { cwd: dir, stdio: 'pipe' });
-  const revision = execFileSync('git', ['describe', '--always', '--dirty', '--all', '--long'], {
+  execFileSync("npm", ["run", "build"], { cwd: join(repo, "impl/harness-core"), stdio: "pipe" });
+  execFileSync("npm", ["run", "build"], { cwd: dir, stdio: "pipe" });
+  const revision = execFileSync("git", ["describe", "--always", "--dirty", "--all", "--long"], {
     cwd: repo,
-    encoding: 'utf8',
+    encoding: "utf8",
   }).trim();
-  return { file: join(dir, 'dist/host.js'), label: `fork:${revision}`, revision };
+  return { file: join(dir, "dist/host.js"), label: `fork:${revision}`, revision };
 }
 
 /** A throwaway self-signed certificate for one IP address, and optionally one DNS name. */
-export function selfSigned(ip = '127.0.0.1', dnsName?: string): { key: string; cert: string } {
+export function selfSigned(ip = "127.0.0.1", dnsName?: string): { key: string; cert: string } {
   mkdirSync(RUN_DIR, { recursive: true });
-  const dir = mkdtempSync(join(RUN_DIR, 'tls-'));
+  const dir = mkdtempSync(join(RUN_DIR, "tls-"));
   try {
     execFileSync(
-      'openssl',
+      "openssl",
       [
-        'req',
-        '-x509',
-        '-newkey',
-        'ec',
-        '-pkeyopt',
-        'ec_paramgen_curve:prime256v1',
-        '-nodes',
-        '-days',
-        '1',
-        '-subj',
+        "req",
+        "-x509",
+        "-newkey",
+        "ec",
+        "-pkeyopt",
+        "ec_paramgen_curve:prime256v1",
+        "-nodes",
+        "-days",
+        "1",
+        "-subj",
         `/CN=${dnsName ?? ip}`,
-        '-addext',
-        `subjectAltName=IP:${ip}${dnsName ? `,DNS:${dnsName}` : ''}`,
-        '-keyout',
-        join(dir, 'key.pem'),
-        '-out',
-        join(dir, 'cert.pem'),
+        "-addext",
+        `subjectAltName=IP:${ip}${dnsName ? `,DNS:${dnsName}` : ""}`,
+        "-keyout",
+        join(dir, "key.pem"),
+        "-out",
+        join(dir, "cert.pem"),
       ],
-      { stdio: 'pipe' },
+      { stdio: "pipe" },
     );
     return {
-      key: readFileSync(join(dir, 'key.pem'), 'utf8'),
-      cert: readFileSync(join(dir, 'cert.pem'), 'utf8'),
+      key: readFileSync(join(dir, "key.pem"), "utf8"),
+      cert: readFileSync(join(dir, "cert.pem"), "utf8"),
     };
   } finally {
     rmSync(dir, { recursive: true, force: true });
@@ -92,7 +92,7 @@ export function selfSigned(ip = '127.0.0.1', dnsName?: string): { key: string; c
 export function lanAddress(): string | undefined {
   for (const addrs of Object.values(networkInterfaces())) {
     for (const a of addrs ?? []) {
-      if (a.family !== 'IPv4' || a.internal) continue;
+      if (a.family !== "IPv4" || a.internal) continue;
       if (/^(10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(a.address)) return a.address;
     }
   }
@@ -114,20 +114,20 @@ export interface PublicProfile {
 export async function publicProfile(origin: string, grant: boolean): Promise<PublicProfile> {
   const port = new URL(origin).port;
   mkdirSync(RUN_DIR, { recursive: true });
-  const dir = mkdtempSync(join(RUN_DIR, 'chromium-'));
+  const dir = mkdtempSync(join(RUN_DIR, "chromium-"));
   if (grant) {
     const exceptions = {
       loopback_network: { [`${origin},*`]: { setting: 1 } },
       local_network: { [`${origin},*`]: { setting: 1 } },
     };
-    mkdirSync(join(dir, 'Default'), { recursive: true });
+    mkdirSync(join(dir, "Default"), { recursive: true });
     writeFileSync(
-      join(dir, 'Default', 'Preferences'),
+      join(dir, "Default", "Preferences"),
       JSON.stringify({ profile: { content_settings: { exceptions } } }),
     );
   }
   const context = await chromium.launchPersistentContext(dir, {
-    channel: 'chromium',
+    channel: "chromium",
     headless: true,
     ...(process.env.E2E_CHROMIUM ? { executablePath: process.env.E2E_CHROMIUM } : {}),
     args: [`--ip-address-space-overrides=127.0.0.1:${port}=public`],
@@ -153,23 +153,23 @@ export interface LanStub {
  * loopback only): local preflights and health, a JSON-RPC result for POSTs.
  */
 export async function startLanStub(host: string): Promise<LanStub> {
-  const stub: LanStub = { url: '', posts: 0, close: async () => {} };
+  const stub: LanStub = { url: "", posts: 0, close: async () => {} };
   const server: Server = createServer((req, res) => {
-    res.setHeader('access-control-allow-origin', '*');
-    if (req.method === 'OPTIONS') {
-      res.setHeader('access-control-allow-methods', 'GET, POST');
+    res.setHeader("access-control-allow-origin", "*");
+    if (req.method === "OPTIONS") {
+      res.setHeader("access-control-allow-methods", "GET, POST");
       res.setHeader(
-        'access-control-allow-headers',
-        req.headers['access-control-request-headers'] ?? '',
+        "access-control-allow-headers",
+        req.headers["access-control-request-headers"] ?? "",
       );
       res.writeHead(204).end();
-    } else if (req.method === 'GET' && req.url === '/_/health') {
-      res.writeHead(200, { 'content-type': 'application/json' }).end('{"version":"lan-stub"}');
+    } else if (req.method === "GET" && req.url === "/_/health") {
+      res.writeHead(200, { "content-type": "application/json" }).end('{"version":"lan-stub"}');
     } else {
-      if (req.method === 'POST') stub.posts++;
+      if (req.method === "POST") stub.posts++;
       req.resume();
       res
-        .writeHead(200, { 'content-type': 'application/json' })
+        .writeHead(200, { "content-type": "application/json" })
         .end('{"jsonrpc":"2.0","id":1,"result":"0x1a4"}');
     }
   });

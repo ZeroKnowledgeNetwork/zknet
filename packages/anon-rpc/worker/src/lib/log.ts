@@ -7,10 +7,10 @@
 // text from lower layers. Delivery is best effort: a throwing host log never
 // affects the worker.
 
-import type { LogApi, LogArg } from './spec-types.js';
+import type { LogApi, LogArg } from "./spec-types.js";
 
-export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
-export const LOG_LEVELS: readonly LogLevel[] = ['debug', 'info', 'warn', 'error'];
+export type LogLevel = "debug" | "info" | "warn" | "error";
+export const LOG_LEVELS: readonly LogLevel[] = ["debug", "info", "warn", "error"];
 
 export type LogFields = Readonly<Record<string, string | number | boolean | null | undefined>>;
 
@@ -24,9 +24,9 @@ export interface WorkerLogger {
 }
 
 /** Source tag of every entry. */
-export const LOG_SOURCE = 'zknet-worker';
+export const LOG_SOURCE = "zknet-worker";
 
-export function createLogger(api: LogApi | undefined, level: LogLevel = 'info'): WorkerLogger {
+export function createLogger(api: LogApi | undefined, level: LogLevel = "info"): WorkerLogger {
   let min = LOG_LEVELS.indexOf(level);
   const emit = (entryLevel: LogLevel, event: string, fields?: LogFields): void => {
     if (api === undefined || LOG_LEVELS.indexOf(entryLevel) < min) return;
@@ -39,10 +39,10 @@ export function createLogger(api: LogApi | undefined, level: LogLevel = 'info'):
     }
   };
   return {
-    debug: (event, fields) => emit('debug', event, fields),
-    info: (event, fields) => emit('info', event, fields),
-    warn: (event, fields) => emit('warn', event, fields),
-    error: (event, fields) => emit('error', event, fields),
+    debug: (event, fields) => emit("debug", event, fields),
+    info: (event, fields) => emit("info", event, fields),
+    warn: (event, fields) => emit("warn", event, fields),
+    error: (event, fields) => emit("error", event, fields),
     setLevel: (next) => {
       min = LOG_LEVELS.indexOf(next);
     },
@@ -59,17 +59,17 @@ export const MAX_LOGGED_TEXT = 300;
 /** Remove what must never reach host logs from free text: URLs, addresses, long hex, control characters. Bounded. */
 export function redact(text: string): string {
   const cleaned = text
-    .replace(URL_RE, '<url>')
-    .replace(IPV4_RE, '<addr>')
-    .replace(LONG_HEX_RE, '<hex>')
-    .replace(CONTROL_RE, ' ');
+    .replace(URL_RE, "<url>")
+    .replace(IPV4_RE, "<addr>")
+    .replace(LONG_HEX_RE, "<hex>")
+    .replace(CONTROL_RE, " ");
   return cleaned.length <= MAX_LOGGED_TEXT ? cleaned : `${cleaned.slice(0, MAX_LOGGED_TEXT)}…`;
 }
 
 function sanitize(fields: LogFields): { [key: string]: LogArg } {
   const out: { [key: string]: LogArg } = {};
   for (const [key, value] of Object.entries(fields)) {
-    if (value !== undefined) out[key] = typeof value === 'string' ? redact(value) : value;
+    if (value !== undefined) out[key] = typeof value === "string" ? redact(value) : value;
   }
   return out;
 }

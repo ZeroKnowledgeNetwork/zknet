@@ -48,11 +48,11 @@
 //     reports gas, read-back and boot-resolve, and writes its would-be record
 //     to .state/rehearse/<tier>.json.
 
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { join, relative } from 'node:path';
-import { parseArgs } from 'node:util';
-import { digestFile } from './lib/digest.mjs';
-import { head } from './lib/git.mjs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { join, relative } from "node:path";
+import { parseArgs } from "node:util";
+import { digestFile } from "./lib/digest.mjs";
+import { head } from "./lib/git.mjs";
 import {
   DEFAULT_BUNDLE,
   DEFAULT_RESOLVER_PORT,
@@ -64,22 +64,22 @@ import {
   PREFLIGHT_DIR,
   STATE_DIR,
   WORKING_RECORDS_DIR,
-} from './lib/paths.mjs';
-import { CliError, Daemon, foundry, isMain, run, runMain, runSigning } from './lib/proc.mjs';
+} from "./lib/paths.mjs";
+import { CliError, Daemon, foundry, isMain, run, runMain, runSigning } from "./lib/proc.mjs";
 import {
   createdRecord,
   findRecord,
   recordPath,
   updatedRecord,
   writeRecord,
-} from './lib/record.mjs';
-import { keccak256Hex } from './lib/keccak.mjs';
-import { answers, chainId as getChainId, code, rpc } from './lib/rpc.mjs';
-import { checkResolver, readSpecifier, REFERENCE_CODEHASH, sameList } from './lib/specifier.mjs';
-import { assertChain, banner, expandResolvers, loadTierConfig, tierOf } from './lib/tiers.mjs';
-import { readProof } from './preflight.mjs';
-import { resolverUrl } from './resolver.mjs';
-import { verifySpecifier } from './verify.mjs';
+} from "./lib/record.mjs";
+import { keccak256Hex } from "./lib/keccak.mjs";
+import { answers, chainId as getChainId, code, rpc } from "./lib/rpc.mjs";
+import { checkResolver, readSpecifier, REFERENCE_CODEHASH, sameList } from "./lib/specifier.mjs";
+import { assertChain, banner, expandResolvers, loadTierConfig, tierOf } from "./lib/tiers.mjs";
+import { readProof } from "./preflight.mjs";
+import { resolverUrl } from "./resolver.mjs";
+import { verifySpecifier } from "./verify.mjs";
 
 /**
  * @typedef {object} Deployment
@@ -95,7 +95,7 @@ import { verifySpecifier } from './verify.mjs';
 /** @param {string} dir @param {number} id @returns {Deployment | undefined} */
 export function readDeployment(dir, id) {
   const file = join(dir, `${id}.json`);
-  return existsSync(file) ? JSON.parse(readFileSync(file, 'utf8')) : undefined;
+  return existsSync(file) ? JSON.parse(readFileSync(file, "utf8")) : undefined;
 }
 
 /** @param {string} dir @param {Deployment} record */
@@ -154,7 +154,7 @@ export async function deploySpecifier(o) {
       `recorded address ${known} holds other code (codehash ${current.codehash}); use --fresh`,
     );
   }
-  if (known && !current && o.onMissing === 'refuse') {
+  if (known && !current && o.onMissing === "refuse") {
     throw new CliError(
       `recorded address ${known} has no code on this chain; check the record, or --fresh`,
     );
@@ -167,7 +167,7 @@ export async function deploySpecifier(o) {
     sameList(current.resolvers, o.resolvers)
   ) {
     console.log(`✓ already deployed and up to date: ${known}`);
-    return { action: 'noop', address: known, owner: current.owner };
+    return { action: "noop", address: known, owner: current.owner };
   }
 
   if (known && current) {
@@ -186,25 +186,25 @@ export async function deploySpecifier(o) {
       console.log(
         `dry run: would setWorker(${o.workerHash}, ${o.resolvers.length} resolver(s)) on ${known}`,
       );
-      return { action: 'dry-run', address: known };
+      return { action: "dry-run", address: known };
     }
     console.log(`setWorker on ${known}…`);
-    const out = await o.sign(foundry('cast'), [
-      'send',
-      '--json',
-      '--rpc-url',
+    const out = await o.sign(foundry("cast"), [
+      "send",
+      "--json",
+      "--rpc-url",
       o.rpcUrl,
       ...o.signer,
       known,
-      'setWorker(bytes32,string[])',
+      "setWorker(bytes32,string[])",
       o.workerHash,
       JSON.stringify(o.resolvers),
     ]);
     const receipt = JSON.parse(out);
-    if (receipt.status !== '0x1') throw new CliError(`setWorker reverted: ${out}`);
+    if (receipt.status !== "0x1") throw new CliError(`setWorker reverted: ${out}`);
     await readBack(o.rpcUrl, known, o.workerHash, o.resolvers);
     return {
-      action: 'updated',
+      action: "updated",
       address: known,
       ...(await receiptFacts(o.rpcUrl, receipt.transactionHash)),
     };
@@ -216,25 +216,25 @@ export async function deploySpecifier(o) {
     );
   if (o.dryRun) {
     console.log(`dry run: would deploy a new WorkerSpecifier from ${o.deployer}`);
-    return { action: 'dry-run' };
+    return { action: "dry-run" };
   }
-  console.log('deploying WorkerSpecifier…');
-  const out = await o.sign(foundry('forge'), [
-    'create',
-    'src/WorkerSpecifier.sol:WorkerSpecifier',
-    '--rpc-url',
+  console.log("deploying WorkerSpecifier…");
+  const out = await o.sign(foundry("forge"), [
+    "create",
+    "src/WorkerSpecifier.sol:WorkerSpecifier",
+    "--rpc-url",
     o.rpcUrl,
     ...o.signer,
-    '--broadcast',
-    '--json',
-    '--constructor-args',
+    "--broadcast",
+    "--json",
+    "--constructor-args",
     o.workerHash,
     JSON.stringify(o.resolvers),
   ]);
-  const created = JSON.parse(out.slice(out.indexOf('{')));
+  const created = JSON.parse(out.slice(out.indexOf("{")));
   await readBack(o.rpcUrl, created.deployedTo, o.workerHash, o.resolvers);
   return {
-    action: 'created',
+    action: "created",
     address: created.deployedTo,
     ...(await receiptFacts(o.rpcUrl, created.transactionHash)),
   };
@@ -250,12 +250,12 @@ async function readBack(rpcUrl, address, workerHash, resolvers) {
     throw new CliError(`read-back workerHash() ${after.workerHash}, expected ${workerHash}`);
   if (!sameList(after.resolvers, resolvers))
     throw new CliError(`read-back workerResolvers() ${JSON.stringify(after.resolvers)}`);
-  console.log('✓ on-chain read-back matches');
+  console.log("✓ on-chain read-back matches");
 }
 
 /** @param {string} rpcUrl @param {string} tx */
 async function receiptFacts(rpcUrl, tx) {
-  const r = /** @type {any} */ (await rpc(rpcUrl, 'eth_getTransactionReceipt', [tx]));
+  const r = /** @type {any} */ (await rpc(rpcUrl, "eth_getTransactionReceipt", [tx]));
   const gasUsed = BigInt(r.gasUsed);
   const gasPrice = BigInt(r.effectiveGasPrice ?? 0);
   return { tx, block: Number(r.blockNumber), gasUsed, gasPrice, cost: gasUsed * gasPrice };
@@ -263,9 +263,9 @@ async function receiptFacts(rpcUrl, tx) {
 
 /** @param {bigint} wei */
 export const eth = (wei) => {
-  const s = wei.toString().padStart(19, '0');
-  const frac = s.slice(-18).replace(/0+$/, '');
-  return `${s.slice(0, -18)}${frac ? `.${frac}` : ''} ETH`;
+  const s = wei.toString().padStart(19, "0");
+  const frac = s.slice(-18).replace(/0+$/, "");
+  return `${s.slice(0, -18)}${frac ? `.${frac}` : ""} ETH`;
 };
 
 /** @param {string[]} argv */
@@ -273,38 +273,38 @@ async function main(argv) {
   const { values } = parseArgs({
     args: argv,
     options: {
-      tier: { type: 'string' },
+      tier: { type: "string" },
       bundle: {
-        type: 'string',
+        type: "string",
         default: process.env.WORKER_BUNDLE || DEFAULT_BUNDLE,
       },
-      'rpc-url': { type: 'string' },
-      resolver: { type: 'string', multiple: true, default: [] },
-      from: { type: 'string', default: process.env.ETH_FROM },
-      account: { type: 'string' },
-      keystore: { type: 'string' },
-      'password-file': { type: 'string' },
-      deployments: { type: 'string', default: DEPLOYMENTS_DIR },
-      update: { type: 'boolean', default: false },
-      fresh: { type: 'boolean', default: false },
-      'dry-run': { type: 'boolean', default: false },
-      'skip-resolver-check': { type: 'boolean', default: false },
-      broadcast: { type: 'boolean', default: false },
-      rehearse: { type: 'boolean', default: false },
-      deployer: { type: 'string' },
-      'fork-port': { type: 'string', default: '8549' },
-      config: { type: 'string', default: LOCAL_CONFIG },
-      records: { type: 'string', default: WORKING_RECORDS_DIR },
-      posted: { type: 'string', default: POSTED_RECORDS_DIR },
-      address: { type: 'string' },
-      preflight: { type: 'string', default: PREFLIGHT_DIR },
-      'rehearse-record': { type: 'string' },
+      "rpc-url": { type: "string" },
+      resolver: { type: "string", multiple: true, default: [] },
+      from: { type: "string", default: process.env.ETH_FROM },
+      account: { type: "string" },
+      keystore: { type: "string" },
+      "password-file": { type: "string" },
+      deployments: { type: "string", default: DEPLOYMENTS_DIR },
+      update: { type: "boolean", default: false },
+      fresh: { type: "boolean", default: false },
+      "dry-run": { type: "boolean", default: false },
+      "skip-resolver-check": { type: "boolean", default: false },
+      broadcast: { type: "boolean", default: false },
+      rehearse: { type: "boolean", default: false },
+      deployer: { type: "string" },
+      "fork-port": { type: "string", default: "8549" },
+      config: { type: "string", default: LOCAL_CONFIG },
+      records: { type: "string", default: WORKING_RECORDS_DIR },
+      posted: { type: "string", default: POSTED_RECORDS_DIR },
+      address: { type: "string" },
+      preflight: { type: "string", default: PREFLIGHT_DIR },
+      "rehearse-record": { type: "string" },
     },
   });
   const bundle = /** @type {string} */ (values.bundle);
   if (!existsSync(bundle))
     throw new CliError(`bundle not found: ${bundle} (build the worker, or pass --bundle)`);
-  if (values.update && values.fresh) throw new CliError('--update and --fresh are exclusive');
+  if (values.update && values.fresh) throw new CliError("--update and --fresh are exclusive");
   const tier = values.tier === undefined ? undefined : tierOf(values.tier);
   if (tier) console.log(banner(tier));
   return tier?.public ? publicTier(tier, values) : localChain(tier, values);
@@ -318,15 +318,15 @@ async function main(argv) {
 async function localChain(tier, values) {
   if (values.broadcast || values.rehearse || values.deployer || values.address)
     throw new CliError(
-      '--broadcast, --rehearse, --deployer and --address belong to the public tiers',
+      "--broadcast, --rehearse, --deployer and --address belong to the public tiers",
     );
-  const rpcUrl = values['rpc-url'] || process.env.RPC_URL || DEFAULT_RPC_URL;
+  const rpcUrl = values["rpc-url"] || process.env.RPC_URL || DEFAULT_RPC_URL;
   const bundle = values.bundle;
   const dir = values.deployments;
   const digest = await digestFile(bundle);
   const workerHash = digest.keccak256;
-  const fromEnv = (process.env.RESOLVER_URLS ?? '')
-    .split(',')
+  const fromEnv = (process.env.RESOLVER_URLS ?? "")
+    .split(",")
     .map((s) => s.trim())
     .filter(Boolean);
   /** @type {string[]} */
@@ -336,24 +336,24 @@ async function localChain(tier, values) {
       ? given
       : fromEnv.length > 0
         ? fromEnv
-        : [resolverUrl('127.0.0.1', DEFAULT_RESOLVER_PORT, workerHash)];
+        : [resolverUrl("127.0.0.1", DEFAULT_RESOLVER_PORT, workerHash)];
 
   // Signer: a keystore when named, else an unlocked account of the node.
   /** @type {string[]} */
   let signer;
   let deployer;
   if (values.account || values.keystore) {
-    signer = values.account ? ['--account', values.account] : ['--keystore', values.keystore];
-    if (values['password-file']) signer.push('--password-file', values['password-file']);
-    deployer = await run(foundry('cast'), ['wallet', 'address', ...signer]);
+    signer = values.account ? ["--account", values.account] : ["--keystore", values.keystore];
+    if (values["password-file"]) signer.push("--password-file", values["password-file"]);
+    deployer = await run(foundry("cast"), ["wallet", "address", ...signer]);
   } else {
-    const accounts = /** @type {string[]} */ (await rpc(rpcUrl, 'eth_accounts'));
+    const accounts = /** @type {string[]} */ (await rpc(rpcUrl, "eth_accounts"));
     deployer = values.from ?? accounts[0];
     if (!deployer)
       throw new CliError(
         `${rpcUrl} has no unlocked account; name a keystore with --account or --keystore`,
       );
-    signer = ['--unlocked', '--from', deployer];
+    signer = ["--unlocked", "--from", deployer];
   }
 
   const chainId = await getChainId(rpcUrl);
@@ -372,27 +372,27 @@ async function localChain(tier, values) {
     signer,
     deployer,
     known: record?.address,
-    onMissing: 'deploy',
+    onMissing: "deploy",
     update: values.update,
     fresh: values.fresh,
-    dryRun: values['dry-run'],
-    skipResolverCheck: values['skip-resolver-check'],
+    dryRun: values["dry-run"],
+    skipResolverCheck: values["skip-resolver-check"],
     sign: run,
-    hint: '',
+    hint: "",
   });
-  if (outcome.action === 'dry-run') return;
-  if (outcome.action !== 'noop') {
+  if (outcome.action === "dry-run") return;
+  if (outcome.action !== "noop") {
     writeDeployment(dir, {
       chainId,
       address: /** @type {string} */ (outcome.address),
       transactionHash:
-        outcome.action === 'updated'
+        outcome.action === "updated"
           ? /** @type {Deployment} */ (record).transactionHash
           : /** @type {string} */ (outcome.tx),
       deployer,
       workerHash,
       resolvers,
-      bundle: bundle.split('/').pop() ?? bundle,
+      bundle: bundle.split("/").pop() ?? bundle,
     });
   }
   console.log(outcome.address);
@@ -405,22 +405,22 @@ async function localChain(tier, values) {
  * @param {Record<string, any>} values
  */
 async function publicTier(tier, values) {
-  if (values.account || values.keystore || values['password-file'] || values.from)
+  if (values.account || values.keystore || values["password-file"] || values.from)
     throw new CliError(
       `tier ${tier.name} signs as deploy.local.json says, with an interactive password prompt; drop --account/--keystore/--password-file/--from`,
     );
   if (values.broadcast && values.rehearse)
-    throw new CliError('--broadcast and --rehearse are exclusive');
-  if (values['rpc-url'])
+    throw new CliError("--broadcast and --rehearse are exclusive");
+  if (values["rpc-url"])
     throw new CliError(`tier ${tier.name} takes its RPC URL from deploy.local.json`);
   if (values.broadcast && values.resolver.length > 0)
     throw new CliError(
-      '--resolver overrides are for dry runs and rehearsals; a broadcast pins the configured resolvers',
+      "--resolver overrides are for dry runs and rehearsals; a broadcast pins the configured resolvers",
     );
-  if (values.broadcast && values['skip-resolver-check'])
-    throw new CliError('a broadcast always checks its resolvers');
+  if (values.broadcast && values["skip-resolver-check"])
+    throw new CliError("a broadcast always checks its resolvers");
   if (values.deployer && !values.rehearse)
-    throw new CliError('--deployer is a rehearsal stand-in only');
+    throw new CliError("--deployer is a rehearsal stand-in only");
 
   const config = loadTierConfig(tier, values.config, { resolvers: values.resolver.length === 0 });
   const deployer = values.deployer ?? config.deployer;
@@ -465,24 +465,24 @@ async function publicTier(tier, values) {
     throw new CliError(`${found.file} is for chain ${record.chainId}, not ${tier.chainId}`);
 
   console.log(
-    `bundle ${bundle} (${digest.bytes} bytes) from ${gitCommit.slice(0, 12)}${proof.dirty ? ' (tree dirty)' : ''}`,
+    `bundle ${bundle} (${digest.bytes} bytes) from ${gitCommit.slice(0, 12)}${proof.dirty ? " (tree dirty)" : ""}`,
   );
   console.log(`workerHash ${workerHash}`);
   for (const r of resolvers) console.log(`resolver ${r}`);
-  console.log(`signer ${deployer}${values.deployer ? ' (rehearsal stand-in)' : ''}`);
+  console.log(`signer ${deployer}${values.deployer ? " (rehearsal stand-in)" : ""}`);
   if (record)
     console.log(
-      `record ${relative(PROJECT_DIR, found.file ?? '')}: ${record.address} pins ${record.workerHash}`,
+      `record ${relative(PROJECT_DIR, found.file ?? "")}: ${record.address} pins ${record.workerHash}`,
     );
   else
-    console.log(target ? `target ${target} (--address; no record for it yet)` : 'record none yet');
+    console.log(target ? `target ${target} (--address; no record for it yet)` : "record none yet");
   if (found.posted && !values.address)
     console.log(
       `note: the posted deployments/${tier.name}.json names ${found.posted.address}; the working record wins (pass --address to choose)`,
     );
 
   const bundleRef = {
-    file: bundle.split('/').pop() ?? bundle,
+    file: bundle.split("/").pop() ?? bundle,
     bytes: digest.bytes,
     gitCommit,
     dirty: proof.dirty,
@@ -492,50 +492,50 @@ async function publicTier(tier, values) {
     resolvers,
     deployer,
     known: target,
-    onMissing: /** @type {const} */ ('refuse'),
+    onMissing: /** @type {const} */ ("refuse"),
     update: values.update,
     fresh: values.fresh,
-    skipResolverCheck: values['skip-resolver-check'],
+    skipResolverCheck: values["skip-resolver-check"],
     // Carried into every re-run line printed, so it names the same contract.
-    hint: values.address ? ` --address ${values.address}` : '',
+    hint: values.address ? ` --address ${values.address}` : "",
   };
 
   if (values.rehearse) {
     return rehearse(
       tier,
       config.rpcUrl,
-      Number(values['fork-port']),
+      Number(values["fork-port"]),
       common,
       record,
       bundleRef,
       bundle,
-      values['rehearse-record'],
+      values["rehearse-record"],
     );
   }
 
-  const dryRun = !values.broadcast || values['dry-run'];
+  const dryRun = !values.broadcast || values["dry-run"];
   const outcome = await deploySpecifier({
     ...common,
     rpcUrl: config.rpcUrl,
-    signer: ['--account', config.account, '--from', deployer],
+    signer: ["--account", config.account, "--from", deployer],
     dryRun,
     sign: runSigning,
     hint: ` (nx run @zknet/anon-rpc-specifier:deploy:${tier.name} --update${common.hint})`,
   });
-  if (outcome.action === 'dry-run') {
+  if (outcome.action === "dry-run") {
     const flags = [
-      '--broadcast',
-      ...(values.update ? ['--update'] : []),
-      ...(values.fresh ? ['--fresh'] : []),
-      ...(values.address ? ['--address', values.address] : []),
+      "--broadcast",
+      ...(values.update ? ["--update"] : []),
+      ...(values.fresh ? ["--fresh"] : []),
+      ...(values.address ? ["--address", values.address] : []),
     ];
     console.log(`\nnothing sent. To send it (one keystore password prompt per transaction):`);
-    console.log(`  nx run @zknet/anon-rpc-specifier:deploy:${tier.name} ${flags.join(' ')}`);
+    console.log(`  nx run @zknet/anon-rpc-specifier:deploy:${tier.name} ${flags.join(" ")}`);
     return;
   }
   // A no-op writes nothing, unless a broadcast run adopts a contract (an --address,
   // or the posted record) as the working record. A dry run never writes.
-  if (outcome.action === 'noop' && (dryRun || (record === found.record && found.file === file)))
+  if (outcome.action === "noop" && (dryRun || (record === found.record && found.file === file)))
     return;
   writeRecord(file, nextRecord(tier, chainId, outcome, record, bundleRef, workerHash, deployer));
   console.log(`✓ wrote the working record ${relative(PROJECT_DIR, file)}`);
@@ -560,7 +560,7 @@ export function nextRecord(tier, chainId, outcome, record, bundle, workerHash, o
   const tx = /** @type {string} */ (outcome.tx);
   const block = /** @type {number} */ (outcome.block);
   const address = /** @type {string} */ (outcome.address);
-  if (outcome.action === 'created')
+  if (outcome.action === "created")
     return createdRecord({
       tier: tier.name,
       chainId,
@@ -577,14 +577,14 @@ export function nextRecord(tier, chainId, outcome, record, bundle, workerHash, o
     tier: tier.name,
     chainId,
     address,
-    contract: 'WorkerSpecifier',
+    contract: "WorkerSpecifier",
     codehash: REFERENCE_CODEHASH,
     owner,
     workerHash,
     bundle,
     updates: [],
   };
-  if (outcome.action !== 'updated') return { ...base, owner, workerHash, bundle };
+  if (outcome.action !== "updated") return { ...base, owner, workerHash, bundle };
   return updatedRecord(base, { tx, block, workerHash, bundle, owner });
 }
 
@@ -601,8 +601,8 @@ async function checkTarget(rpcUrl, address, deployer) {
     throw new CliError(`--address ${address} is not an address`);
   // Code first: a contract that is not a specifier cannot answer workerHash().
   const runtime = await code(rpcUrl, address);
-  if (runtime === '0x') throw new CliError(`--address ${address} holds no code on this chain`);
-  const codehash = keccak256Hex(Buffer.from(runtime.slice(2), 'hex'));
+  if (runtime === "0x") throw new CliError(`--address ${address} holds no code on this chain`);
+  const codehash = keccak256Hex(Buffer.from(runtime.slice(2), "hex"));
   if (codehash !== REFERENCE_CODEHASH)
     throw new CliError(
       `--address ${address} is not the EF reference WorkerSpecifier (codehash ${codehash})`,
@@ -632,26 +632,26 @@ async function checkTarget(rpcUrl, address, deployer) {
  */
 async function rehearse(tier, upstream, port, common, record, bundleRef, bundle, out) {
   const realBalance = BigInt(
-    /** @type {string} */ (await rpc(upstream, 'eth_getBalance', [common.deployer, 'latest'])),
+    /** @type {string} */ (await rpc(upstream, "eth_getBalance", [common.deployer, "latest"])),
   );
   console.log(`deployer balance on ${tier.network}: ${eth(realBalance)}`);
 
   const forkUrl = `http://127.0.0.1:${port}`;
-  const fork = new Daemon('anvil fork', join(STATE_DIR, `fork-${port}.pid`), () =>
+  const fork = new Daemon("anvil fork", join(STATE_DIR, `fork-${port}.pid`), () =>
     answers(forkUrl),
   );
   // --quiet: anvil's banner would print the upstream URL, which may carry an API key.
   await fork.start(
-    foundry('anvil'),
+    foundry("anvil"),
     [
-      '--quiet',
-      '--host',
-      '127.0.0.1',
-      '--port',
+      "--quiet",
+      "--host",
+      "127.0.0.1",
+      "--port",
       String(port),
-      '--fork-url',
+      "--fork-url",
       upstream,
-      '--auto-impersonate',
+      "--auto-impersonate",
     ],
     60_000,
   );
@@ -663,17 +663,17 @@ async function rehearse(tier, upstream, port, common, record, bundleRef, bundle,
     );
     // Fund the impersonated deployer on the fork only, so the rehearsal runs
     // to the end; whether the real balance suffices is reported below.
-    await rpc(forkUrl, 'anvil_setBalance', [common.deployer, '0x8ac7230489e80000']);
+    await rpc(forkUrl, "anvil_setBalance", [common.deployer, "0x8ac7230489e80000"]);
 
     const outcome = await deploySpecifier({
       ...common,
       rpcUrl: forkUrl,
-      signer: ['--unlocked', '--from', common.deployer],
+      signer: ["--unlocked", "--from", common.deployer],
       dryRun: false,
       sign: run,
       hint: ` (nx run @zknet/anon-rpc-specifier:deploy:${tier.name} --rehearse --update${common.hint})`,
     });
-    if (outcome.action !== 'noop') {
+    if (outcome.action !== "noop") {
       const cost = /** @type {bigint} */ (outcome.cost);
       console.log(
         `rehearsal: ${outcome.action} ${outcome.address} — gasUsed ${outcome.gasUsed}, cost ${eth(cost)} at the fork's ${Number(outcome.gasPrice) / 1e9} gwei; at 10 gwei it would be ${eth(/** @type {bigint} */ (outcome.gasUsed) * 10_000_000_000n)}`,
@@ -684,7 +684,7 @@ async function rehearse(tier, upstream, port, common, record, bundleRef, bundle,
           : `✗ the deployer's real balance (${eth(realBalance)}) does not cover it: fund it first`,
       );
     }
-    console.log('\nboot-resolve through the fork:');
+    console.log("\nboot-resolve through the fork:");
     const failures = await verifySpecifier(
       forkUrl,
       /** @type {string} */ (outcome.address),
@@ -692,8 +692,8 @@ async function rehearse(tier, upstream, port, common, record, bundleRef, bundle,
     );
     if (failures > 0) throw new CliError(`rehearsal boot-resolve failed (${failures})`);
 
-    if (outcome.action !== 'noop') {
-      const file = out ?? join(STATE_DIR, 'rehearse', `${tier.name}.json`);
+    if (outcome.action !== "noop") {
+      const file = out ?? join(STATE_DIR, "rehearse", `${tier.name}.json`);
       writeRecord(
         file,
         nextRecord(

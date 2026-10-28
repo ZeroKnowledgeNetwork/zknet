@@ -26,11 +26,11 @@ import {
   readdirSync,
   readFileSync,
   writeFileSync,
-} from 'node:fs';
-import { dirname, join, relative } from 'node:path';
-import { parseArgs } from 'node:util';
-import { contentPath, digestFile } from './lib/digest.mjs';
-import { keccak256Hex } from './lib/keccak.mjs';
+} from "node:fs";
+import { dirname, join, relative } from "node:path";
+import { parseArgs } from "node:util";
+import { contentPath, digestFile } from "./lib/digest.mjs";
+import { keccak256Hex } from "./lib/keccak.mjs";
 import {
   DEFAULT_BUNDLE,
   DEFAULT_RESOLVER_PORT,
@@ -38,10 +38,10 @@ import {
   PUBLISH_DIR,
   RESOLVER_STORE,
   WORKSPACE_DIR,
-} from './lib/paths.mjs';
-import { CliError, isMain, runMain } from './lib/proc.mjs';
-import { banner, expandResolvers, loadTierConfig, tierOf } from './lib/tiers.mjs';
-import { put, resolverUrl } from './resolver.mjs';
+} from "./lib/paths.mjs";
+import { CliError, isMain, runMain } from "./lib/proc.mjs";
+import { banner, expandResolvers, loadTierConfig, tierOf } from "./lib/tiers.mjs";
+import { put, resolverUrl } from "./resolver.mjs";
 
 export const HEADERS = `/keccak/*
   Content-Type: application/octet-stream
@@ -50,7 +50,7 @@ export const HEADERS = `/keccak/*
   X-Content-Type-Options: nosniff
 `;
 
-export const NOT_FOUND = '<!doctype html><title>404</title><p>No bundle at this address.</p>\n';
+export const NOT_FOUND = "<!doctype html><title>404</title><p>No bundle at this address.</p>\n";
 
 /**
  * Stage one bundle into a Pages site directory, keeping what is already there.
@@ -60,15 +60,15 @@ export const NOT_FOUND = '<!doctype html><title>404</title><p>No bundle at this 
  */
 export async function stage(bundle, site) {
   const digest = await digestFile(bundle);
-  const target = join(site, 'keccak', contentPath(digest.keccak256));
+  const target = join(site, "keccak", contentPath(digest.keccak256));
   mkdirSync(dirname(target), { recursive: true });
   copyFileSync(bundle, target);
-  writeFileSync(join(site, '_headers'), HEADERS);
-  writeFileSync(join(site, '404.html'), NOT_FOUND);
+  writeFileSync(join(site, "_headers"), HEADERS);
+  writeFileSync(join(site, "404.html"), NOT_FOUND);
 
   /** @type {string[]} */
   const staged = [];
-  const root = join(site, 'keccak');
+  const root = join(site, "keccak");
   for (const hi of readdirSync(root).sort()) {
     for (const lo of readdirSync(join(root, hi)).sort()) {
       const hash = `0x${hi}${lo}`;
@@ -85,13 +85,13 @@ async function main(argv) {
   const { values } = parseArgs({
     args: argv,
     options: {
-      tier: { type: 'string' },
+      tier: { type: "string" },
       bundle: {
-        type: 'string',
+        type: "string",
         default: process.env.WORKER_BUNDLE || DEFAULT_BUNDLE,
       },
-      out: { type: 'string' },
-      config: { type: 'string', default: LOCAL_CONFIG },
+      out: { type: "string" },
+      config: { type: "string", default: LOCAL_CONFIG },
     },
   });
   const tier = tierOf(values.tier);
@@ -102,7 +102,7 @@ async function main(argv) {
   if (!tier.public) {
     const digest = await put(bundle, RESOLVER_STORE);
     console.log(
-      `✓ in the local resolver store: ${resolverUrl('127.0.0.1', DEFAULT_RESOLVER_PORT, digest.keccak256)}`,
+      `✓ in the local resolver store: ${resolverUrl("127.0.0.1", DEFAULT_RESOLVER_PORT, digest.keccak256)}`,
     );
     return;
   }
@@ -112,10 +112,10 @@ async function main(argv) {
   const { workerHash, staged } = await stage(bundle, site);
   const rel = relative(WORKSPACE_DIR, site);
   console.log(`✓ staged ${workerHash} in ${rel} (${staged.length} bundle(s) on the site)`);
-  console.log('resolvers the specifier will pin:');
+  console.log("resolvers the specifier will pin:");
   for (const r of expandResolvers(config.resolvers, workerHash)) console.log(`  ${r}`);
-  const project = config.pages?.project ?? '<pages project>';
-  console.log('\nupload it with your Cloudflare credentials (from the repository root):');
+  const project = config.pages?.project ?? "<pages project>";
+  console.log("\nupload it with your Cloudflare credentials (from the repository root):");
   console.log(`  wrangler pages deploy ${rel} --project-name ${project} --branch main`);
   console.log(
     `then: nx run @zknet/anon-rpc-specifier:deploy:${tier.name}   (checks every resolver serves the bytes)`,

@@ -1,12 +1,12 @@
 #!/usr/bin/env node
 
-import { appendFile, chmod, mkdir, readFile, rename, stat, writeFile } from 'node:fs/promises';
-import { basename, dirname, join, resolve } from 'node:path';
-import { homedir } from 'node:os';
-import process from 'node:process';
+import { appendFile, chmod, mkdir, readFile, rename, stat, writeFile } from "node:fs/promises";
+import { basename, dirname, join, resolve } from "node:path";
+import { homedir } from "node:os";
+import process from "node:process";
 
-const DEFAULT_CLOUD_URL = 'https://cloud.nx.app';
-const NX_CLOUD_API_OPENAPI_PATH = 'nx-cloud/data/openapi.json';
+const DEFAULT_CLOUD_URL = "https://cloud.nx.app";
+const NX_CLOUD_API_OPENAPI_PATH = "nx-cloud/data/openapi.json";
 
 class CliError extends Error {
   constructor(message, nextSteps = []) {
@@ -19,13 +19,13 @@ class HttpError extends CliError {
   constructor({ url, status, detail, resource }) {
     const summary =
       {
-        401: 'Authentication failed.',
-        403: 'Access denied.',
-        404: 'The requested resource was not found.',
-        409: 'The requested resource is not ready.',
-        429: 'Nx Cloud rate limited this request.',
-        503: 'The Nx Cloud API is unavailable.',
-      }[status] ?? 'The Nx Cloud request failed.';
+        401: "Authentication failed.",
+        403: "Access denied.",
+        404: "The requested resource was not found.",
+        409: "The requested resource is not ready.",
+        429: "Nx Cloud rate limited this request.",
+        503: "The Nx Cloud API is unavailable.",
+      }[status] ?? "The Nx Cloud request failed.";
     super(`${summary} GET ${new URL(url).pathname} returned HTTP ${status}${detail}.`);
     this.status = status;
     this.resource = resource;
@@ -33,11 +33,11 @@ class HttpError extends CliError {
 }
 
 const AUTH_SETUP_STEPS = [
-  'Run `nx login --status` from the workspace root to check the Nx Cloud login.',
-  'If no personal access token exists, run `nx login` from the workspace root to create one.',
-  'Confirm that nx.json contains the expected nxCloudId and nxCloudUrl.',
-  'Set NX_CLOUD_PERSONAL_ACCESS_TOKEN in a secure environment only when you need an explicit override.',
-  'Run the request again from the workspace root.',
+  "Run `nx login --status` from the workspace root to check the Nx Cloud login.",
+  "If no personal access token exists, run `nx login` from the workspace root to create one.",
+  "Confirm that nx.json contains the expected nxCloudId and nxCloudUrl.",
+  "Set NX_CLOUD_PERSONAL_ACCESS_TOKEN in a secure environment only when you need an explicit override.",
+  "Run the request again from the workspace root.",
 ];
 
 const HELP = `Nx Cloud API client
@@ -95,44 +95,44 @@ function printHelp() {
 
 function parseArgs(argv) {
   const args = [...argv];
-  if (args.length === 0 || args[0] === '--help' || args[0] === '-h' || args[0] === 'help') {
-    return { command: 'help', positionals: [], options: {} };
+  if (args.length === 0 || args[0] === "--help" || args[0] === "-h" || args[0] === "help") {
+    return { command: "help", positionals: [], options: {} };
   }
 
   const command = args.shift();
   const optionNames = {
-    workspace: 'workspace',
-    'cloud-url': 'cloudUrl',
-    'cloud-id': 'cloudId',
-    'token-file': 'tokenFile',
-    config: 'config',
-    spec: 'spec',
-    path: 'path',
-    query: 'query',
-    pages: 'pages',
-    'page-size': 'pageSize',
-    format: 'format',
-    out: 'out',
-    'metadata-out': 'metadataOut',
+    workspace: "workspace",
+    "cloud-url": "cloudUrl",
+    "cloud-id": "cloudId",
+    "token-file": "tokenFile",
+    config: "config",
+    spec: "spec",
+    path: "path",
+    query: "query",
+    pages: "pages",
+    "page-size": "pageSize",
+    format: "format",
+    out: "out",
+    "metadata-out": "metadataOut",
   };
   const booleanOptions = {
-    json: 'json',
-    'dry-run': 'dryRun',
-    help: 'help',
+    json: "json",
+    "dry-run": "dryRun",
+    help: "help",
   };
-  const repeatableOptions = new Set(['path', 'query']);
+  const repeatableOptions = new Set(["path", "query"]);
   const options = { path: [], query: [] };
   const positionals = [];
   let endOfOptions = false;
 
   for (let index = 0; index < args.length; index += 1) {
     const arg = args[index];
-    if (!endOfOptions && arg === '--') {
+    if (!endOfOptions && arg === "--") {
       endOfOptions = true;
       continue;
     }
-    if (!endOfOptions && arg.startsWith('--')) {
-      const equalsIndex = arg.indexOf('=');
+    if (!endOfOptions && arg.startsWith("--")) {
+      const equalsIndex = arg.indexOf("=");
       const rawName = arg.slice(2, equalsIndex === -1 ? undefined : equalsIndex);
       const inlineValue = equalsIndex === -1 ? undefined : arg.slice(equalsIndex + 1);
       if (rawName in booleanOptions) {
@@ -146,7 +146,7 @@ function parseArgs(argv) {
         throw new CliError(`Unknown option --${rawName}. Run with --help for usage.`);
       }
       const value = inlineValue ?? args[++index];
-      if (value === undefined || value === '') {
+      if (value === undefined || value === "") {
         throw new CliError(`--${rawName} requires a value.`);
       }
       const optionKey = optionNames[rawName];
@@ -162,21 +162,21 @@ function parseArgs(argv) {
     positionals.push(arg);
   }
 
-  if (options.help) return { command: 'help', positionals, options };
-  if (!['catalog', 'describe', 'request'].includes(command)) {
+  if (options.help) return { command: "help", positionals, options };
+  if (!["catalog", "describe", "request"].includes(command)) {
     throw new CliError(`Unknown command ${JSON.stringify(command)}. Run with --help for usage.`);
   }
-  if (command === 'catalog' && positionals.length !== 0) {
-    throw new CliError('catalog does not accept an endpoint selector.');
+  if (command === "catalog" && positionals.length !== 0) {
+    throw new CliError("catalog does not accept an endpoint selector.");
   }
-  if ((command === 'describe' || command === 'request') && positionals.length !== 1) {
+  if ((command === "describe" || command === "request") && positionals.length !== 1) {
     throw new CliError(`${command} requires exactly one endpoint selector.`);
   }
-  if (command !== 'request') {
-    for (const key of ['path', 'query']) {
+  if (command !== "request") {
+    for (const key of ["path", "query"]) {
       if (options[key].length > 0) throw new CliError(`--${key} is valid only with request.`);
     }
-    for (const key of ['pages', 'pageSize', 'format', 'out', 'metadataOut', 'dryRun']) {
+    for (const key of ["pages", "pageSize", "format", "out", "metadataOut", "dryRun"]) {
       if (options[key] !== undefined && options[key] !== false) {
         throw new CliError(
           `--${key.replace(
@@ -187,8 +187,8 @@ function parseArgs(argv) {
       }
     }
   }
-  if (command === 'request' && options.json) {
-    throw new CliError('Use --format json with request.');
+  if (command === "request" && options.json) {
+    throw new CliError("Use --format json with request.");
   }
 
   return { command, positionals, options };
@@ -206,7 +206,7 @@ function parseNaturalNumber(value, optionName) {
 }
 
 function parseKeyValue(value, optionName) {
-  const index = value.indexOf('=');
+  const index = value.indexOf("=");
   if (index <= 0) {
     throw new CliError(`${optionName} must use name=value syntax.`);
   }
@@ -232,7 +232,7 @@ async function isDirectory(path) {
 async function findNxJson(workspaceOption) {
   let start = resolve(workspaceOption ?? process.cwd());
   if (await isFile(start)) {
-    if (basename(start) !== 'nx.json') {
+    if (basename(start) !== "nx.json") {
       throw new CliError(`--workspace must be a directory or an nx.json file: ${start}`);
     }
     return start;
@@ -243,7 +243,7 @@ async function findNxJson(workspaceOption) {
   }
 
   while (true) {
-    const candidate = join(start, 'nx.json');
+    const candidate = join(start, "nx.json");
     if (await isFile(candidate)) return candidate;
     const parent = dirname(start);
     if (parent === start) return null;
@@ -253,9 +253,9 @@ async function findNxJson(workspaceOption) {
 
 async function readNxConfig(nxJsonPath) {
   try {
-    const parsed = JSON.parse(await readFile(nxJsonPath, 'utf8'));
-    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
-      throw new Error('The file does not contain a JSON object.');
+    const parsed = JSON.parse(await readFile(nxJsonPath, "utf8"));
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      throw new Error("The file does not contain a JSON object.");
     }
     return parsed;
   } catch (error) {
@@ -270,18 +270,18 @@ function normalizeCloudUrl(value) {
   } catch {
     throw new CliError(`Invalid Nx Cloud URL: ${value}`);
   }
-  if (!['http:', 'https:'].includes(url.protocol)) {
+  if (!["http:", "https:"].includes(url.protocol)) {
     throw new CliError(`Nx Cloud URL must use HTTP or HTTPS: ${value}`);
   }
-  url.hash = '';
-  url.search = '';
-  if (!url.pathname.endsWith('/')) url.pathname += '/';
+  url.hash = "";
+  url.search = "";
+  if (!url.pathname.endsWith("/")) url.pathname += "/";
   return url.toString();
 }
 
 function cloudUrlIdentity(value) {
   const url = new URL(normalizeCloudUrl(value));
-  const pathname = url.pathname.replace(/\/+$/, '');
+  const pathname = url.pathname.replace(/\/+$/, "");
   return `${url.protocol}//${url.host}${pathname}`;
 }
 
@@ -297,9 +297,9 @@ async function resolveCloudContext(options, { requireCloudId }) {
   const nxJsonPath = needsNxConfig ? await findNxJson(options.workspace) : null;
   if (options.workspace && !nxJsonPath) {
     throw new CliError(`Could not find nx.json from ${resolve(options.workspace)}.`, [
-      'Pass the Nx workspace root to --workspace.',
-      'Or run this command from a directory below the workspace root.',
-      'Use --cloud-url and --cloud-id only when you intentionally query a workspace without local configuration.',
+      "Pass the Nx workspace root to --workspace.",
+      "Or run this command from a directory below the workspace root.",
+      "Use --cloud-url and --cloud-id only when you intentionally query a workspace without local configuration.",
     ]);
   }
   const nxConfig = nxJsonPath ? await readNxConfig(nxJsonPath) : null;
@@ -307,11 +307,11 @@ async function resolveCloudContext(options, { requireCloudId }) {
     options.cloudUrl ?? process.env.NX_CLOUD_URL ?? nxConfig?.nxCloudUrl ?? DEFAULT_CLOUD_URL,
   );
   const cloudId = options.cloudId ?? process.env.NX_CLOUD_ID ?? nxConfig?.nxCloudId;
-  if (requireCloudId && (typeof cloudId !== 'string' || cloudId.length === 0)) {
-    throw new CliError('No Nx Cloud ID is available for this request.', [
-      'Run this command from the Nx workspace root, or pass --workspace <directory>.',
-      'Add nxCloudId to nx.json, or set NX_CLOUD_ID for this command environment.',
-      'Confirm that the ID belongs to the Nx Cloud workspace you want to inspect.',
+  if (requireCloudId && (typeof cloudId !== "string" || cloudId.length === 0)) {
+    throw new CliError("No Nx Cloud ID is available for this request.", [
+      "Run this command from the Nx workspace root, or pass --workspace <directory>.",
+      "Add nxCloudId to nx.json, or set NX_CLOUD_ID for this command environment.",
+      "Confirm that the ID belongs to the Nx Cloud workspace you want to inspect.",
     ]);
   }
   return { cloudUrl, cloudId, nxJsonPath };
@@ -322,7 +322,7 @@ function parseIni(contents) {
   let current = null;
   for (const rawLine of contents.split(/\r?\n/)) {
     const line = rawLine.trim();
-    if (!line || line.startsWith(';') || line.startsWith('#')) continue;
+    if (!line || line.startsWith(";") || line.startsWith("#")) continue;
     const sectionMatch = /^\[(.*)]$/.exec(line);
     if (sectionMatch) {
       current = { name: sectionMatch[1].trim(), values: new Map() };
@@ -344,7 +344,7 @@ function parseIni(contents) {
 }
 
 function unescapeIniSection(value) {
-  return value.replace(/\\(.)/g, '$1');
+  return value.replace(/\\(.)/g, "$1");
 }
 
 async function readWorkspaceAccessTokenFile(pathValue) {
@@ -353,12 +353,12 @@ async function readWorkspaceAccessTokenFile(pathValue) {
   let token;
   try {
     fileStat = await stat(path);
-    token = (await readFile(path, 'utf8')).trim();
+    token = (await readFile(path, "utf8")).trim();
   } catch (error) {
     throw new CliError(`Cannot read workspace access token file ${path}: ${error.message}`);
   }
   if (!fileStat.isFile()) throw new CliError(`Workspace access token path is not a file: ${path}`);
-  if (process.platform !== 'win32' && (fileStat.mode & 0o077) !== 0) {
+  if (process.platform !== "win32" && (fileStat.mode & 0o077) !== 0) {
     throw new CliError(`Workspace access token file permissions are too broad: ${path}`, [
       `Run chmod 600 ${path} before the request.`,
     ]);
@@ -376,17 +376,17 @@ async function resolveWorkspaceAccessToken(options) {
   const authToken = process.env.NX_CLOUD_AUTH_TOKEN;
   if (accessToken && authToken && accessToken !== authToken) {
     throw new CliError(
-      'NX_CLOUD_ACCESS_TOKEN and NX_CLOUD_AUTH_TOKEN contain different workspace access tokens.',
+      "NX_CLOUD_ACCESS_TOKEN and NX_CLOUD_AUTH_TOKEN contain different workspace access tokens.",
       [
-        'Keep only the workspace access token for the intended workspace in this command environment.',
-        'Do not print either token while you correct the environment.',
+        "Keep only the workspace access token for the intended workspace in this command environment.",
+        "Do not print either token while you correct the environment.",
       ],
     );
   }
   const environmentToken = accessToken ?? authToken ?? null;
   if (options.tokenFile && environmentToken) {
     throw new CliError(
-      'Use either --token-file or a workspace access token environment variable, not both.',
+      "Use either --token-file or a workspace access token environment variable, not both.",
     );
   }
   return options.tokenFile ? readWorkspaceAccessTokenFile(options.tokenFile) : environmentToken;
@@ -397,11 +397,11 @@ async function resolvePersonalAccessToken(options, cloudUrl) {
     return process.env.NX_CLOUD_PERSONAL_ACCESS_TOKEN;
   }
   const configPath = resolve(
-    options.config ?? join(homedir(), '.config', 'nxcloud', 'nxcloud.ini'),
+    options.config ?? join(homedir(), ".config", "nxcloud", "nxcloud.ini"),
   );
   let contents;
   try {
-    contents = await readFile(configPath, 'utf8');
+    contents = await readFile(configPath, "utf8");
   } catch {
     throw new CliError(
       `No personal access token is available. The client did not find NX_CLOUD_PERSONAL_ACCESS_TOKEN or ${configPath}.`,
@@ -410,7 +410,7 @@ async function resolvePersonalAccessToken(options, cloudUrl) {
   }
   const expectedUrl = cloudUrlIdentity(cloudUrl);
   const matches = parseIni(contents).filter((section) => {
-    const token = section.values.get('personalaccesstoken');
+    const token = section.values.get("personalaccesstoken");
     if (!token) return false;
     try {
       return cloudUrlIdentity(unescapeIniSection(section.name)) === expectedUrl;
@@ -422,10 +422,10 @@ async function resolvePersonalAccessToken(options, cloudUrl) {
     throw new CliError(
       `No personal access token in ${configPath} matches the configured Nx Cloud URL (${expectedUrl}).`,
       [
-        'Run `nx login --status` from the workspace root to check the Nx Cloud login.',
-        'Run `nx login` from the workspace root to create a PAT for this workspace.',
-        'Confirm nxCloudUrl or NX_CLOUD_URL for this workspace.',
-        'Do not pass a token on a command line.',
+        "Run `nx login --status` from the workspace root to check the Nx Cloud login.",
+        "Run `nx login` from the workspace root to create a PAT for this workspace.",
+        "Confirm nxCloudUrl or NX_CLOUD_URL for this workspace.",
+        "Do not pass a token on a command line.",
       ],
     );
   }
@@ -433,27 +433,27 @@ async function resolvePersonalAccessToken(options, cloudUrl) {
     throw new CliError(
       `Multiple personal access token entries in ${configPath} match ${expectedUrl}.`,
       [
-        'Keep one token entry for this Nx Cloud URL.',
-        'Or set NX_CLOUD_PERSONAL_ACCESS_TOKEN securely for this command environment.',
+        "Keep one token entry for this Nx Cloud URL.",
+        "Or set NX_CLOUD_PERSONAL_ACCESS_TOKEN securely for this command environment.",
       ],
     );
   }
-  return matches[0].values.get('personalaccesstoken');
+  return matches[0].values.get("personalaccesstoken");
 }
 
 async function resolveAuthentication(options, context, workspaceAccessToken) {
   if (workspaceAccessToken) {
     return {
-      type: 'workspaceAccessToken',
+      type: "workspaceAccessToken",
       headers: { Authorization: `Bearer ${workspaceAccessToken}` },
     };
   }
   const personalAccessToken = await resolvePersonalAccessToken(options, context.cloudUrl);
   return {
-    type: 'personalAccessToken',
+    type: "personalAccessToken",
     headers: {
-      'Nx-Cloud-Id': context.cloudId,
-      'Nx-Cloud-Personal-Access-Token': personalAccessToken,
+      "Nx-Cloud-Id": context.cloudId,
+      "Nx-Cloud-Personal-Access-Token": personalAccessToken,
     },
   };
 }
@@ -469,12 +469,12 @@ function parseJson(text, source) {
 function errorDetailFromBody(text) {
   try {
     const body = JSON.parse(text);
-    const code = typeof body.code === 'string' ? body.code : null;
-    const message = typeof body.message === 'string' ? body.message : null;
-    const detail = [code, message].filter(Boolean).join(': ');
-    return detail ? ` (${detail})` : '';
+    const code = typeof body.code === "string" ? body.code : null;
+    const message = typeof body.message === "string" ? body.message : null;
+    const detail = [code, message].filter(Boolean).join(": ");
+    return detail ? ` (${detail})` : "";
   } catch {
-    return '';
+    return "";
   }
 }
 
@@ -482,8 +482,8 @@ async function fetchJson(url, headers = {}) {
   let response;
   try {
     response = await fetch(url, {
-      headers: { accept: 'application/json', ...headers },
-      redirect: 'follow',
+      headers: { accept: "application/json", ...headers },
+      redirect: "follow",
     });
   } catch (error) {
     throw new CliError(`Network request failed for ${new URL(url).pathname}: ${error.message}`);
@@ -494,7 +494,7 @@ async function fetchJson(url, headers = {}) {
       url,
       status: response.status,
       detail: errorDetailFromBody(text),
-      resource: 'OpenAPI document',
+      resource: "OpenAPI document",
     });
   }
   return parseJson(text, new URL(url).pathname);
@@ -505,7 +505,7 @@ async function loadOpenApi(specPath, cloudUrl) {
   if (specPath) {
     const path = resolve(specPath);
     try {
-      spec = parseJson(await readFile(path, 'utf8'), path);
+      spec = parseJson(await readFile(path, "utf8"), path);
     } catch (error) {
       if (error instanceof CliError) throw error;
       throw new CliError(`Cannot read OpenAPI file ${path}: ${error.message}`);
@@ -513,8 +513,8 @@ async function loadOpenApi(specPath, cloudUrl) {
   } else {
     spec = await fetchJson(openApiUrl(cloudUrl));
   }
-  if (!spec || typeof spec !== 'object' || !spec.paths || typeof spec.paths !== 'object') {
-    throw new CliError('The OpenAPI document has no paths object.');
+  if (!spec || typeof spec !== "object" || !spec.paths || typeof spec.paths !== "object") {
+    throw new CliError("The OpenAPI document has no paths object.");
   }
   return spec;
 }
@@ -524,16 +524,16 @@ function resolveReference(spec, value) {
   const seen = new Set();
   while (
     current &&
-    typeof current === 'object' &&
-    typeof current.$ref === 'string' &&
-    current.$ref.startsWith('#/')
+    typeof current === "object" &&
+    typeof current.$ref === "string" &&
+    current.$ref.startsWith("#/")
   ) {
     if (seen.has(current.$ref)) break;
     seen.add(current.$ref);
     const parts = current.$ref
       .slice(2)
-      .split('/')
-      .map((part) => part.replace(/~1/g, '/').replace(/~0/g, '~'));
+      .split("/")
+      .map((part) => part.replace(/~1/g, "/").replace(/~0/g, "~"));
     let resolved = spec;
     for (const part of parts) resolved = resolved?.[part];
     if (!resolved) break;
@@ -546,13 +546,13 @@ function listOperations(spec) {
   return Object.entries(spec.paths)
     .flatMap(([path, pathItem]) => {
       const item = resolveReference(spec, pathItem);
-      if (!item?.get || !path.startsWith('/nx-cloud/data/')) return [];
+      if (!item?.get || !path.startsWith("/nx-cloud/data/")) return [];
       return [
         {
           path,
           item,
           operation: resolveReference(spec, item.get),
-          method: 'GET',
+          method: "GET",
         },
       ];
     })
@@ -575,24 +575,24 @@ function parametersFor(spec, entry) {
 function schemaSummary(spec, schema, depth = 0) {
   const source = schema ?? {};
   const resolved = resolveReference(spec, source);
-  if (!resolved || typeof resolved !== 'object') return { type: 'unknown' };
+  if (!resolved || typeof resolved !== "object") return { type: "unknown" };
   const type = Array.isArray(resolved.type)
-    ? resolved.type.join('|')
-    : (resolved.type ?? 'unknown');
+    ? resolved.type.join("|")
+    : (resolved.type ?? "unknown");
   const itemSchema = resolved.items ? resolveReference(spec, resolved.items) : null;
   const enumValues = resolved.enum ?? itemSchema?.enum;
   const result = { type };
-  if (typeof source.$ref === 'string') result.schema = source.$ref.split('/').at(-1);
+  if (typeof source.$ref === "string") result.schema = source.$ref.split("/").at(-1);
   if (resolved.format) result.format = resolved.format;
   if (resolved.title) result.title = resolved.title;
   if (enumValues) result.enum = enumValues;
   for (const constraint of [
-    'minimum',
-    'maximum',
-    'minItems',
-    'maxItems',
-    'uniqueItems',
-    'pattern',
+    "minimum",
+    "maximum",
+    "minItems",
+    "maxItems",
+    "uniqueItems",
+    "pattern",
   ]) {
     if (resolved[constraint] !== undefined) result[constraint] = resolved[constraint];
   }
@@ -608,7 +608,7 @@ function schemaSummary(spec, schema, depth = 0) {
     }
   }
   if (itemSchema) result.items = schemaSummary(spec, resolved.items, depth + 1);
-  for (const keyword of ['oneOf', 'anyOf', 'allOf']) {
+  for (const keyword of ["oneOf", "anyOf", "allOf"]) {
     if (Array.isArray(resolved[keyword]) && depth < 2) {
       result[keyword] = resolved[keyword].map((entry) => schemaSummary(spec, entry, depth + 1));
     }
@@ -620,7 +620,7 @@ function responseContent(spec, responseValue) {
   const response = resolveReference(spec, responseValue);
   const content = response?.content ?? {};
   const mediaType =
-    Object.keys(content).find((key) => key.toLowerCase().includes('json')) ??
+    Object.keys(content).find((key) => key.toLowerCase().includes("json")) ??
     Object.keys(content)[0] ??
     null;
   return {
@@ -636,7 +636,7 @@ function documentedResponses(spec, entry) {
       const content = responseContent(spec, value);
       return {
         status,
-        description: content.response?.description ?? '',
+        description: content.response?.description ?? "",
         contentType: content.mediaType,
         schema: schemaSummary(spec, content.schema),
         rawSchema: content.schema,
@@ -656,7 +656,7 @@ function successfulResponse(responses) {
 function collectionItemSummary(spec, schema) {
   const responseSchema = resolveReference(spec, schema ?? {});
   const itemsProperty = resolveReference(spec, responseSchema?.properties?.items ?? {});
-  if (!schemaIncludesType(itemsProperty, 'array')) return null;
+  if (!schemaIncludesType(itemsProperty, "array")) return null;
   return schemaSummary(spec, itemsProperty.items);
 }
 
@@ -667,11 +667,11 @@ function describeSecurity(spec, entry) {
       const scheme = resolveReference(spec, spec.components?.securitySchemes?.[name] ?? {});
       return {
         name,
-        type: scheme?.type ?? 'unknown',
+        type: scheme?.type ?? "unknown",
         scheme: scheme?.scheme ?? null,
         in: scheme?.in ?? null,
         header: scheme?.name ?? null,
-        description: scheme?.description ?? '',
+        description: scheme?.description ?? "",
       };
     }),
   );
@@ -687,20 +687,20 @@ function describeOperation(spec, entry) {
         description: success.description,
         contentType: success.contentType,
       }
-    : { type: 'unknown', status: null, description: '', contentType: null };
+    : { type: "unknown", status: null, description: "", contentType: null };
   const item = success ? collectionItemSummary(spec, success.rawSchema) : null;
   if (item) response.item = item;
   return {
     method: entry.method,
     path: entry.path,
-    summary: entry.operation.summary ?? '',
-    description: entry.operation.description ?? '',
+    summary: entry.operation.summary ?? "",
+    description: entry.operation.description ?? "",
     security: describeSecurity(spec, entry),
     parameters: parametersFor(spec, entry).map((parameter) => ({
       in: parameter.in,
       name: parameter.name,
       required: Boolean(parameter.required),
-      description: parameter.description ?? '',
+      description: parameter.description ?? "",
       style: parameter.style ?? null,
       explode: parameter.explode ?? null,
       schema: schemaSummary(spec, parameter.schema),
@@ -711,21 +711,21 @@ function describeOperation(spec, entry) {
 }
 
 function escapeRegExp(value) {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 function matchTemplate(template, actualPath) {
   const names = [];
-  let pattern = '^';
+  let pattern = "^";
   let cursor = 0;
   for (const match of template.matchAll(/\{([^}]+)}/g)) {
     pattern += escapeRegExp(template.slice(cursor, match.index));
-    pattern += '([^/]+)';
+    pattern += "([^/]+)";
     names.push(match[1]);
     cursor = match.index + match[0].length;
   }
   pattern += escapeRegExp(template.slice(cursor));
-  pattern += '$';
+  pattern += "$";
   const found = new RegExp(pattern).exec(actualPath);
   if (!found) return null;
   const values = new Map();
@@ -744,9 +744,9 @@ function resolveSelector(spec, cloudUrl, selector) {
   let pathSelector = selector;
   let linkQueryPairs = [];
   let linkPathValues = new Map();
-  const isPathTemplate = selector.includes('{') && selector.includes('}');
+  const isPathTemplate = selector.includes("{") && selector.includes("}");
   const isAbsoluteLink = /^https?:\/\//i.test(selector);
-  const isLink = isAbsoluteLink || (selector.startsWith('/') && !isPathTemplate);
+  const isLink = isAbsoluteLink || (selector.startsWith("/") && !isPathTemplate);
 
   if (isLink) {
     let link;
@@ -761,23 +761,23 @@ function resolveSelector(spec, cloudUrl, selector) {
     if (cipeUiMatch) {
       const cipeOperation = operations.find((entry) => /\/cipes\/\{[^}]+}$/.test(entry.path));
       if (!cipeOperation)
-        throw new CliError('The supplied CIPE URL has no matching Nx Cloud API operation.');
+        throw new CliError("The supplied CIPE URL has no matching Nx Cloud API operation.");
       pathSelector = cipeOperation.path.replace(
         /\{[^}]+}/,
         encodeURIComponent(decodeURIComponent(cipeUiMatch[1])),
       );
       linkQueryPairs = [];
     }
-  } else if (selector.includes('?')) {
-    throw new CliError('Use a full relative API link when a selector contains query parameters.');
+  } else if (selector.includes("?")) {
+    throw new CliError("Use a full relative API link when a selector contains query parameters.");
   }
 
-  const normalizedSelector = pathSelector.replace(/^\//, '');
+  const normalizedSelector = pathSelector.replace(/^\//, "");
   let matches = operations
     .filter(
       (entry) =>
         entry.path === pathSelector ||
-        entry.path.replace(/^\//, '') === normalizedSelector ||
+        entry.path.replace(/^\//, "") === normalizedSelector ||
         entry.path.endsWith(`/${normalizedSelector}`),
     )
     .map((entry) => ({ entry, pathValues: new Map() }));
@@ -797,7 +797,7 @@ function resolveSelector(spec, cloudUrl, selector) {
     );
   }
   if (matches.length > 1) {
-    const paths = matches.map((candidate) => candidate.entry.path).join(', ');
+    const paths = matches.map((candidate) => candidate.entry.path).join(", ");
     throw new CliError(`Endpoint selector ${JSON.stringify(selector)} is ambiguous: ${paths}`);
   }
 
@@ -818,18 +818,18 @@ function schemaIncludesType(schema, expected) {
 
 function valueSchema(spec, parameter) {
   const schema = resolveReference(spec, parameter.schema ?? {});
-  return schemaIncludesType(schema, 'array') ? resolveReference(spec, schema.items ?? {}) : schema;
+  return schemaIncludesType(schema, "array") ? resolveReference(spec, schema.items ?? {}) : schema;
 }
 
 function validateValue(spec, parameter, value) {
   const schema = valueSchema(spec, parameter) ?? {};
-  if (schemaIncludesType(schema, 'boolean') && !/^(true|false)$/i.test(value)) {
+  if (schemaIncludesType(schema, "boolean") && !/^(true|false)$/i.test(value)) {
     throw new CliError(`Query parameter ${parameter.name} must be true or false.`);
   }
-  if (schemaIncludesType(schema, 'integer') && !/^-?\d+$/.test(value)) {
+  if (schemaIncludesType(schema, "integer") && !/^-?\d+$/.test(value)) {
     throw new CliError(`Query parameter ${parameter.name} must be an integer.`);
   }
-  if (schemaIncludesType(schema, 'number') && !Number.isFinite(Number(value))) {
+  if (schemaIncludesType(schema, "number") && !Number.isFinite(Number(value))) {
     throw new CliError(`Query parameter ${parameter.name} must be a number.`);
   }
   if (schema.minimum !== undefined && Number(value) < schema.minimum) {
@@ -841,7 +841,7 @@ function validateValue(spec, parameter, value) {
   if (Array.isArray(schema.enum)) {
     const valid = schema.enum.map(String);
     if (!valid.some((entry) => entry.toLowerCase() === value.toLowerCase())) {
-      throw new CliError(`Query parameter ${parameter.name} must be one of: ${valid.join(', ')}.`);
+      throw new CliError(`Query parameter ${parameter.name} must be one of: ${valid.join(", ")}.`);
     }
   }
 }
@@ -864,16 +864,16 @@ function buildRequestPlan(spec, selection, options) {
   const parameters = parametersFor(spec, selection.entry);
   const pathParameters = new Map(
     parameters
-      .filter((parameter) => parameter.in === 'path')
+      .filter((parameter) => parameter.in === "path")
       .map((parameter) => [parameter.name, parameter]),
   );
   const queryParameters = new Map(
     parameters
-      .filter((parameter) => parameter.in === 'query')
+      .filter((parameter) => parameter.in === "query")
       .map((parameter) => [parameter.name, parameter]),
   );
-  const userPathPairs = options.path.map((value) => parseKeyValue(value, '--path'));
-  const userQueryPairs = options.query.map((value) => parseKeyValue(value, '--query'));
+  const userPathPairs = options.path.map((value) => parseKeyValue(value, "--path"));
+  const userQueryPairs = options.query.map((value) => parseKeyValue(value, "--query"));
   const pathValues = new Map(selection.linkPathValues);
 
   for (const [name, value] of userPathPairs) {
@@ -893,16 +893,16 @@ function buildRequestPlan(spec, selection, options) {
 
   const queryPairs = [...selection.linkQueryPairs, ...userQueryPairs];
   if (options.pageSize !== undefined) {
-    const pageSize = parseNaturalNumber(options.pageSize, '--page-size');
-    const limitParameter = queryParameters.get('limit');
+    const pageSize = parseNaturalNumber(options.pageSize, "--page-size");
+    const limitParameter = queryParameters.get("limit");
     if (!limitParameter) {
       throw new CliError(`${selection.entry.path} has no documented limit parameter.`);
     }
-    if (queryPairs.some(([name]) => name === 'limit')) {
-      throw new CliError('Use either --page-size or --query limit=<count>, not both.');
+    if (queryPairs.some(([name]) => name === "limit")) {
+      throw new CliError("Use either --page-size or --query limit=<count>, not both.");
     }
     validateValue(spec, limitParameter, String(pageSize));
-    queryPairs.push(['limit', String(pageSize)]);
+    queryPairs.push(["limit", String(pageSize)]);
   }
 
   const counts = new Map();
@@ -916,7 +916,7 @@ function buildRequestPlan(spec, selection, options) {
     counts.set(name, (counts.get(name) ?? 0) + 1);
     if (
       (counts.get(name) ?? 0) > 1 &&
-      !schemaIncludesType(resolveReference(spec, parameter.schema ?? {}), 'array')
+      !schemaIncludesType(resolveReference(spec, parameter.schema ?? {}), "array")
     ) {
       throw new CliError(`Query parameter ${name} cannot be repeated.`);
     }
@@ -926,16 +926,16 @@ function buildRequestPlan(spec, selection, options) {
   const expandedPath = selection.entry.path.replace(/\{([^}]+)}/g, (_match, name) =>
     encodeURIComponent(pathValues.get(name)),
   );
-  const pages = options.pages === undefined ? 1 : parseNaturalNumber(options.pages, '--pages');
-  const format = options.format ?? 'json';
-  if (!['json', 'ndjson'].includes(format)) {
-    throw new CliError('--format must be json or ndjson.');
+  const pages = options.pages === undefined ? 1 : parseNaturalNumber(options.pages, "--pages");
+  const format = options.format ?? "json";
+  if (!["json", "ndjson"].includes(format)) {
+    throw new CliError("--format must be json or ndjson.");
   }
 
   const outputPath = options.out ? resolve(options.out) : null;
   const metadataOutputPath = options.metadataOut ? resolve(options.metadataOut) : null;
   if (outputPath && outputPath === metadataOutputPath) {
-    throw new CliError('--out and --metadata-out must use different files.');
+    throw new CliError("--out and --metadata-out must use different files.");
   }
 
   return {
@@ -945,8 +945,8 @@ function buildRequestPlan(spec, selection, options) {
     format,
     outputPath,
     metadataOutputPath,
-    cursorParameter: queryParameters.get('cursor') ?? null,
-    sortParameter: queryParameters.get('sort') ?? null,
+    cursorParameter: queryParameters.get("cursor") ?? null,
+    sortParameter: queryParameters.get("sort") ?? null,
   };
 }
 
@@ -960,8 +960,8 @@ async function fetchApiResponse(url, headers) {
   let response;
   try {
     response = await fetch(url, {
-      headers: { accept: 'application/json, */*;q=0.8', ...headers },
-      redirect: 'follow',
+      headers: { accept: "application/json, */*;q=0.8", ...headers },
+      redirect: "follow",
     });
   } catch (error) {
     throw new CliError(`Network request failed for ${new URL(url).pathname}: ${error.message}`);
@@ -971,13 +971,13 @@ async function fetchApiResponse(url, headers) {
     throw new HttpError({
       url,
       status: response.status,
-      detail: errorDetailFromBody(body.toString('utf8')),
-      resource: 'Nx Cloud API request',
+      detail: errorDetailFromBody(body.toString("utf8")),
+      resource: "Nx Cloud API request",
     });
   }
-  const contentType = response.headers.get('content-type') ?? 'application/octet-stream';
-  const text = body.toString('utf8');
-  const looksLikeJson = contentType.toLowerCase().includes('json') || /^[\s\n\r]*[\[{]/.test(text);
+  const contentType = response.headers.get("content-type") ?? "application/octet-stream";
+  const text = body.toString("utf8");
+  const looksLikeJson = contentType.toLowerCase().includes("json") || /^[\s\n\r]*[\[{]/.test(text);
   if (!looksLikeJson) return { body, contentType, json: null };
   return { body, contentType, json: parseJson(text, new URL(url).pathname) };
 }
@@ -989,8 +989,8 @@ async function writePrivateFile(outputPath, contents) {
 }
 
 async function emitNdjsonPage(rows, outputPath, isFirstPage) {
-  const text = rows.map((row) => JSON.stringify(row)).join('\n');
-  const contents = text ? `${text}\n` : '';
+  const text = rows.map((row) => JSON.stringify(row)).join("\n");
+  const contents = text ? `${text}\n` : "";
   if (outputPath) {
     if (isFirstPage) await writePrivateFile(outputPath, contents);
     else if (contents) await appendFile(outputPath, contents);
@@ -1001,10 +1001,10 @@ async function emitNdjsonPage(rows, outputPath, isFirstPage) {
 
 async function emitJson(value, format, outputPath) {
   let text;
-  if (format === 'ndjson') {
+  if (format === "ndjson") {
     const rows = Array.isArray(value) ? value : [value];
-    text = rows.map((row) => JSON.stringify(row)).join('\n');
-    if (text) text += '\n';
+    text = rows.map((row) => JSON.stringify(row)).join("\n");
+    if (text) text += "\n";
   } else {
     text = `${JSON.stringify(value, null, 2)}\n`;
   }
@@ -1023,18 +1023,18 @@ async function runRequest(context, spec, selection, options) {
   if (options.dryRun) {
     await emitJson(
       {
-        method: 'GET',
+        method: "GET",
         endpoint: plan.path,
         url: firstUrl,
         pages: plan.pages,
         authenticationChecked: false,
         serverValidationChecked: false,
       },
-      'json',
+      "json",
       null,
     );
     process.stderr.write(
-      'Dry run passed formal OpenAPI validation. It did not call the endpoint or verify credentials and workspace access.\n',
+      "Dry run passed formal OpenAPI validation. It did not call the endpoint or verify credentials and workspace access.\n",
     );
     return;
   }
@@ -1054,14 +1054,14 @@ async function runRequest(context, spec, selection, options) {
   let fetchedItemCount = 0;
   const items = [];
   const streamingOutputPath =
-    plan.format === 'ndjson' && plan.outputPath ? `${plan.outputPath}.partial` : null;
+    plan.format === "ndjson" && plan.outputPath ? `${plan.outputPath}.partial` : null;
 
   for (let page = 1; page <= plan.pages; page += 1) {
     const url = requestUrl(requestCloudUrl, plan.path, currentQueryPairs);
     const response = await fetchApiResponse(url, headers);
     if (response.json === null) {
       if (page !== 1 || plan.pages !== 1) {
-        throw new CliError('Binary asset requests support exactly one page.');
+        throw new CliError("Binary asset requests support exactly one page.");
       }
       if (!plan.outputPath) {
         throw new CliError(
@@ -1076,10 +1076,10 @@ async function runRequest(context, spec, selection, options) {
     pagesFetched += 1;
     if (Array.isArray(response.json.items)) {
       if (isCollection === false)
-        throw new CliError('The endpoint changed response shape during pagination.');
+        throw new CliError("The endpoint changed response shape during pagination.");
       isCollection = true;
       fetchedItemCount += response.json.items.length;
-      if (plan.format === 'ndjson') {
+      if (plan.format === "ndjson") {
         await emitNdjsonPage(response.json.items, streamingOutputPath, page === 1);
       } else {
         items.push(...response.json.items);
@@ -1088,17 +1088,17 @@ async function runRequest(context, spec, selection, options) {
       process.stderr.write(`Fetched page ${page}: ${response.json.items.length} items\n`);
     } else {
       if (page !== 1)
-        throw new CliError('The endpoint does not return a paginated items collection.');
+        throw new CliError("The endpoint does not return a paginated items collection.");
       isCollection = false;
       objectResponse = response.json;
       nextCursor = null;
-      process.stderr.write('Fetched one response object\n');
+      process.stderr.write("Fetched one response object\n");
     }
 
     if (!nextCursor || page === plan.pages) break;
     if (!plan.cursorParameter) {
       throw new CliError(
-        'The response returned nextCursor, but the live schema has no cursor query parameter.',
+        "The response returned nextCursor, but the live schema has no cursor query parameter.",
       );
     }
     currentQueryPairs = removeQueryKey(currentQueryPairs, plan.cursorParameter.name);
@@ -1126,26 +1126,26 @@ async function runRequest(context, spec, selection, options) {
       pageLimitReached,
       nextCursor,
     };
-    if (plan.format === 'ndjson' && streamingOutputPath) {
+    if (plan.format === "ndjson" && streamingOutputPath) {
       await rename(streamingOutputPath, plan.outputPath);
       process.stderr.write(`Wrote ${plan.outputPath}\n`);
     }
     if (plan.metadataOutputPath) {
-      await emitJson(metadata, 'json', plan.metadataOutputPath);
+      await emitJson(metadata, "json", plan.metadataOutputPath);
     }
-    if (plan.format === 'ndjson') {
+    if (plan.format === "ndjson") {
       if (!plan.metadataOutputPath) {
         process.stderr.write(
-          'NDJSON output omits pagination metadata. Use --metadata-out <file> to save the nextCursor and completion state.\n',
+          "NDJSON output omits pagination metadata. Use --metadata-out <file> to save the nextCursor and completion state.\n",
         );
       }
     } else {
-      await emitJson({ ...metadata, items }, 'json', plan.outputPath);
+      await emitJson({ ...metadata, items }, "json", plan.outputPath);
     }
   } else {
     const result = { source, response: objectResponse };
     await emitJson(
-      plan.format === 'ndjson' ? objectResponse : result,
+      plan.format === "ndjson" ? objectResponse : result,
       plan.format,
       plan.outputPath,
     );
@@ -1156,7 +1156,7 @@ function printCatalog(catalog) {
   process.stdout.write(`Nx Cloud: ${catalog.cloudUrl}\n`);
   process.stdout.write(`${catalog.title} / ${catalog.version}\n`);
   for (const operation of catalog.operations) {
-    const summary = operation.summary ? ` — ${operation.summary}` : '';
+    const summary = operation.summary ? ` — ${operation.summary}` : "";
     process.stdout.write(`${operation.method} ${operation.path}${summary}\n`);
   }
 }
@@ -1166,53 +1166,53 @@ function printDescription(description) {
   process.stdout.write(`${description.method} ${description.path}\n`);
   if (description.summary) process.stdout.write(`${description.summary}\n`);
   if (description.description)
-    process.stdout.write(`${description.description.replace(/\s+/g, ' ').trim()}\n`);
-  process.stdout.write('Authentication alternatives:\n');
-  if (description.security.length === 0) process.stdout.write('  None documented\n');
+    process.stdout.write(`${description.description.replace(/\s+/g, " ").trim()}\n`);
+  process.stdout.write("Authentication alternatives:\n");
+  if (description.security.length === 0) process.stdout.write("  None documented\n");
   for (const alternative of description.security) {
-    process.stdout.write(`  ${alternative.map((scheme) => scheme.name).join(' + ')}\n`);
+    process.stdout.write(`  ${alternative.map((scheme) => scheme.name).join(" + ")}\n`);
     for (const scheme of alternative) {
       if (scheme.description)
-        process.stdout.write(`    ${scheme.description.replace(/\s+/g, ' ').trim()}\n`);
+        process.stdout.write(`    ${scheme.description.replace(/\s+/g, " ").trim()}\n`);
     }
   }
-  process.stdout.write('Parameters:\n');
-  if (description.parameters.length === 0) process.stdout.write('  None\n');
+  process.stdout.write("Parameters:\n");
+  if (description.parameters.length === 0) process.stdout.write("  None\n");
   for (const parameter of description.parameters) {
-    const required = parameter.required ? ' required' : '';
-    const enumValues = parameter.schema.enum ? ` [${parameter.schema.enum.join(', ')}]` : '';
+    const required = parameter.required ? " required" : "";
+    const enumValues = parameter.schema.enum ? ` [${parameter.schema.enum.join(", ")}]` : "";
     process.stdout.write(
       `  ${parameter.in} ${parameter.name}: ${parameter.schema.type}${enumValues}${required}\n`,
     );
     if (parameter.style || parameter.explode !== null) {
       process.stdout.write(
-        `    serialization: style=${parameter.style ?? 'default'}, explode=${
-          parameter.explode ?? 'default'
+        `    serialization: style=${parameter.style ?? "default"}, explode=${
+          parameter.explode ?? "default"
         }\n`,
       );
     }
     if (parameter.description)
-      process.stdout.write(`    ${parameter.description.replace(/\s+/g, ' ').trim()}\n`);
+      process.stdout.write(`    ${parameter.description.replace(/\s+/g, " ").trim()}\n`);
   }
-  const fields = description.response.properties?.join(', ') ?? 'none documented';
-  const status = description.response.status ?? 'success';
+  const fields = description.response.properties?.join(", ") ?? "none documented";
+  const status = description.response.status ?? "success";
   process.stdout.write(`${status} response: ${description.response.type}; fields: ${fields}\n`);
   if (description.response.description) {
-    process.stdout.write(`  ${description.response.description.replace(/\s+/g, ' ').trim()}\n`);
+    process.stdout.write(`  ${description.response.description.replace(/\s+/g, " ").trim()}\n`);
   }
   if (description.response.item) {
-    const itemFields = description.response.item.properties?.join(', ') ?? 'none documented';
+    const itemFields = description.response.item.properties?.join(", ") ?? "none documented";
     process.stdout.write(`  item: ${description.response.item.type}; fields: ${itemFields}\n`);
   }
   const otherResponses = description.responses.filter(
     (response) => response.status !== description.response.status,
   );
   if (otherResponses.length > 0) {
-    process.stdout.write('Other responses:\n');
+    process.stdout.write("Other responses:\n");
     for (const response of otherResponses) {
       const detail = response.description
-        ? ` ${response.description.replace(/\s+/g, ' ').trim()}`
-        : '';
+        ? ` ${response.description.replace(/\s+/g, " ").trim()}`
+        : "";
       process.stdout.write(`  ${response.status}:${detail}\n`);
     }
   }
@@ -1220,37 +1220,37 @@ function printDescription(description) {
 
 async function main() {
   const { command, positionals, options } = parseArgs(process.argv.slice(2));
-  if (command === 'help') {
+  if (command === "help") {
     printHelp();
     return;
   }
 
   const workspaceAccessToken =
-    command === 'request' ? await resolveWorkspaceAccessToken(options) : null;
+    command === "request" ? await resolveWorkspaceAccessToken(options) : null;
   options.workspaceAccessToken = workspaceAccessToken;
   const suppliedSelector = positionals[0];
   const suppliedAbsoluteUrl =
-    typeof suppliedSelector === 'string' && /^https?:\/\//i.test(suppliedSelector)
+    typeof suppliedSelector === "string" && /^https?:\/\//i.test(suppliedSelector)
       ? new URL(suppliedSelector)
       : null;
   const contextOptions = suppliedAbsoluteUrl
     ? { ...options, cloudUrl: suppliedAbsoluteUrl.origin }
     : options;
-  const requireCloudId = command === 'request' && !options.dryRun && !workspaceAccessToken;
+  const requireCloudId = command === "request" && !options.dryRun && !workspaceAccessToken;
   const context = await resolveCloudContext(contextOptions, { requireCloudId });
   const spec = await loadOpenApi(options.spec, context.cloudUrl);
 
-  if (command === 'catalog') {
+  if (command === "catalog") {
     const catalog = {
       cloudUrl: cloudUrlIdentity(context.cloudUrl),
-      title: spec.info?.title ?? 'Nx Cloud API',
-      version: spec.info?.version ?? spec.openapi ?? 'unknown',
-      openapi: spec.openapi ?? 'unknown',
+      title: spec.info?.title ?? "Nx Cloud API",
+      version: spec.info?.version ?? spec.openapi ?? "unknown",
+      openapi: spec.openapi ?? "unknown",
       security: (spec.security ?? []).map((requirement) => Object.keys(requirement)),
       operations: listOperations(spec).map((entry) => ({
         method: entry.method,
         path: entry.path,
-        summary: entry.operation.summary ?? '',
+        summary: entry.operation.summary ?? "",
         parameters: parametersFor(spec, entry).map((parameter) => ({
           in: parameter.in,
           name: parameter.name,
@@ -1261,7 +1261,7 @@ async function main() {
         })),
       })),
     };
-    if (options.json) await emitJson(catalog, 'json', null);
+    if (options.json) await emitJson(catalog, "json", null);
     else printCatalog(catalog);
     return;
   }
@@ -1270,12 +1270,12 @@ async function main() {
   if (cloudUrlIdentity(selection.cloudUrl) !== cloudUrlIdentity(context.cloudUrl)) {
     const linkedSpec = await loadOpenApi(options.spec, selection.cloudUrl);
     const linkedSelection = resolveSelector(linkedSpec, selection.cloudUrl, positionals[0]);
-    if (command === 'describe') {
+    if (command === "describe") {
       const description = {
         cloudUrl: cloudUrlIdentity(selection.cloudUrl),
         ...describeOperation(linkedSpec, linkedSelection.entry),
       };
-      if (options.json) await emitJson(description, 'json', null);
+      if (options.json) await emitJson(description, "json", null);
       else printDescription(description);
       return;
     }
@@ -1287,12 +1287,12 @@ async function main() {
     );
     return;
   }
-  if (command === 'describe') {
+  if (command === "describe") {
     const description = {
       cloudUrl: cloudUrlIdentity(context.cloudUrl),
       ...describeOperation(spec, selection.entry),
     };
-    if (options.json) await emitJson(description, 'json', null);
+    if (options.json) await emitJson(description, "json", null);
     else printDescription(description);
     return;
   }
@@ -1302,60 +1302,60 @@ async function main() {
 
 function recoverySteps(error) {
   if (error instanceof HttpError) {
-    if (error.resource === 'OpenAPI document')
+    if (error.resource === "OpenAPI document")
       return [
-        'Confirm that nxCloudUrl or NX_CLOUD_URL identifies the intended Nx Cloud server.',
-        'Confirm that this server supports the Nx Cloud API.',
-        'Ask the server administrator for help if it blocks access to the OpenAPI document.',
+        "Confirm that nxCloudUrl or NX_CLOUD_URL identifies the intended Nx Cloud server.",
+        "Confirm that this server supports the Nx Cloud API.",
+        "Ask the server administrator for help if it blocks access to the OpenAPI document.",
       ];
     if (error.status === 401)
       return [
-        'Run `nx login --status` from the workspace root to check the Nx Cloud login.',
-        'Run `nx login` from the workspace root if the token expired or was revoked.',
-        'Confirm that the Nx Cloud ID and personal access token belong to the same workspace.',
-        'Set NX_CLOUD_PERSONAL_ACCESS_TOKEN securely only when you need an explicit override.',
+        "Run `nx login --status` from the workspace root to check the Nx Cloud login.",
+        "Run `nx login` from the workspace root if the token expired or was revoked.",
+        "Confirm that the Nx Cloud ID and personal access token belong to the same workspace.",
+        "Set NX_CLOUD_PERSONAL_ACCESS_TOKEN securely only when you need an explicit override.",
       ];
     if (error.status === 403)
       return [
-        'Confirm that the personal access token has access to this Nx Cloud workspace.',
-        'Confirm that nxCloudId identifies the intended workspace.',
-        'Ask a workspace administrator for access if the workspace is correct.',
+        "Confirm that the personal access token has access to this Nx Cloud workspace.",
+        "Confirm that nxCloudId identifies the intended workspace.",
+        "Ask a workspace administrator for access if the workspace is correct.",
       ];
     if (error.status === 404)
       return [
-        'Run catalog to confirm that this Nx Cloud server provides the Nx Cloud API.',
-        'Run describe for the endpoint before you request a resource.',
-        'Confirm the Nx Cloud URL and the resource ID.',
+        "Run catalog to confirm that this Nx Cloud server provides the Nx Cloud API.",
+        "Run describe for the endpoint before you request a resource.",
+        "Confirm the Nx Cloud URL and the resource ID.",
       ];
     if (error.status === 409)
       return [
-        'Read the live operation description to identify the non-terminal parent or workflow.',
-        'Wait until that resource reaches a terminal state.',
-        'Retry the same bounded request after completion.',
+        "Read the live operation description to identify the non-terminal parent or workflow.",
+        "Wait until that resource reaches a terminal state.",
+        "Retry the same bounded request after completion.",
       ];
     if (error.status === 429)
       return [
-        'Wait before you retry the request.',
-        'Use a smaller page count and narrower filters on the next request.',
+        "Wait before you retry the request.",
+        "Use a smaller page count and narrower filters on the next request.",
       ];
     if (error.status >= 500)
       return [
-        'Retry the request after a short wait.',
-        'Check the Nx Cloud service status if the error continues.',
-        'Keep the endpoint, time range, and HTTP status for a support request.',
+        "Retry the request after a short wait.",
+        "Check the Nx Cloud service status if the error continues.",
+        "Keep the endpoint, time range, and HTTP status for a support request.",
       ];
   }
-  if (error.message.startsWith('Network request failed'))
+  if (error.message.startsWith("Network request failed"))
     return [
-      'Confirm that the Nx Cloud URL is reachable from this environment.',
-      'Check the proxy, VPN, and network settings.',
-      'Retry the request. Use --dry-run first if you changed the request.',
+      "Confirm that the Nx Cloud URL is reachable from this environment.",
+      "Check the proxy, VPN, and network settings.",
+      "Retry the request. Use --dry-run first if you changed the request.",
     ];
   if (error instanceof CliError) return error.nextSteps;
   return [
-    'Run the command again with the same bounded filters.',
-    'Run --help to confirm the command syntax if you changed the request.',
-    'Preserve the error text, endpoint, and time range for support if the error continues.',
+    "Run the command again with the same bounded filters.",
+    "Run --help to confirm the command syntax if you changed the request.",
+    "Preserve the error text, endpoint, and time range for support if the error continues.",
   ];
 }
 
@@ -1364,7 +1364,7 @@ main().catch((error) => {
   process.stderr.write(`Error: ${message}\n`);
   const steps = recoverySteps(error);
   if (steps.length > 0) {
-    process.stderr.write('Next steps:\n');
+    process.stderr.write("Next steps:\n");
     steps.forEach((step, index) => process.stderr.write(`  ${index + 1}. ${step}\n`));
   }
   process.exitCode = 1;

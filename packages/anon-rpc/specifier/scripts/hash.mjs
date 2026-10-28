@@ -10,21 +10,21 @@
 // inside the bundle's own directory. The provenance carries no timestamps, so
 // two builds of one commit give identical provenance bytes too.
 
-import { execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { basename, join, relative } from 'node:path';
-import { parseArgs } from 'node:util';
-import { contentPath, digestFile } from './lib/digest.mjs';
-import { DEFAULT_BUNDLE, DIST_DIR, WORKSPACE_DIR } from './lib/paths.mjs';
-import { CliError, isMain, runMain } from './lib/proc.mjs';
+import { execFileSync } from "node:child_process";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { basename, join, relative } from "node:path";
+import { parseArgs } from "node:util";
+import { contentPath, digestFile } from "./lib/digest.mjs";
+import { DEFAULT_BUNDLE, DIST_DIR, WORKSPACE_DIR } from "./lib/paths.mjs";
+import { CliError, isMain, runMain } from "./lib/proc.mjs";
 
 /** @param {string[]} args */
 function git(args) {
   try {
-    return execFileSync('git', args, {
+    return execFileSync("git", args, {
       cwd: WORKSPACE_DIR,
-      encoding: 'utf8',
-      stdio: ['ignore', 'pipe', 'ignore'],
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
     }).trim();
   } catch {
     return undefined;
@@ -35,8 +35,8 @@ function git(args) {
 function version(cmd, args) {
   try {
     return execFileSync(cmd, args, {
-      encoding: 'utf8',
-      stdio: ['ignore', 'pipe', 'ignore'],
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
     }).trim();
   } catch {
     return null;
@@ -50,16 +50,16 @@ function version(cmd, args) {
  * @param {import("./lib/digest.mjs").FileDigest} digest
  */
 export async function provenance(digest) {
-  const lockfile = join(WORKSPACE_DIR, 'pnpm-lock.yaml');
+  const lockfile = join(WORKSPACE_DIR, "pnpm-lock.yaml");
   return {
     bundle: relative(WORKSPACE_DIR, digest.file),
-    gitCommit: git(['rev-parse', 'HEAD']) ?? null,
-    gitTreeClean: git(['status', '--porcelain']) === '',
+    gitCommit: git(["rev-parse", "HEAD"]) ?? null,
+    gitTreeClean: git(["status", "--porcelain"]) === "",
     toolchain: {
       node: process.version,
-      pnpm: version('pnpm', ['--version']),
+      pnpm: version("pnpm", ["--version"]),
       packageManager:
-        JSON.parse(readFileSync(join(WORKSPACE_DIR, 'package.json'), 'utf8')).packageManager ??
+        JSON.parse(readFileSync(join(WORKSPACE_DIR, "package.json"), "utf8")).packageManager ??
         null,
     },
     inputs: { lockfileSha256: existsSync(lockfile) ? (await digestFile(lockfile)).sha256 : null },
@@ -77,9 +77,9 @@ async function main(argv) {
   const { values } = parseArgs({
     args: argv,
     options: {
-      bundle: { type: 'string', default: process.env.WORKER_BUNDLE || DEFAULT_BUNDLE },
-      json: { type: 'boolean', default: false },
-      write: { type: 'boolean', default: false },
+      bundle: { type: "string", default: process.env.WORKER_BUNDLE || DEFAULT_BUNDLE },
+      json: { type: "boolean", default: false },
+      write: { type: "boolean", default: false },
     },
   });
   const bundle = /** @type {string} */ (values.bundle);
@@ -89,9 +89,9 @@ async function main(argv) {
 
   if (values.write) {
     mkdirSync(DIST_DIR, { recursive: true });
-    writeFileSync(join(DIST_DIR, 'worker.keccak256'), `${digest.keccak256}  ${basename(bundle)}\n`);
+    writeFileSync(join(DIST_DIR, "worker.keccak256"), `${digest.keccak256}  ${basename(bundle)}\n`);
     writeFileSync(
-      join(DIST_DIR, 'worker.provenance.json'),
+      join(DIST_DIR, "worker.provenance.json"),
       `${JSON.stringify(await provenance(digest), null, 2)}\n`,
     );
   }

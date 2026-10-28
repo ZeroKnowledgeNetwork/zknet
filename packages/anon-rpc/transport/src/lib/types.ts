@@ -15,17 +15,17 @@
  * vocabulary. This is the field a host may branch on (Anon-RPC SPEC v0.3.2 §7, §12).
  */
 export type TransportErrorCode =
-  | 'cancelled'
-  | 'closed'
-  | 'reset'
-  | 'timeout'
-  | 'network-error'
-  | 'protocol-error'
-  | 'unsupported'
-  | 'too-large'
-  | 'queue-full'
-  | 'permission-denied'
-  | 'internal-error';
+  | "cancelled"
+  | "closed"
+  | "reset"
+  | "timeout"
+  | "network-error"
+  | "protocol-error"
+  | "unsupported"
+  | "too-large"
+  | "queue-full"
+  | "permission-denied"
+  | "internal-error";
 
 /**
  * Why a request failed, more finely than its `code`. Stable identifiers,
@@ -39,37 +39,37 @@ export type TransportFailure =
    * before any I/O. A worker cannot tell these apart; the host can (it knows
    * its delegation and can query its own permission state).
    */
-  | 'PeerUnreachable'
+  | "PeerUnreachable"
   /** The peer answered, but the browser would not let the worker read the reply (CORS). */
-  | 'CorsRejected'
+  | "CorsRejected"
   /** An `http:` LAN target from a secure context, blocked as mixed content. */
-  | 'MixedContentBlocked'
+  | "MixedContentBlocked"
   /** The peer reported that no reply came back over the mixnet in its own deadline. */
-  | 'MixTimeout'
+  | "MixTimeout"
   /**
    * The exit refused the request; nothing went upstream. E.g. a network key
    * it does not serve, a provider URL its destination policy refuses, or
    * provider selection turned off by its operator.
    */
-  | 'ExitRefused'
+  | "ExitRefused"
   /** The exit was already serving its maximum number of requests. */
-  | 'ExitBusy'
+  | "ExitBusy"
   /** The exit could not complete the upstream request. */
-  | 'UpstreamUnreachable'
+  | "UpstreamUnreachable"
   /** The peer could not decode the exit's reply. */
-  | 'BadReply'
+  | "BadReply"
   /** The request or the reply did not fit the mixnet payload. */
-  | 'TooLarge'
+  | "TooLarge"
   /** The peer answered with something this transport does not recognise. */
-  | 'UnexpectedReply'
+  | "UnexpectedReply"
   /** The worker's own deadline passed first. */
-  | 'Deadline'
+  | "Deadline"
   /** The caller aborted. Named like `fetch`'s own abort error. */
-  | 'AbortError'
+  | "AbortError"
   /** The transport was closed while the request was in flight. */
-  | 'Closed'
+  | "Closed"
   /** The peer URL is not a local peer (or not a URL this transport speaks). Raised at construction. */
-  | 'TargetRefused';
+  | "TargetRefused";
 
 /** Where the exit sends a request: exactly one of the two. */
 export type ExitTarget =
@@ -109,11 +109,11 @@ export interface RequestOptions {
 /** How far a probe got. Ordered: each stage implies the ones before it. */
 export type ProbeReach =
   /** Refused before any I/O, or nothing answered. */
-  | 'none'
+  | "none"
   /** The local peer answered (WalletShield's HTTP listener; kpclientd's connection-status event). */
-  | 'peer'
+  | "peer"
   /** A probe round trip through the mixnet came back from an exit. */
-  | 'exit';
+  | "exit";
 
 export interface ProbeResult {
   reach: ProbeReach;
@@ -131,7 +131,7 @@ export interface ProbeOptions {
    * `peer` stops once the local peer is known to answer, without touching the
    * mixnet; `exit` also sends one probe through the mixnet. Default `peer`.
    */
-  depth?: 'peer' | 'exit';
+  depth?: "peer" | "exit";
 }
 
 /** The serializable face of a TransportError. */
@@ -147,7 +147,7 @@ export interface TransportErrorShape {
  */
 export interface Transport {
   /** Which local peer this transport talks to. Logged; never branched on by the worker. */
-  readonly peer: 'walletshield' | 'kpclientd';
+  readonly peer: "walletshield" | "kpclientd";
   /** Carry one request to the exit and resolve with its reply, or reject with a TransportError. */
   request(req: ExitRequest, opts?: RequestOptions): Promise<ExitResponse>;
   /** Diagnose reachability without failing: always resolves. */

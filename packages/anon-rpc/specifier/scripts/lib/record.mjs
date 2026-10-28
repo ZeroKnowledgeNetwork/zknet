@@ -14,9 +14,9 @@
 // posted record. A record started from --address has no `creation`: the chain
 // holds it, and nothing here needs it.
 
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
-import { CliError } from './proc.mjs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { CliError } from "./proc.mjs";
 
 /**
  * @typedef {object} BundleRef
@@ -50,13 +50,13 @@ export const recordPath = (dir, tier) => join(dir, `${tier}.json`);
  */
 export function checkRecord(record) {
   const r = /** @type {Record<string, unknown>} */ (record);
-  for (const key of ['tier', 'address', 'contract', 'codehash', 'owner', 'workerHash']) {
-    if (typeof r?.[key] !== 'string') throw new CliError(`record: ${key} missing`);
+  for (const key of ["tier", "address", "contract", "codehash", "owner", "workerHash"]) {
+    if (typeof r?.[key] !== "string") throw new CliError(`record: ${key} missing`);
   }
-  if (typeof r.chainId !== 'number') throw new CliError('record: chainId missing');
-  if (r.creation !== undefined && typeof (/** @type {any} */ (r.creation)?.tx) !== 'string')
-    throw new CliError('record: creation.tx missing');
-  if ('resolvers' in r) throw new CliError('record: resolvers do not belong in a committed record');
+  if (typeof r.chainId !== "number") throw new CliError("record: chainId missing");
+  if (r.creation !== undefined && typeof (/** @type {any} */ (r.creation)?.tx) !== "string")
+    throw new CliError("record: creation.tx missing");
+  if ("resolvers" in r) throw new CliError("record: resolvers do not belong in a committed record");
   const url = JSON.stringify(record).match(/[a-z][a-z0-9+.-]*:\/\/[^"]*/i);
   if (url) throw new CliError(`record: holds a URL (${url[0]}); records name no resolver`);
   return /** @type {TierRecord} */ (record);
@@ -67,7 +67,7 @@ export function readRecord(file) {
   if (!existsSync(file)) return undefined;
   let parsed;
   try {
-    parsed = JSON.parse(readFileSync(file, 'utf8'));
+    parsed = JSON.parse(readFileSync(file, "utf8"));
   } catch (error) {
     throw new CliError(`${file}: ${error instanceof Error ? error.message : error}`);
   }
@@ -87,7 +87,7 @@ export function writeRecord(file, record) {
  * @returns {TierRecord}
  */
 export function createdRecord(fields) {
-  return { ...fields, contract: 'WorkerSpecifier', updates: [] };
+  return { ...fields, contract: "WorkerSpecifier", updates: [] };
 }
 
 /**

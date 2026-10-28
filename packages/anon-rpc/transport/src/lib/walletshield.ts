@@ -16,8 +16,8 @@
 // keeps the URL, which often embeds an API key, out of request lines and
 // logs; WalletShield moves it into the exit request.
 
-import { TransportError, zknetError } from './errors.js';
-import { classifyTarget, TARGET_SCHEMES, type TargetClass } from './targets.js';
+import { TransportError, zknetError } from "./errors.js";
+import { classifyTarget, TARGET_SCHEMES, type TargetClass } from "./targets.js";
 import type {
   ExitRequest,
   ExitResponse,
@@ -27,24 +27,24 @@ import type {
   RequestOptions,
   Transport,
   TransportErrorShape,
-} from './types.js';
+} from "./types.js";
 
 /** WalletShield's conventional listen address (the binary has no default; `-listen` is required). */
-export const DEFAULT_WALLETSHIELD_URL = 'http://127.0.0.1:7070';
+export const DEFAULT_WALLETSHIELD_URL = "http://127.0.0.1:7070";
 
 /** Upstream headers relayed to the caller. Keep in step with the exit's allowlist. */
-export const UPSTREAM_HEADERS: readonly string[] = ['content-type', 'retry-after'];
+export const UPSTREAM_HEADERS: readonly string[] = ["content-type", "retry-after"];
 
 /** The header that marks a reply WalletShield or the exit originated. */
-export const ZKNET_ERROR_HEADER = 'zknet-error';
+export const ZKNET_ERROR_HEADER = "zknet-error";
 
 /** WalletShield's provider-selection endpoint, and the header that names the provider. */
-export const USER_URL_PATH = '/_/url';
-export const URL_HEADER = 'zknet-url';
+export const USER_URL_PATH = "/_/url";
+export const URL_HEADER = "zknet-url";
 
 /** Local health path (answered by WalletShield itself) and exit probe path (one mix round trip). */
-export const HEALTH_PATH = '/_/health';
-export const EXIT_PROBE_PATH = '/_/probe/0';
+export const HEALTH_PATH = "/_/health";
+export const EXIT_PROBE_PATH = "/_/probe/0";
 
 /** Default per-request deadline. Above WalletShield's own `-timeout` (20 s) so its `mix-timeout` wins. */
 export const DEFAULT_TIMEOUT_MS = 30_000;
@@ -61,7 +61,7 @@ export interface WalletShieldOptions {
 }
 
 export class WalletShieldTransport implements Transport {
-  readonly peer = 'walletshield' as const;
+  readonly peer = "walletshield" as const;
   readonly target: TargetClass;
 
   readonly #base: string;
@@ -78,24 +78,24 @@ export class WalletShieldTransport implements Transport {
     try {
       url = new URL(raw);
     } catch {
-      throw refused('the WalletShield URL is not a URL');
+      throw refused("the WalletShield URL is not a URL");
     }
     if (!(TARGET_SCHEMES.walletshield as readonly string[]).includes(url.protocol)) {
       throw refused(
-        `WalletShield URL scheme must be one of ${TARGET_SCHEMES.walletshield.join(' ')}`,
+        `WalletShield URL scheme must be one of ${TARGET_SCHEMES.walletshield.join(" ")}`,
       );
     }
     if (url.username || url.password || url.search || url.hash) {
-      throw refused('the WalletShield URL must not carry credentials, a query or a fragment');
+      throw refused("the WalletShield URL must not carry credentials, a query or a fragment");
     }
     const target = classifyTarget(url);
-    if (!target) throw refused('the WalletShield URL is not a loopback or local-network address');
+    if (!target) throw refused("the WalletShield URL is not a loopback or local-network address");
     this.target = target;
     this.#protocol = url.protocol;
-    this.#base = url.href.replace(/\/+$/, '');
+    this.#base = url.href.replace(/\/+$/, "");
     const timeoutMs = opts.timeoutMs ?? DEFAULT_TIMEOUT_MS;
     if (!(Number.isFinite(timeoutMs) && timeoutMs > 0))
-      throw refused('timeoutMs must be a positive number');
+      throw refused("timeoutMs must be a positive number");
     this.#timeoutMs = timeoutMs;
     this.#fetch = opts.fetch ?? globalThis.fetch.bind(globalThis);
     this.#secure = opts.isSecureContext ?? globalThis.isSecureContext === true;
@@ -103,18 +103,18 @@ export class WalletShieldTransport implements Transport {
 
   /** True when the browser is expected to block this target as mixed content (an `http:` LAN peer from a secure context). */
   get mixedContentPredicted(): boolean {
-    return this.#secure && this.#protocol === 'http:' && this.target === 'lan';
+    return this.#secure && this.#protocol === "http:" && this.target === "lan";
   }
 
   async request(req: ExitRequest, opts: RequestOptions = {}): Promise<ExitResponse> {
     const [path, headers]: [string, Record<string, string>] =
       req.url !== undefined
-        ? [USER_URL_PATH, { 'content-type': req.contentType, [URL_HEADER]: req.url }]
-        : [`/${req.network.replace(/^\/+/, '')}`, { 'content-type': req.contentType }];
+        ? [USER_URL_PATH, { "content-type": req.contentType, [URL_HEADER]: req.url }]
+        : [`/${req.network.replace(/^\/+/, "")}`, { "content-type": req.contentType }];
     return this.#exchange(
       path,
       {
-        method: 'POST',
+        method: "POST",
         headers,
         // A copy over exactly the request bytes: `fetch` reads a view's whole buffer otherwise.
         body: req.body.slice(),
@@ -134,59 +134,59 @@ export class WalletShieldTransport implements Transport {
 
   async probe(opts: ProbeOptions = {}): Promise<ProbeResult> {
     const started = Date.now();
-    const done = (r: Omit<ProbeResult, 'ms'>): ProbeResult => ({ ...r, ms: Date.now() - started });
+    const done = (r: Omit<ProbeResult, "ms">): ProbeResult => ({ ...r, ms: Date.now() - started });
 
     // Peer tier: WalletShield answers its health path locally.
     let peerVersion: string | undefined;
     try {
       peerVersion = await this.#exchange(
         HEALTH_PATH,
-        { method: 'GET' },
+        { method: "GET" },
         opts.signal,
         async (res) => {
           const json = (await res.json().catch(() => undefined)) as
             | { version?: unknown }
             | undefined;
-          return res.status === 200 && typeof json?.version === 'string' ? json.version : undefined;
+          return res.status === 200 && typeof json?.version === "string" ? json.version : undefined;
         },
       );
     } catch (e) {
       const error = shape(e);
-      if (error.name === 'PeerUnreachable' && (await this.#answersOpaquely(opts.signal))) {
+      if (error.name === "PeerUnreachable" && (await this.#answersOpaquely(opts.signal))) {
         // Something answers, but its replies are unreadable from here.
         return done({
-          reach: 'peer',
+          reach: "peer",
           error: {
-            code: 'permission-denied',
-            name: 'CorsRejected',
-            message: 'WalletShield answered, but its reply is not readable from this origin (CORS)',
+            code: "permission-denied",
+            name: "CorsRejected",
+            message: "WalletShield answered, but its reply is not readable from this origin (CORS)",
           },
         });
       }
       // A marked failure on the health path: the peer answered, but not as WalletShield does.
-      if (MARKED.has(error.name)) return done({ reach: 'peer', error });
-      return done({ reach: 'none', error });
+      if (MARKED.has(error.name)) return done({ reach: "peer", error });
+      return done({ reach: "none", error });
     }
 
-    if ((opts.depth ?? 'peer') === 'peer') return done({ reach: 'peer', peerVersion });
+    if ((opts.depth ?? "peer") === "peer") return done({ reach: "peer", peerVersion });
 
     // Exit tier: one probe through the mixnet; the exit answers its probe path itself.
     try {
       await this.#exchange(
         EXIT_PROBE_PATH,
-        { method: 'POST', headers: { 'content-type': 'application/json' }, body: '' },
+        { method: "POST", headers: { "content-type": "application/json" }, body: "" },
         opts.signal,
         async (res) => {
           await res.arrayBuffer();
         },
       );
-      return done({ reach: 'exit', peerVersion });
+      return done({ reach: "exit", peerVersion });
     } catch (e) {
       const error = shape(e);
       // The exit answered unless the failure happened before it could.
-      if (MARKED.has(error.name) && error.name !== 'MixTimeout' && error.name !== 'TooLarge')
-        return done({ reach: 'exit', peerVersion });
-      return done({ reach: 'peer', peerVersion, error });
+      if (MARKED.has(error.name) && error.name !== "MixTimeout" && error.name !== "TooLarge")
+        return done({ reach: "exit", peerVersion });
+      return done({ reach: "peer", peerVersion, error });
     }
   }
 
@@ -218,32 +218,32 @@ export class WalletShieldTransport implements Transport {
       signal?.aborted
         ? aborted()
         : closed.aborted
-          ? new TransportError('closed', 'Closed', 'the transport was closed')
+          ? new TransportError("closed", "Closed", "the transport was closed")
           : deadline.aborted
             ? new TransportError(
-                'timeout',
-                'Deadline',
+                "timeout",
+                "Deadline",
                 `no reply from WalletShield within ${this.#timeoutMs} ms`,
               )
             : undefined;
     try {
       const res = await this.#fetch(`${this.#base}${path}`, {
         ...init,
-        credentials: 'omit',
-        cache: 'no-store',
+        credentials: "omit",
+        cache: "no-store",
         // A provider's 3xx is relayed as the reply. Under Fetch's `error` mode
         // any 3xx is a network error, and under `manual` an opaque status 0,
         // so neither can carry it. WalletShield never relays `Location`, so
         // `follow` returns the 3xx as it is; a reply that was redirected
         // anyway did not come from WalletShield and is refused below.
-        redirect: 'follow',
+        redirect: "follow",
         signal: combined,
       });
       if (res.redirected)
         throw new TransportError(
-          'protocol-error',
-          'UnexpectedReply',
-          'the peer redirected the request; WalletShield never does',
+          "protocol-error",
+          "UnexpectedReply",
+          "the peer redirected the request; WalletShield never does",
         );
       const reason = res.headers.get(ZKNET_ERROR_HEADER);
       if (reason !== null) throw zknetError(reason.trim(), await errorMessage(res));
@@ -264,16 +264,16 @@ export class WalletShieldTransport implements Transport {
   #networkFailure(cause: unknown): TransportError {
     if (this.mixedContentPredicted) {
       return new TransportError(
-        'unsupported',
-        'MixedContentBlocked',
-        'the browser blocks an http: local-network peer from a secure context (mixed content)',
+        "unsupported",
+        "MixedContentBlocked",
+        "the browser blocks an http: local-network peer from a secure context (mixed content)",
         { cause },
       );
     }
     return new TransportError(
-      'network-error',
-      'PeerUnreachable',
-      'WalletShield did not answer: it is not running at the configured address, or the browser blocked local network access (not delegated by the host, or not granted)',
+      "network-error",
+      "PeerUnreachable",
+      "WalletShield did not answer: it is not running at the configured address, or the browser blocked local network access (not delegated by the host, or not granted)",
       { cause },
     );
   }
@@ -282,10 +282,10 @@ export class WalletShieldTransport implements Transport {
   async #answersOpaquely(signal: AbortSignal | undefined): Promise<boolean> {
     try {
       await this.#fetch(`${this.#base}${HEALTH_PATH}`, {
-        method: 'GET',
-        mode: 'no-cors',
-        credentials: 'omit',
-        cache: 'no-store',
+        method: "GET",
+        mode: "no-cors",
+        credentials: "omit",
+        cache: "no-store",
         signal: AbortSignal.any([
           AbortSignal.timeout(this.#timeoutMs),
           this.#closed.signal,
@@ -301,28 +301,28 @@ export class WalletShieldTransport implements Transport {
 
 /** Failures marked by a `ZKNet-Error` reply, i.e. the peer answered. */
 const MARKED: ReadonlySet<string> = new Set([
-  'MixTimeout',
-  'ExitRefused',
-  'ExitBusy',
-  'UpstreamUnreachable',
-  'BadReply',
-  'TooLarge',
-  'UnexpectedReply',
+  "MixTimeout",
+  "ExitRefused",
+  "ExitBusy",
+  "UpstreamUnreachable",
+  "BadReply",
+  "TooLarge",
+  "UnexpectedReply",
 ]);
 
 function refused(message: string): TransportError {
-  return new TransportError('unsupported', 'TargetRefused', message);
+  return new TransportError("unsupported", "TargetRefused", message);
 }
 
 function aborted(): TransportError {
-  return new TransportError('cancelled', 'AbortError', 'the request was aborted');
+  return new TransportError("cancelled", "AbortError", "the request was aborted");
 }
 
 function shape(e: unknown): TransportErrorShape {
   if (e instanceof TransportError) return e.toJSON();
   return {
-    code: 'internal-error',
-    name: 'UnexpectedReply',
+    code: "internal-error",
+    name: "UnexpectedReply",
     message: e instanceof Error ? e.message : String(e),
   };
 }
@@ -331,7 +331,7 @@ function shape(e: unknown): TransportErrorShape {
 async function errorMessage(res: Response): Promise<string | undefined> {
   try {
     const json = (await res.json()) as { error?: { message?: unknown } };
-    return typeof json?.error?.message === 'string' ? json.error.message : undefined;
+    return typeof json?.error?.message === "string" ? json.error.message : undefined;
   } catch {
     return undefined;
   }

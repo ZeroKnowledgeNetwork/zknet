@@ -8,11 +8,11 @@ on:
     branches:
       - main
     paths-ignore:
-      - '**/*.md'
-      - 'docs/**'
-      - 'tests/**'
+      - "**/*.md"
+      - "docs/**"
+      - "tests/**"
     tags:
-      - 'v*'
+      - "v*"
 
 permissions:
   contents: read

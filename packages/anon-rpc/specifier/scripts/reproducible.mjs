@@ -23,27 +23,27 @@
 // the cache; --bundle $WORKER_BUNDLE or the worker bundle contract path;
 // --install "pnpm install --frozen-lockfile --prefer-offline".
 
-import { execFileSync, spawnSync } from 'node:child_process';
-import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join, relative } from 'node:path';
-import { parseArgs } from 'node:util';
-import { digestFile } from './lib/digest.mjs';
-import { DEFAULT_BUNDLE, STATE_DIR, WORKSPACE_DIR } from './lib/paths.mjs';
-import { CliError, isMain, runMain } from './lib/proc.mjs';
+import { execFileSync, spawnSync } from "node:child_process";
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join, relative } from "node:path";
+import { parseArgs } from "node:util";
+import { digestFile } from "./lib/digest.mjs";
+import { DEFAULT_BUNDLE, STATE_DIR, WORKSPACE_DIR } from "./lib/paths.mjs";
+import { CliError, isMain, runMain } from "./lib/proc.mjs";
 
-export const DEFAULT_BUILD = 'pnpm nx run @zknet/anon-rpc-worker:build --skip-nx-cache';
-export const DEFAULT_INSTALL = 'pnpm install --frozen-lockfile --prefer-offline';
+export const DEFAULT_BUILD = "pnpm nx run @zknet/anon-rpc-worker:build --skip-nx-cache";
+export const DEFAULT_INSTALL = "pnpm install --frozen-lockfile --prefer-offline";
 
 /** The --ref value that exports the working tree instead of a commit. */
-export const WORKTREE = 'WORKTREE';
+export const WORKTREE = "WORKTREE";
 
 /** @param {string} cmd @param {string} cwd */
 function sh(cmd, cwd) {
-  const r = spawnSync('sh', ['-c', cmd], {
+  const r = spawnSync("sh", ["-c", cmd], {
     cwd,
-    stdio: 'inherit',
-    env: { ...process.env, NX_DAEMON: 'false' },
+    stdio: "inherit",
+    env: { ...process.env, NX_DAEMON: "false" },
   });
   if (r.status !== 0) throw new CliError(`\`${cmd}\` failed in ${cwd} (exit ${r.status})`);
 }
@@ -57,16 +57,16 @@ function sh(cmd, cwd) {
  */
 function exportTree(ref, dest) {
   if (ref !== WORKTREE) {
-    const archive = execFileSync('git', ['archive', '--format=tar', ref], {
+    const archive = execFileSync("git", ["archive", "--format=tar", ref], {
       cwd: WORKSPACE_DIR,
       maxBuffer: 1 << 30,
     });
-    execFileSync('tar', ['-x', '-C', dest], { input: archive });
+    execFileSync("tar", ["-x", "-C", dest], { input: archive });
     return;
   }
   const listed = execFileSync(
-    'git',
-    ['ls-files', '-z', '--cached', '--others', '--exclude-standard'],
+    "git",
+    ["ls-files", "-z", "--cached", "--others", "--exclude-standard"],
     {
       cwd: WORKSPACE_DIR,
       maxBuffer: 1 << 30,
@@ -74,14 +74,14 @@ function exportTree(ref, dest) {
   );
   // A path still in the index but deleted on disk is not part of the tree.
   const files = listed
-    .toString('utf8')
-    .split('\0')
-    .filter((f) => f !== '' && existsSync(join(WORKSPACE_DIR, f)));
-  const archive = execFileSync('tar', ['-c', '-C', WORKSPACE_DIR, '--null', '-T', '-', '-f', '-'], {
-    input: files.join('\0'),
+    .toString("utf8")
+    .split("\0")
+    .filter((f) => f !== "" && existsSync(join(WORKSPACE_DIR, f)));
+  const archive = execFileSync("tar", ["-c", "-C", WORKSPACE_DIR, "--null", "-T", "-", "-f", "-"], {
+    input: files.join("\0"),
     maxBuffer: 1 << 30,
   });
-  execFileSync('tar', ['-x', '-C', dest], { input: archive });
+  execFileSync("tar", ["-x", "-C", dest], { input: archive });
 }
 
 /** @param {Buffer} a @param {Buffer} b @returns {number} first differing offset, -1 if equal */
@@ -108,11 +108,11 @@ export function firstDifference(a, b) {
  * @returns {Promise<{ results: import("./lib/digest.mjs").FileDigest[], odd?: import("./lib/digest.mjs").FileDigest }>}
  */
 export async function reproduce(o) {
-  if (!Number.isInteger(o.runs) || o.runs < 2) throw new CliError('--runs must be an integer >= 2');
+  if (!Number.isInteger(o.runs) || o.runs < 2) throw new CliError("--runs must be an integer >= 2");
   const bundleRel = relative(WORKSPACE_DIR, o.bundle);
-  if (bundleRel.startsWith('..')) throw new CliError(`bundle ${o.bundle} is outside the workspace`);
+  if (bundleRel.startsWith("..")) throw new CliError(`bundle ${o.bundle} is outside the workspace`);
 
-  const outDir = join(STATE_DIR, 'reproducible');
+  const outDir = join(STATE_DIR, "reproducible");
   rmSync(outDir, { recursive: true, force: true });
   mkdirSync(outDir, { recursive: true });
   /** @type {string[]} */
@@ -125,8 +125,8 @@ export async function reproduce(o) {
       let root = WORKSPACE_DIR;
       if (o.cleanExport) {
         // Different path lengths per run, so an embedded absolute path shows up as a byte difference.
-        root = join(mkdtempSync(join(tmpdir(), `zknet-repro-${'x'.repeat(i)}-`)), 'src');
-        scratch.push(join(root, '..'));
+        root = join(mkdtempSync(join(tmpdir(), `zknet-repro-${"x".repeat(i)}-`)), "src");
+        scratch.push(join(root, ".."));
         mkdirSync(root);
         exportTree(o.ref, root);
         console.log(`\n== run ${i}: clean export of ${o.ref} at ${root}`);
@@ -159,18 +159,18 @@ async function main(argv) {
     args: argv,
     options: {
       build: {
-        type: 'string',
+        type: "string",
         default: process.env.WORKER_BUILD_CMD || DEFAULT_BUILD,
       },
       bundle: {
-        type: 'string',
+        type: "string",
         default: process.env.WORKER_BUNDLE || DEFAULT_BUNDLE,
       },
-      runs: { type: 'string', default: '2' },
-      'clean-export': { type: 'boolean', default: false },
-      ref: { type: 'string', default: 'HEAD' },
-      install: { type: 'string', default: DEFAULT_INSTALL },
-      keep: { type: 'boolean', default: false },
+      runs: { type: "string", default: "2" },
+      "clean-export": { type: "boolean", default: false },
+      ref: { type: "string", default: "HEAD" },
+      install: { type: "string", default: DEFAULT_INSTALL },
+      keep: { type: "boolean", default: false },
     },
   });
   const runs = Number(values.runs);
@@ -179,13 +179,13 @@ async function main(argv) {
     build: /** @type {string} */ (values.build),
     bundle: /** @type {string} */ (values.bundle),
     runs,
-    cleanExport: /** @type {boolean} */ (values['clean-export']),
+    cleanExport: /** @type {boolean} */ (values["clean-export"]),
     ref: /** @type {string} */ (values.ref),
     install: /** @type {string} */ (values.install),
     keep: /** @type {boolean} */ (values.keep),
   });
 
-  console.log('');
+  console.log("");
   for (const r of results)
     console.log(`${r.keccak256}  ${r.bytes} bytes  ${relative(WORKSPACE_DIR, r.file)}`);
   const first = results[0];
@@ -200,7 +200,7 @@ async function main(argv) {
     `✗ NOT reproducible: ${relative(WORKSPACE_DIR, odd.file)} differs from run 1 at byte ${at}`,
   );
   console.log(
-    `  outputs kept in ${relative(WORKSPACE_DIR, join(STATE_DIR, 'reproducible'))} for diffing`,
+    `  outputs kept in ${relative(WORKSPACE_DIR, join(STATE_DIR, "reproducible"))} for diffing`,
   );
   return 1;
 }

@@ -21,7 +21,7 @@ import type {
   ProbeResult,
   RequestOptions,
   Transport,
-} from './types.js';
+} from "./types.js";
 
 /** Where the session token persists; the worker passes `anonRpcWorker.storage`. */
 export interface SessionStore {
@@ -39,21 +39,21 @@ export interface KpclientdOptions {
 }
 
 export class KpclientdTransport implements Transport {
-  readonly peer = 'kpclientd' as const;
+  readonly peer = "kpclientd" as const;
 
   constructor(_opts: KpclientdOptions) {
-    throw new Error('not implemented');
+    throw new Error("not implemented");
   }
 
   request(_req: ExitRequest, _opts?: RequestOptions): Promise<ExitResponse> {
-    throw new Error('not implemented');
+    throw new Error("not implemented");
   }
 
   probe(_opts?: ProbeOptions): Promise<ProbeResult> {
-    throw new Error('not implemented');
+    throw new Error("not implemented");
   }
 
   close(): Promise<void> {
-    throw new Error('not implemented');
+    throw new Error("not implemented");
   }
 }

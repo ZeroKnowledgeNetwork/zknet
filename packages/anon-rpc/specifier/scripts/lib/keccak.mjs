@@ -81,7 +81,7 @@ export class Keccak256 {
 
   /** @param {Uint8Array} bytes */
   update(bytes) {
-    if (this.#done) throw new Error('keccak256: update after digest');
+    if (this.#done) throw new Error("keccak256: update after digest");
     for (let i = 0; i < bytes.length; i++) {
       this.#block[this.#fill++] = bytes[i];
       if (this.#fill === RATE) this.#absorb();
@@ -91,7 +91,7 @@ export class Keccak256 {
 
   /** @returns {Uint8Array} 32-byte digest */
   digest() {
-    if (this.#done) throw new Error('keccak256: digest called twice');
+    if (this.#done) throw new Error("keccak256: digest called twice");
     this.#done = true;
     this.#block.fill(0, this.#fill);
     this.#block[this.#fill] ^= 0x01;
@@ -126,5 +126,5 @@ export function keccak256(bytes) {
 
 /** @param {Uint8Array} bytes @returns {string} 0x-prefixed lowercase hex */
 export function keccak256Hex(bytes) {
-  return `0x${Buffer.from(keccak256(bytes)).toString('hex')}`;
+  return `0x${Buffer.from(keccak256(bytes)).toString("hex")}`;
 }

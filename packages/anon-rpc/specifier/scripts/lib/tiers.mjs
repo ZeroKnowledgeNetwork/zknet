@@ -7,10 +7,10 @@
 // which is never committed: resolver URLs become public on-chain at deploy
 // time, but they are kept out of the code.
 
-import { existsSync, readFileSync } from 'node:fs';
-import { contentPath } from './digest.mjs';
-import { LOCAL_CONFIG } from './paths.mjs';
-import { CliError } from './proc.mjs';
+import { existsSync, readFileSync } from "node:fs";
+import { contentPath } from "./digest.mjs";
+import { LOCAL_CONFIG } from "./paths.mjs";
+import { CliError } from "./proc.mjs";
 
 /**
  * @typedef {object} Tier
@@ -22,21 +22,21 @@ import { CliError } from './proc.mjs';
 
 /** @type {Record<string, Tier>} */
 export const TIERS = {
-  dev: { name: 'dev', chainId: 31337, network: 'local anvil', public: false },
+  dev: { name: "dev", chainId: 31337, network: "local anvil", public: false },
   test: {
-    name: 'test',
+    name: "test",
     chainId: 11155111,
-    network: 'Ethereum Sepolia',
+    network: "Ethereum Sepolia",
     public: true,
   },
-  prod: { name: 'prod', chainId: 1, network: 'Ethereum mainnet', public: true },
+  prod: { name: "prod", chainId: 1, network: "Ethereum mainnet", public: true },
 };
 
 /** @param {string | undefined} name @returns {Tier} */
 export function tierOf(name) {
   const tier = name === undefined ? undefined : TIERS[name];
   if (tier === undefined)
-    throw new CliError(`unknown tier ${name}; expected one of ${Object.keys(TIERS).join(', ')}`);
+    throw new CliError(`unknown tier ${name}; expected one of ${Object.keys(TIERS).join(", ")}`);
   return tier;
 }
 
@@ -89,34 +89,34 @@ export function loadTierConfig(
     );
   let all;
   try {
-    all = JSON.parse(readFileSync(file, 'utf8'));
+    all = JSON.parse(readFileSync(file, "utf8"));
   } catch (error) {
     throw new CliError(`${file}: ${error instanceof Error ? error.message : error}`);
   }
   const section = all?.[tier.name];
-  if (section === undefined || section === null || typeof section !== 'object')
+  if (section === undefined || section === null || typeof section !== "object")
     throw new CliError(`${file} has no "${tier.name}" section`);
   /** @param {string} key */
   const need = (key) => {
     const v = section[key];
-    if (typeof v !== 'string' || v === '' || v.includes('<'))
+    if (typeof v !== "string" || v === "" || v.includes("<"))
       throw new CliError(`${file}: ${tier.name}.${key} is not set`);
     return v;
   };
-  const rpcUrl = need('rpcUrl');
-  const account = need('account');
-  const deployer = need('deployer');
+  const rpcUrl = need("rpcUrl");
+  const account = need("account");
+  const deployer = need("deployer");
   if (!ADDRESS.test(deployer))
     throw new CliError(`${file}: ${tier.name}.deployer is not an address`);
   const resolvers = needResolvers ? section.resolvers : [];
   if (needResolvers && (!Array.isArray(resolvers) || resolvers.length === 0))
     throw new CliError(`${file}: ${tier.name}.resolvers must be a non-empty list`);
   for (const r of resolvers) {
-    if (typeof r === 'string' && r.includes('<'))
+    if (typeof r === "string" && r.includes("<"))
       throw new CliError(`${file}: ${tier.name}.resolvers still holds a placeholder`);
-    if (typeof r !== 'string' || !r.includes('{path}'))
+    if (typeof r !== "string" || !r.includes("{path}"))
       throw new CliError(`${file}: every ${tier.name}.resolvers entry must contain {path}`);
-    if (!r.startsWith('https://'))
+    if (!r.startsWith("https://"))
       throw new CliError(`${file}: ${tier.name}.resolvers entries must be https: URLs`);
   }
   const project = section.pages?.project;
@@ -125,7 +125,7 @@ export function loadTierConfig(
     account,
     deployer,
     resolvers,
-    ...(typeof project === 'string' && project !== '' ? { pages: { project } } : {}),
+    ...(typeof project === "string" && project !== "" ? { pages: { project } } : {}),
   };
 }
 
@@ -136,5 +136,5 @@ export function loadTierConfig(
  */
 export function expandResolvers(templates, workerHash) {
   const path = contentPath(workerHash);
-  return templates.map((t) => t.replaceAll('{path}', path));
+  return templates.map((t) => t.replaceAll("{path}", path));
 }

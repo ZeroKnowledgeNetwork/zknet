@@ -8,18 +8,18 @@
 // Usage:
 //   node scripts/verify-source.mjs --tier test|prod [--address <addr>] [--config <file>] [--records <dir>] [--posted <dir>] [--dry-run]
 
-import { spawnSync } from 'node:child_process';
-import { parseArgs } from 'node:util';
+import { spawnSync } from "node:child_process";
+import { parseArgs } from "node:util";
 import {
   LOCAL_CONFIG,
   POSTED_RECORDS_DIR,
   PROJECT_DIR,
   WORKING_RECORDS_DIR,
-} from './lib/paths.mjs';
-import { CliError, foundry, isMain, runMain } from './lib/proc.mjs';
-import { findRecord } from './lib/record.mjs';
-import { chainId } from './lib/rpc.mjs';
-import { assertChain, banner, loadTierConfig, tierOf } from './lib/tiers.mjs';
+} from "./lib/paths.mjs";
+import { CliError, foundry, isMain, runMain } from "./lib/proc.mjs";
+import { findRecord } from "./lib/record.mjs";
+import { chainId } from "./lib/rpc.mjs";
+import { assertChain, banner, loadTierConfig, tierOf } from "./lib/tiers.mjs";
 
 /**
  * @param {string} address
@@ -27,17 +27,17 @@ import { assertChain, banner, loadTierConfig, tierOf } from './lib/tiers.mjs';
  * @param {string} rpcUrl
  */
 export const verifyArgs = (address, chain, rpcUrl) => [
-  'verify-contract',
+  "verify-contract",
   address,
-  'src/WorkerSpecifier.sol:WorkerSpecifier',
-  '--verifier',
-  'sourcify',
-  '--chain',
+  "src/WorkerSpecifier.sol:WorkerSpecifier",
+  "--verifier",
+  "sourcify",
+  "--chain",
   String(chain),
-  '--rpc-url',
+  "--rpc-url",
   rpcUrl,
-  '--guess-constructor-args',
-  '--watch',
+  "--guess-constructor-args",
+  "--watch",
 ];
 
 /** @param {string[]} argv */
@@ -45,16 +45,16 @@ async function main(argv) {
   const { values } = parseArgs({
     args: argv,
     options: {
-      tier: { type: 'string' },
-      address: { type: 'string' },
-      config: { type: 'string', default: LOCAL_CONFIG },
-      records: { type: 'string', default: WORKING_RECORDS_DIR },
-      posted: { type: 'string', default: POSTED_RECORDS_DIR },
-      'dry-run': { type: 'boolean', default: false },
+      tier: { type: "string" },
+      address: { type: "string" },
+      config: { type: "string", default: LOCAL_CONFIG },
+      records: { type: "string", default: WORKING_RECORDS_DIR },
+      posted: { type: "string", default: POSTED_RECORDS_DIR },
+      "dry-run": { type: "boolean", default: false },
     },
   });
   const tier = tierOf(values.tier);
-  if (!tier.public) throw new CliError('verify-source is for the public tiers (test, prod)');
+  if (!tier.public) throw new CliError("verify-source is for the public tiers (test, prod)");
   console.log(banner(tier));
   const { rpcUrl } = loadTierConfig(tier, /** @type {string} */ (values.config), {
     resolvers: false,
@@ -71,11 +71,11 @@ async function main(argv) {
 
   const args = verifyArgs(address, tier.chainId, rpcUrl);
   // The RPC URL may carry an API key: show the command without it.
-  console.log(`forge ${args.map((a) => (a === rpcUrl ? '<rpcUrl>' : a)).join(' ')}`);
-  if (values['dry-run']) return;
-  const r = spawnSync(foundry('forge'), args, {
+  console.log(`forge ${args.map((a) => (a === rpcUrl ? "<rpcUrl>" : a)).join(" ")}`);
+  if (values["dry-run"]) return;
+  const r = spawnSync(foundry("forge"), args, {
     cwd: PROJECT_DIR,
-    stdio: 'inherit',
+    stdio: "inherit",
   });
   return r.status ?? 1;
 }

@@ -1,8 +1,8 @@
-import { BaseDirectory, readTextFile } from '@tauri-apps/plugin-fs';
-import { path } from '@tauri-apps/api';
-import { Channel, invoke } from '@tauri-apps/api/core';
-import { useStore } from '../store';
-import type { Listing, Prepared } from './networks';
+import { BaseDirectory, readTextFile } from "@tauri-apps/plugin-fs";
+import { path } from "@tauri-apps/api";
+import { Channel, invoke } from "@tauri-apps/api/core";
+import { useStore } from "../store";
+import type { Listing, Prepared } from "./networks";
 
 // This matches exactly what is in tauri.conf.json:plugins.zknet.
 export interface ZKNetClientCfg {
@@ -14,7 +14,7 @@ export interface ZKNetClientCfg {
 }
 
 export const getZKNetClientCfg = async (): Promise<ZKNetClientCfg> => {
-  return invoke<ZKNetClientCfg>('cfg');
+  return invoke<ZKNetClientCfg>("cfg");
 };
 
 // get the user's preference, or fallback to the default
@@ -26,29 +26,29 @@ export const getWalletshieldListenAddress = async (): Promise<string> => {
 };
 
 // The published platform name of this build, e.g. `linux-x64`
-export const getPlatform = (): Promise<string> => invoke<string>('platform');
+export const getPlatform = (): Promise<string> => invoke<string>("platform");
 
-export * from './networks';
+export * from "./networks";
 
-export type Asset = 'clientToml' | 'servicesJson' | 'walletshield';
+export type Asset = "clientToml" | "servicesJson" | "walletshield";
 
 export type FetchEvent =
-  | { event: 'started'; data: { asset: Asset; total: number } }
+  | { event: "started"; data: { asset: Asset; total: number } }
   | {
-      event: 'progress';
+      event: "progress";
       data: {
         asset: Asset;
         progress: { progress: number; progressTotal: number; total: number; transferSpeed: number };
       };
     }
-  | { event: 'cached'; data: { asset: Asset } }
-  | { event: 'finished'; data: { asset: Asset } };
+  | { event: "cached"; data: { asset: Asset } }
+  | { event: "finished"; data: { asset: Asset } };
 
 // Rejections of the network commands: `kind` is zknet_core's FetchError::kind()
 export type CmdError = { kind: string; message: string };
 
 // Live networks from the index merged with those cached on this device
-export const listNetworks = (): Promise<Listing> => invoke<Listing>('networks_list');
+export const listNetworks = (): Promise<Listing> => invoke<Listing>("networks_list");
 
 // Make a network ready to run (zknet_core::network::prepare)
 export const fetchNetwork = (
@@ -58,11 +58,11 @@ export const fetchNetwork = (
 ): Promise<Prepared> => {
   const channel = new Channel<FetchEvent>();
   channel.onmessage = onEvent;
-  return invoke<Prepared>('network_fetch', { networkId, refresh, onEvent: channel });
+  return invoke<Prepared>("network_fetch", { networkId, refresh, onEvent: channel });
 };
 
 export const readNetworkAssetFile = async (networkId: string, asset: string) => {
-  const filePath = await path.join('networks', networkId, asset);
+  const filePath = await path.join("networks", networkId, asset);
   return await readTextFile(filePath, { baseDir: BaseDirectory.AppLocalData });
 };
 

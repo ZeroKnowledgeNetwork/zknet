@@ -15,16 +15,16 @@
 //
 // Writes .state/preflight/<tier>.json: { tier, workerHash, bytes, gitCommit, dirty, at }.
 
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
-import { parseArgs } from 'node:util';
-import { digestFile } from './lib/digest.mjs';
-import { branch, head, porcelain, remotesContainingHead } from './lib/git.mjs';
-import { DEFAULT_BUNDLE, POSTED_RECORDS_DIR, PREFLIGHT_DIR } from './lib/paths.mjs';
-import { CliError, isMain, runMain } from './lib/proc.mjs';
-import { readRecord, recordPath } from './lib/record.mjs';
-import { banner, tierOf } from './lib/tiers.mjs';
-import { DEFAULT_BUILD, DEFAULT_INSTALL, reproduce } from './reproducible.mjs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
+import { parseArgs } from "node:util";
+import { digestFile } from "./lib/digest.mjs";
+import { branch, head, porcelain, remotesContainingHead } from "./lib/git.mjs";
+import { DEFAULT_BUNDLE, POSTED_RECORDS_DIR, PREFLIGHT_DIR } from "./lib/paths.mjs";
+import { CliError, isMain, runMain } from "./lib/proc.mjs";
+import { readRecord, recordPath } from "./lib/record.mjs";
+import { banner, tierOf } from "./lib/tiers.mjs";
+import { DEFAULT_BUILD, DEFAULT_INSTALL, reproduce } from "./reproducible.mjs";
 
 /**
  * @typedef {object} Proof
@@ -43,10 +43,10 @@ import { DEFAULT_BUILD, DEFAULT_INSTALL, reproduce } from './reproducible.mjs';
  */
 export function prodRefusals(s) {
   const reasons = [];
-  if (s.porcelain !== '') reasons.push('the working tree is not clean (git status --porcelain)');
-  if (s.branch !== 'main') reasons.push(`HEAD is on "${s.branch || 'detached'}", not main`);
-  if (s.remotes.length === 0) reasons.push('HEAD is on no remote branch (push it first)');
-  if (s.testWorkerHash === undefined) reasons.push('deployments/test.json does not exist');
+  if (s.porcelain !== "") reasons.push("the working tree is not clean (git status --porcelain)");
+  if (s.branch !== "main") reasons.push(`HEAD is on "${s.branch || "detached"}", not main`);
+  if (s.remotes.length === 0) reasons.push("HEAD is on no remote branch (push it first)");
+  if (s.testWorkerHash === undefined) reasons.push("deployments/test.json does not exist");
   else if (s.testWorkerHash !== s.workerHash)
     reasons.push(
       `deployments/test.json pins ${s.testWorkerHash}, not this bundle; prod follows test`,
@@ -60,7 +60,7 @@ export const proofPath = (tier, dir = PREFLIGHT_DIR) => join(dir, `${tier}.json`
 /** @param {string} tier @param {string} [dir] @returns {Proof | undefined} */
 export function readProof(tier, dir = PREFLIGHT_DIR) {
   const file = proofPath(tier, dir);
-  return existsSync(file) ? JSON.parse(readFileSync(file, 'utf8')) : undefined;
+  return existsSync(file) ? JSON.parse(readFileSync(file, "utf8")) : undefined;
 }
 
 /** @param {string[]} argv */
@@ -68,12 +68,12 @@ async function main(argv) {
   const { values } = parseArgs({
     args: argv,
     options: {
-      tier: { type: 'string' },
+      tier: { type: "string" },
       bundle: {
-        type: 'string',
+        type: "string",
         default: process.env.WORKER_BUNDLE || DEFAULT_BUNDLE,
       },
-      posted: { type: 'string', default: POSTED_RECORDS_DIR },
+      posted: { type: "string", default: POSTED_RECORDS_DIR },
     },
   });
   const tier = tierOf(values.tier);
@@ -84,31 +84,31 @@ async function main(argv) {
   console.log(`bundle ${digest.keccak256} (${digest.bytes} bytes)`);
 
   const dirtyStatus = porcelain();
-  if (tier.name === 'prod') {
+  if (tier.name === "prod") {
     const reasons = prodRefusals({
       porcelain: dirtyStatus,
       branch: branch(),
       remotes: remotesContainingHead(),
-      testWorkerHash: readRecord(recordPath(/** @type {string} */ (values.posted), 'test'))
+      testWorkerHash: readRecord(recordPath(/** @type {string} */ (values.posted), "test"))
         ?.workerHash,
       workerHash: digest.keccak256,
     });
     if (reasons.length > 0)
-      throw new CliError(`prod preflight refuses:\n  - ${reasons.join('\n  - ')}`);
+      throw new CliError(`prod preflight refuses:\n  - ${reasons.join("\n  - ")}`);
   }
 
   if (tier.public) {
-    console.log('rebuilding from a clean export of HEAD…');
+    console.log("rebuilding from a clean export of HEAD…");
     const { results, odd } = await reproduce({
       build: process.env.WORKER_BUILD_CMD || DEFAULT_BUILD,
       bundle,
       runs: 2,
       cleanExport: true,
-      ref: 'HEAD',
+      ref: "HEAD",
       install: DEFAULT_INSTALL,
       keep: false,
     });
-    if (odd !== undefined) throw new CliError('clean exports of HEAD are not byte-identical');
+    if (odd !== undefined) throw new CliError("clean exports of HEAD are not byte-identical");
     const fromHead = results[0]?.keccak256;
     if (fromHead !== digest.keccak256)
       throw new CliError(
@@ -123,13 +123,13 @@ async function main(argv) {
     workerHash: digest.keccak256,
     bytes: digest.bytes,
     gitCommit: head(),
-    dirty: dirtyStatus !== '',
+    dirty: dirtyStatus !== "",
     at: new Date().toISOString(),
   };
   mkdirSync(PREFLIGHT_DIR, { recursive: true });
   writeFileSync(proofPath(tier.name), `${JSON.stringify(proof, null, 2)}\n`);
   console.log(
-    `✓ preflight ${tier.name}: ${proof.workerHash} at ${proof.gitCommit.slice(0, 12)}${proof.dirty ? ' (tree dirty)' : ''}`,
+    `✓ preflight ${tier.name}: ${proof.workerHash} at ${proof.gitCommit.slice(0, 12)}${proof.dirty ? " (tree dirty)" : ""}`,
   );
 }
 

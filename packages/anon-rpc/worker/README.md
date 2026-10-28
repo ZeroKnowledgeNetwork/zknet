@@ -64,8 +64,8 @@ things are true:
   new AnonRpcWorker({
     address,
     preExisting,
-    config: { walletshield: 'http://127.0.0.1:7070' },
-    network: { policy: { allow: ['loopback', 'local'] } },
+    config: { walletshield: "http://127.0.0.1:7070" },
+    network: { policy: { allow: ["loopback", "local"] } },
   });
   ```
 

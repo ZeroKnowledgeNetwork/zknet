@@ -1,7 +1,7 @@
-import { ZKNetClientState, ZKNetLink } from './types.js';
+import { ZKNetClientState, ZKNetLink } from "./types.js";
 
 export function sdk(): string {
-  return 'sdk';
+  return "sdk";
 }
 
 declare global {
@@ -17,25 +17,25 @@ export interface ZKNetSDKOptions {
 // Wait for the ZKNet extension to be ready, or timeout after a specified period.
 function detectExtension(timeoutMs = 2_000): Promise<ZKNetLink> {
   function isReady() {
-    return !!window.zknet && typeof window.zknet.fetch === 'function';
+    return !!window.zknet && typeof window.zknet.fetch === "function";
   }
 
   if (isReady()) {
-    console.log('ZKNet extension detected (flag)');
+    console.log("ZKNet extension detected (flag)");
     return Promise.resolve(window.zknet!);
   }
 
   return new Promise((resolve, reject) => {
     // fired when the injected script finishes
-    window.addEventListener('zknet#initialized', onReady, { once: true });
+    window.addEventListener("zknet#initialized", onReady, { once: true });
 
     const timer = setTimeout(() => {
-      window.removeEventListener('zknet#initialized', onReady);
-      reject(new Error('ZKNetwork extension not found'));
+      window.removeEventListener("zknet#initialized", onReady);
+      reject(new Error("ZKNetwork extension not found"));
     }, timeoutMs);
 
     function onReady() {
-      console.log('ZKNet extension detected (event)');
+      console.log("ZKNet extension detected (event)");
       if (isReady()) {
         clearTimeout(timer);
         resolve(window.zknet!);
@@ -62,7 +62,7 @@ export class ZKNetSDK {
   }
 
   fetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
-    console.log('ZKNetSDK Options:', this.opts); // TODO: remove this after use opts
+    console.log("ZKNetSDK Options:", this.opts); // TODO: remove this after use opts
     return this.link.fetch(input, init);
   }
 

@@ -5,7 +5,7 @@
 //
 // Config: { fetches: string[], websockets: string[] }. Loaded hash-pinned
 // through a WorkerSpecifier like any worker; plain JS, so no build step.
-'use strict';
+"use strict";
 (async () => {
   const config = anonRpcWorker.config ?? {};
   const outcomes = [];
@@ -28,15 +28,15 @@
           resolve(`threw ${e?.name ?? e}`);
           return;
         }
-        const timer = setTimeout(() => resolve('no event'), 3000);
+        const timer = setTimeout(() => resolve("no event"), 3000);
         socket.onopen = () => {
           clearTimeout(timer);
           socket.close();
-          resolve('open');
+          resolve("open");
         };
         socket.onerror = () => {
           clearTimeout(timer);
-          resolve('error');
+          resolve("error");
         };
       }),
     });
@@ -49,10 +49,10 @@
     } catch {
       return;
     }
-    if (call.kind !== 'fetch') continue;
+    if (call.kind !== "fetch") continue;
     call.respond({
       status: 200,
-      headers: [['content-type', 'application/json']],
+      headers: [["content-type", "application/json"]],
       body: new TextEncoder().encode(JSON.stringify(outcomes)),
     });
   }

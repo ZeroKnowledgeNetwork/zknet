@@ -59,7 +59,7 @@ type Server struct {
 	haltOnce   sync.Once
 }
 
-// Unused by this fork: see pki/server/aux.go:zkpki_computeLambdaGFromNodesPerLayer,
+// Unused by this fork: see pki/server/zkpki.go:zkpki_computeLambdaGFromNodesPerLayer,
 // which derives lambdaG from the dynamic topology rather than the config file.
 // Kept in sync with upstream so the divergence stays legible.
 func computeLambdaG(cfg *config.Config) float64 {

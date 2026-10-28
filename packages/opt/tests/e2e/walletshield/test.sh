@@ -7,7 +7,7 @@ status=0
 run_test() {
   test_dir="$1"
   test_case="${test_dir#${dir}}"
-  network="${test_case%%:*}"
+  network="${test_case%%+*}"
   output=$(mktemp)
 
   if [ -f "${test_dir}/in.json" ]; then

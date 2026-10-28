@@ -32,7 +32,7 @@ export type AnonRpcWorkerApi = {
 export type IncomingCall = FetchCall; // discriminated by `kind`; more kinds later
 
 export type FetchCall = {
-  kind: "fetch";
+  kind: 'fetch';
   url: string;
   requestInit?: AnonRequestInit;
   respond(response: AnonFetchResponse | Promise<AnonFetchResponse>): void;
@@ -48,7 +48,7 @@ export type AnonRequestInit = {
   method?: string;
   headers?: HeaderList;
   body?: ByteBody;
-  redirect?: "follow" | "manual" | "error";
+  redirect?: 'follow' | 'manual' | 'error';
   signal?: AbortSignal;
 };
 
@@ -95,17 +95,17 @@ export type KpsStream = {
 };
 
 export type KpsErrorCode =
-  | "cancelled"
-  | "closed"
-  | "reset"
-  | "timeout"
-  | "network-error"
-  | "protocol-error"
-  | "unsupported"
-  | "too-large"
-  | "queue-full"
-  | "permission-denied"
-  | "internal-error";
+  | 'cancelled'
+  | 'closed'
+  | 'reset'
+  | 'timeout'
+  | 'network-error'
+  | 'protocol-error'
+  | 'unsupported'
+  | 'too-large'
+  | 'queue-full'
+  | 'permission-denied'
+  | 'internal-error';
 
 export type KpsReason = { code?: KpsErrorCode; message?: string };
 export type KpsConnCloseInfo = { ok: boolean; reason?: KpsReason };

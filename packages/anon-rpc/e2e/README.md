@@ -123,13 +123,13 @@ It is idempotent. The specifier is deployed from anvil's account #9, so on a fre
 always `0x700b6A60ce7EaaEA56F065753d8dcB9653dbAD35`; that address is what the `zknet-local`
 preset below names. `DEMO_WALLETSHIELD` changes the printed worker config.
 
-| Demo field    | Value                                                                                                                                            |
-| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Worker        | "ZKNet (local anvil)" on the `zknet/local-dev` site, or "Custom" with the address below                                                          |
-| Specifier     | `0x700b6A60ce7EaaEA56F065753d8dcB9653dbAD35`                                                                                                     |
-| Bootstrap     | `http://127.0.0.1:8545` (chain 31337)                                                                                                            |
+| Demo field    | Value                                                                                                                                                                                       |
+| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Worker        | "ZKNet (local anvil)" on the `zknet/local-dev` site, or "Custom" with the address below                                                                                                     |
+| Specifier     | `0x700b6A60ce7EaaEA56F065753d8dcB9653dbAD35`                                                                                                                                                |
+| Bootstrap     | `http://127.0.0.1:8545` (chain 31337)                                                                                                                                                       |
 | Worker RPC    | the prefilled public provider (e.g. `https://ethereum-rpc.publicnode.com`), fetched by the exit; or `http://127.0.0.1:7070/ethereum` (`/ethereum/sepolia`) for the exit operator's provider |
-| Worker config | `{"walletshield":"http://127.0.0.1:7070"}`                                                                                                                                                   |
+| Worker config | `{"walletshield":"http://127.0.0.1:7070"}`                                                                                                                                                  |
 
 The site comes from the anon-rpc fork's dev-only branch `zknet/local-dev`. It adds chain 31337
 and the `zknet-local` preset, which also carries `network.policy`. Build and serve it locally:

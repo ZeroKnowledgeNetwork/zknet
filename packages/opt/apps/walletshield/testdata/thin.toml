@@ -1,6 +1,6 @@
 # A thin client config, as network-assets publishes for dev-local: it only dials
 # an existing client daemon.
 [Dial]
-  [Dial.Tcp]
-    Address = "localhost:45020"
-    Network = "tcp"
+[Dial.Tcp]
+Address = "localhost:45020"
+Network = "tcp"

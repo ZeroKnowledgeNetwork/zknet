@@ -30,7 +30,9 @@ export interface ForkHarness {
 export function buildForkHarness(repo: string): ForkHarness {
   const dir = join(repo, 'impl/browser-harness');
   if (!existsSync(join(dir, 'src/host/AnonRpcWorker.ts'))) {
-    throw new Error(`${repo} is not an anon-rpc checkout (no impl/browser-harness/src/host/AnonRpcWorker.ts)`);
+    throw new Error(
+      `${repo} is not an anon-rpc checkout (no impl/browser-harness/src/host/AnonRpcWorker.ts)`,
+    );
   }
   const support = join(dir, 'src/host/local-network.ts');
   if (!existsSync(support) || !readFileSync(support, 'utf8').includes('networkSpaces')) {

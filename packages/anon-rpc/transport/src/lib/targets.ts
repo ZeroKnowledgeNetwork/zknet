@@ -42,7 +42,11 @@ export function classifyTarget(url: URL): TargetClass | undefined {
   for (const cls of ['loopback', 'lan'] as const) {
     if (ip) {
       if (TARGET_CIDRS[cls].some((cidr) => inCidr(ip, cidr))) return cls;
-    } else if (TARGET_HOSTNAMES[cls].some((name) => (name.startsWith('.') ? host.endsWith(name) : host === name))) {
+    } else if (
+      TARGET_HOSTNAMES[cls].some((name) =>
+        name.startsWith('.') ? host.endsWith(name) : host === name,
+      )
+    ) {
       return cls;
     }
   }
@@ -94,12 +98,14 @@ function parseIp(text: string): Ip | undefined {
     bytes[2 * i + 1] = w & 0xff;
   });
   // An IPv4-mapped address classifies as the IPv4 address it carries.
-  if (all.slice(0, 5).every((w) => w === 0) && all[5] === 0xffff) return { v: 4, bytes: bytes.slice(12) };
+  if (all.slice(0, 5).every((w) => w === 0) && all[5] === 0xffff)
+    return { v: 4, bytes: bytes.slice(12) };
   return { v: 6, bytes };
 }
 
 function parseIpv4(text: string): Uint8Array | undefined {
   const parts = text.split('.');
-  if (parts.length !== 4 || !parts.every((p) => /^\d{1,3}$/.test(p) && Number(p) <= 255)) return undefined;
+  if (parts.length !== 4 || !parts.every((p) => /^\d{1,3}$/.test(p) && Number(p) <= 255))
+    return undefined;
   return Uint8Array.from(parts.map(Number));
 }

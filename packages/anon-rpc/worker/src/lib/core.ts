@@ -4,11 +4,24 @@
 // call's URL (see route()). Everything else is refused with a code. Failures
 // carry an Anon-RPC SPEC v0.3.2 §12 `code` and a stable `name` (see README).
 
-import { classifyTarget, TransportError, WalletShieldTransport, type ExitTarget, type ProbeResult, type Transport } from '@zknet/anon-rpc-transport';
+import {
+  classifyTarget,
+  TransportError,
+  WalletShieldTransport,
+  type ExitTarget,
+  type ProbeResult,
+  type Transport,
+} from '@zknet/anon-rpc-transport';
 import { ConfigError, resolveConfig, type ResolvedConfig } from './config.js';
 import { MAX_REQUEST_BODY_BYTES, MAX_URL_LENGTH } from './limits.js';
 import { createLogger, redact, type WorkerLogger } from './log.js';
-import type { AnonFetchResponse, AnonRequestInit, AnonRpcWorkerApi, ByteBody, FetchCall } from './spec-types.js';
+import type {
+  AnonFetchResponse,
+  AnonRequestInit,
+  AnonRpcWorkerApi,
+  ByteBody,
+  FetchCall,
+} from './spec-types.js';
 
 /** An exit network key: path segments of letters, digits, `-`, `_` and `.`; the `_` namespace is WalletShield's own. */
 const NETWORK_RE = /^[A-Za-z0-9-][A-Za-z0-9._-]*(\/[A-Za-z0-9_-][A-Za-z0-9._-]*)*$/;
@@ -32,25 +45,44 @@ interface Refusal {
  *   under its destination policy. This is the web-request shape, limited to
  *   JSON-RPC `POST`.
  */
-export function route(rawUrl: string, method: string, config: ResolvedConfig): ExitTarget | Refusal {
-  const refuse = (message: string, reason: Refusal['reason'] = 'url'): Refusal => ({ code: 'unsupported', reason, message });
-  if (method.toUpperCase() !== 'POST') return refuse('this worker serves JSON-RPC POST only', 'method');
-  if (rawUrl.length > MAX_URL_LENGTH) return { code: 'too-large', reason: 'url', message: `the URL is longer than ${MAX_URL_LENGTH} characters` };
+export function route(
+  rawUrl: string,
+  method: string,
+  config: ResolvedConfig,
+): ExitTarget | Refusal {
+  const refuse = (message: string, reason: Refusal['reason'] = 'url'): Refusal => ({
+    code: 'unsupported',
+    reason,
+    message,
+  });
+  if (method.toUpperCase() !== 'POST')
+    return refuse('this worker serves JSON-RPC POST only', 'method');
+  if (rawUrl.length > MAX_URL_LENGTH)
+    return {
+      code: 'too-large',
+      reason: 'url',
+      message: `the URL is longer than ${MAX_URL_LENGTH} characters`,
+    };
   let url: URL;
   try {
     url = new URL(rawUrl);
   } catch {
     return refuse('the URL must be absolute: a provider https URL, or a WalletShield network URL');
   }
-  if (url.hash || url.username || url.password) return refuse('the URL must not carry a fragment or credentials');
+  if (url.hash || url.username || url.password)
+    return refuse('the URL must not carry a fragment or credentials');
 
   const walletshield = new URL(config.walletshield).origin;
   if (url.origin === walletshield) {
     const network = url.pathname.slice(1);
-    if (url.search || !NETWORK_RE.test(network)) return refuse(`not a WalletShield network path: ${url.pathname}`);
+    if (url.search || !NETWORK_RE.test(network))
+      return refuse(`not a WalletShield network path: ${url.pathname}`);
     return { network };
   }
-  if (classifyTarget(url)) return refuse(`a local URL that is not the configured WalletShield (${walletshield}); set config.walletshield`);
+  if (classifyTarget(url))
+    return refuse(
+      `a local URL that is not the configured WalletShield (${walletshield}); set config.walletshield`,
+    );
   if (url.protocol !== 'https:') return refuse('a provider URL must be https');
   return { url: url.href };
 }
@@ -60,7 +92,10 @@ function isRefusal(r: ExitTarget | Refusal): r is Refusal {
 }
 
 /** Codes passed to `signalFailed` (permanent: this bundle cannot run here). */
-export const FAILED_CODES = { badConfig: 'bad-config', unsupportedPlatform: 'unsupported-platform' } as const;
+export const FAILED_CODES = {
+  badConfig: 'bad-config',
+  unsupportedPlatform: 'unsupported-platform',
+} as const;
 
 /** Least time between two diagnostic probes triggered by failing calls. */
 export const PROBE_COOLDOWN_MS = 10_000;
@@ -94,8 +129,15 @@ export async function runWorker(api: AnonRpcWorkerApi, deps: WorkerDeps): Promis
     api.signalFailed({ code, message });
   };
 
-  if (typeof fetch !== 'function' || typeof AbortSignal?.any !== 'function' || typeof AbortSignal.timeout !== 'function') {
-    fail(FAILED_CODES.unsupportedPlatform, 'this worker needs fetch, AbortSignal.any and AbortSignal.timeout');
+  if (
+    typeof fetch !== 'function' ||
+    typeof AbortSignal?.any !== 'function' ||
+    typeof AbortSignal.timeout !== 'function'
+  ) {
+    fail(
+      FAILED_CODES.unsupportedPlatform,
+      'this worker needs fetch, AbortSignal.any and AbortSignal.timeout',
+    );
     return;
   }
 
@@ -167,9 +209,26 @@ async function handle(
   if (isRefusal(target)) return refused(log, seq, target);
   const kind = target.url === undefined ? 'network' : 'url';
   const failed = (e: unknown): Error => {
-    const error = e instanceof TransportError || e instanceof WorkerCallError ? e : init.signal?.aborted ? aborted() : internal(e);
-    log.warn('call.failed', { seq, route: kind, code: error.code, name: error.name, ms: now() - started });
-    if (e instanceof TransportError && (error.code === 'network-error' || error.code === 'permission-denied' || error.code === 'unsupported')) void diagnose();
+    const error =
+      e instanceof TransportError || e instanceof WorkerCallError
+        ? e
+        : init.signal?.aborted
+          ? aborted()
+          : internal(e);
+    log.warn('call.failed', {
+      seq,
+      route: kind,
+      code: error.code,
+      name: error.name,
+      ms: now() - started,
+    });
+    if (
+      e instanceof TransportError &&
+      (error.code === 'network-error' ||
+        error.code === 'permission-denied' ||
+        error.code === 'unsupported')
+    )
+      void diagnose();
     return error;
   };
 
@@ -179,15 +238,35 @@ async function handle(
   } catch (e) {
     throw failed(e);
   }
-  if (body === undefined) return refused(log, seq, { code: 'too-large', reason: 'size', message: `the request body is larger than ${MAX_REQUEST_BODY_BYTES} bytes` });
+  if (body === undefined)
+    return refused(log, seq, {
+      code: 'too-large',
+      reason: 'size',
+      message: `the request body is larger than ${MAX_REQUEST_BODY_BYTES} bytes`,
+    });
 
   try {
-    const res = await transport.request({ ...target, body, contentType: header(init, 'content-type') ?? 'application/json' }, { signal: init.signal });
+    const res = await transport.request(
+      { ...target, body, contentType: header(init, 'content-type') ?? 'application/json' },
+      { signal: init.signal },
+    );
     // The exit relays a redirect, never follows it. Fetch's `error` mode makes one a network error.
     if (init.redirect === 'error' && res.status >= 300 && res.status < 400) {
-      throw new WorkerCallError('network-error', 'RedirectRefused', `the provider answered with a redirect (${res.status})`);
+      throw new WorkerCallError(
+        'network-error',
+        'RedirectRefused',
+        `the provider answered with a redirect (${res.status})`,
+      );
     }
-    log.debug('call.done', { seq, ms: now() - started, route: kind, outcome: 'ok', status: res.status, bytesOut: body.byteLength, bytesIn: res.body.byteLength });
+    log.debug('call.done', {
+      seq,
+      ms: now() - started,
+      route: kind,
+      outcome: 'ok',
+      status: res.status,
+      bytesOut: body.byteLength,
+      bytesIn: res.body.byteLength,
+    });
     return { status: res.status, headers: res.headers, body: res.body, url: call.url };
   } catch (e) {
     throw failed(e);
@@ -196,7 +275,11 @@ async function handle(
 
 function refused(log: WorkerLogger, seq: number, r: Refusal): never {
   log.warn('call.refused', { seq, reason: r.reason });
-  throw new WorkerCallError(r.code, r.code === 'too-large' ? 'TooLarge' : 'UnsupportedRequest', r.message);
+  throw new WorkerCallError(
+    r.code,
+    r.code === 'too-large' ? 'TooLarge' : 'UnsupportedRequest',
+    r.message,
+  );
 }
 
 function header(init: AnonRequestInit, name: string): string | undefined {
@@ -204,7 +287,11 @@ function header(init: AnonRequestInit, name: string): string | undefined {
 }
 
 /** Probe at boot and after failing calls (one at a time; failure-triggered probes rate-limited), logging what it finds. */
-function probeLogger(transport: Transport, log: WorkerLogger, now: () => number): (force?: boolean) => Promise<void> {
+function probeLogger(
+  transport: Transport,
+  log: WorkerLogger,
+  now: () => number,
+): (force?: boolean) => Promise<void> {
   let running = false;
   let last = -Infinity;
   return async (force = false) => {
@@ -213,7 +300,13 @@ function probeLogger(transport: Transport, log: WorkerLogger, now: () => number)
     if (!force) last = now();
     try {
       const r: ProbeResult = await transport.probe();
-      const fields = { reach: r.reach, ms: r.ms, version: r.peerVersion, code: r.error?.code, name: r.error?.name };
+      const fields = {
+        reach: r.reach,
+        ms: r.ms,
+        version: r.peerVersion,
+        code: r.error?.code,
+        name: r.error?.name,
+      };
       if (r.error) log.warn('probe', fields);
       else log.info('probe', fields);
     } catch (e) {
@@ -225,9 +318,13 @@ function probeLogger(transport: Transport, log: WorkerLogger, now: () => number)
 }
 
 /** The whole body, or undefined past MAX_REQUEST_BODY_BYTES (a stream is not read further). */
-async function readAll(body: ByteBody | undefined, signal: AbortSignal | undefined): Promise<Uint8Array | undefined> {
+async function readAll(
+  body: ByteBody | undefined,
+  signal: AbortSignal | undefined,
+): Promise<Uint8Array | undefined> {
   if (body === undefined) return new Uint8Array(0);
-  if (body instanceof Uint8Array) return body.byteLength > MAX_REQUEST_BODY_BYTES ? undefined : body;
+  if (body instanceof Uint8Array)
+    return body.byteLength > MAX_REQUEST_BODY_BYTES ? undefined : body;
   const chunks: Uint8Array[] = [];
   let total = 0;
   const reader = body.getReader();

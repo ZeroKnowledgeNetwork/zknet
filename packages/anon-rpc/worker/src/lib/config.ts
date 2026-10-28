@@ -28,24 +28,31 @@ export class ConfigError extends Error {
 /** Validate `anonRpcWorker.config`. Throws a ConfigError naming the first problem. */
 export function resolveConfig(raw: unknown): ResolvedConfig {
   if (raw === undefined || raw === null) return { ...DEFAULT_CONFIG };
-  if (typeof raw !== 'object' || Array.isArray(raw)) throw new ConfigError('config must be an object');
+  if (typeof raw !== 'object' || Array.isArray(raw))
+    throw new ConfigError('config must be an object');
   const cfg = raw as Record<string, unknown>;
   for (const key of Object.keys(cfg)) {
     if (!Object.hasOwn(DEFAULT_CONFIG, key)) throw new ConfigError(`unknown config key "${key}"`);
   }
   const out = { ...DEFAULT_CONFIG };
   if (cfg.walletshield !== undefined) {
-    if (typeof cfg.walletshield !== 'string') throw new ConfigError('walletshield must be a URL string');
+    if (typeof cfg.walletshield !== 'string')
+      throw new ConfigError('walletshield must be a URL string');
     out.walletshield = cfg.walletshield;
   }
   if (cfg.timeoutMs !== undefined) {
-    if (typeof cfg.timeoutMs !== 'number' || !Number.isFinite(cfg.timeoutMs) || cfg.timeoutMs <= 0) {
+    if (
+      typeof cfg.timeoutMs !== 'number' ||
+      !Number.isFinite(cfg.timeoutMs) ||
+      cfg.timeoutMs <= 0
+    ) {
       throw new ConfigError('timeoutMs must be a positive number');
     }
     out.timeoutMs = cfg.timeoutMs;
   }
   if (cfg.logLevel !== undefined) {
-    if (!LOG_LEVELS.includes(cfg.logLevel as LogLevel)) throw new ConfigError(`logLevel must be one of ${LOG_LEVELS.join(', ')}`);
+    if (!LOG_LEVELS.includes(cfg.logLevel as LogLevel))
+      throw new ConfigError(`logLevel must be one of ${LOG_LEVELS.join(', ')}`);
     out.logLevel = cfg.logLevel as LogLevel;
   }
   return out;

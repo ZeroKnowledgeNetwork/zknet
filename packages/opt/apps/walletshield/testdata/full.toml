@@ -4,8 +4,8 @@ WireKEMScheme = "xwing"
 PKISignatureScheme = "Ed25519"
 
 [Listen]
-  [Listen.Tcp]
-    Address = "localhost:45020"
-    Network = "tcp"
+[Listen.Tcp]
+Address = "localhost:45020"
+Network = "tcp"
 
 [PinnedGateways]

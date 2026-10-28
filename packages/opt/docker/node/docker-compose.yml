@@ -1,5 +1,5 @@
 x-common-service: &common-service
-  restart: "no"
+  restart: 'no'
   image: ${IMAGE_NODE}
   user: ${DOCKER_USER}
   volumes:

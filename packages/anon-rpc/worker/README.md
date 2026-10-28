@@ -15,12 +15,12 @@ the contract pins (Anon-RPC SPEC v0.3.2 §4).
 Anon-RPC SPEC v0.3.2 §3.2 lets a worker enable Ethereum RPC by general web
 request access, by serving RPC at a nominated special URL, or both. This
 worker does both. The URL the host passes to `worker.fetch(url, init)` (the
-anon-rpc demo's *Worker RPC URL*) chooses:
+anon-rpc demo's _Worker RPC URL_) chooses:
 
-| URL | who answers |
-|---|---|
-| **WalletShield's own URL**: the `walletshield` origin plus an exit network key, e.g. `http://127.0.0.1:7070/ethereum` or `http://127.0.0.1:7070/ethereum/sepolia` | the exit operator's provider for that key (the exit's `[Networks]`), exactly as WalletShield answers any wallet |
-| **any other public `https:` URL**, e.g. `https://ethereum-rpc.publicnode.com` | that provider. The exit fetches it under its destination policy: `https` only, public addresses only (checked after DNS resolution), no redirects followed, size and time limits. |
+| URL                                                                                                                                                               | who answers                                                                                                                                                                       |
+| ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **WalletShield's own URL**: the `walletshield` origin plus an exit network key, e.g. `http://127.0.0.1:7070/ethereum` or `http://127.0.0.1:7070/ethereum/sepolia` | the exit operator's provider for that key (the exit's `[Networks]`), exactly as WalletShield answers any wallet                                                                   |
+| **any other public `https:` URL**, e.g. `https://ethereum-rpc.publicnode.com`                                                                                     | that provider. The exit fetches it under its destination policy: `https` only, public addresses only (checked after DNS resolution), no redirects followed, size and time limits. |
 
 What ZKNet offers is **RPC provider selection, not general web access**:
 only JSON-RPC `POST` is served. A provider URL may carry an API key; it
@@ -43,11 +43,11 @@ exactly at the workspace root.
 Every key is optional. An unknown key, a wrong type, or a peer that is not
 local makes the worker call `signalFailed({ code: 'bad-config' })`.
 
-| key | default | meaning |
-|---|---|---|
+| key            | default                 | meaning                                                                                                                                                                                                                          |
+| -------------- | ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `walletshield` | `http://127.0.0.1:7070` | WalletShield's listener. It must be loopback or local network (see `@zknet/anon-rpc-transport`'s `targets.ts`). `:7070` is the usual port, but WalletShield has no built-in default, so set this key if yours listens elsewhere. |
-| `timeoutMs` | `30000` | Per-request deadline. Keep it above WalletShield's own `-timeout` (20 s) so that its `mix-timeout` is reported first. |
-| `logLevel` | `info` | The lowest level forwarded to the harness log |
+| `timeoutMs`    | `30000`                 | Per-request deadline. Keep it above WalletShield's own `-timeout` (20 s) so that its `mix-timeout` is reported first.                                                                                                            |
+| `logLevel`     | `info`                  | The lowest level forwarded to the harness log                                                                                                                                                                                    |
 
 ## Local network access (host side)
 
@@ -100,24 +100,24 @@ goes through a browser proxy.
   - **`name`** is a **stable** finer reason. Both are contract.
   - `message` is diagnostic only.
 
-| `code` | `name` | when |
-|---|---|---|
-| `unsupported` | `UnsupportedRequest` | the method is not `POST`; the URL is not absolute, carries credentials or a fragment, is `http:` (and not WalletShield's), is a local address other than the configured WalletShield, or is a WalletShield path that is not a network key |
-| `too-large` | `TooLarge` | the request body (over 128 KiB) or the URL (over 2 KiB) is past the limits in `src/lib/limits.ts`, refused before sending |
-| `network-error` | `PeerUnreachable` | nothing readable came back from WalletShield's address. Either it is not running there, or the browser refused local network access (not delegated or not granted). A worker cannot tell these apart, because the browser reports one `TypeError` for both. The host can: it knows its own delegation and can query `loopback-network` / `local-network` itself. |
-| `permission-denied` | `CorsRejected` | something answered at WalletShield's address, but its reply is unreadable from the worker's origin (CORS) |
-| `unsupported` | `MixedContentBlocked` | the peer is an `http:` LAN address and the worker runs in a secure context. Predicted, never probed; Firefox is the browser that blocks this. |
-| `timeout` | `MixTimeout` | WalletShield reports that no reply came back over the mixnet in time (`ZKNet-Error: mix-timeout`) |
-| `permission-denied` | `ExitRefused` | the exit refused the request: a network key it does not serve, a provider URL its destination policy refuses, or provider selection turned off by its operator (`provider-selection-off`). Nothing went upstream. |
-| `queue-full` | `ExitBusy` | the exit was already serving its maximum number of requests |
-| `network-error` | `UpstreamUnreachable` | the exit could not complete the upstream request |
-| `too-large` | `TooLarge` | the request or the reply does not fit the mixnet payload |
-| `protocol-error` | `BadReply` | WalletShield could not decode the exit's reply |
-| `protocol-error` | `UnexpectedReply` | a `ZKNet-Error` reason this worker does not know, or a reply that was redirected on the way from WalletShield |
-| `network-error` | `RedirectRefused` | the provider answered with a redirect and the call's `redirect` is `error`. The exit never follows a redirect: under `follow` or `manual` the 3xx is the response. |
-| `timeout` | `Deadline` | `timeoutMs` passed first |
-| `cancelled` | `AbortError` | the host aborted the call |
-| `internal-error` | `InternalError` | a bug |
+| `code`              | `name`                | when                                                                                                                                                                                                                                                                                                                                                             |
+| ------------------- | --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `unsupported`       | `UnsupportedRequest`  | the method is not `POST`; the URL is not absolute, carries credentials or a fragment, is `http:` (and not WalletShield's), is a local address other than the configured WalletShield, or is a WalletShield path that is not a network key                                                                                                                        |
+| `too-large`         | `TooLarge`            | the request body (over 128 KiB) or the URL (over 2 KiB) is past the limits in `src/lib/limits.ts`, refused before sending                                                                                                                                                                                                                                        |
+| `network-error`     | `PeerUnreachable`     | nothing readable came back from WalletShield's address. Either it is not running there, or the browser refused local network access (not delegated or not granted). A worker cannot tell these apart, because the browser reports one `TypeError` for both. The host can: it knows its own delegation and can query `loopback-network` / `local-network` itself. |
+| `permission-denied` | `CorsRejected`        | something answered at WalletShield's address, but its reply is unreadable from the worker's origin (CORS)                                                                                                                                                                                                                                                        |
+| `unsupported`       | `MixedContentBlocked` | the peer is an `http:` LAN address and the worker runs in a secure context. Predicted, never probed; Firefox is the browser that blocks this.                                                                                                                                                                                                                    |
+| `timeout`           | `MixTimeout`          | WalletShield reports that no reply came back over the mixnet in time (`ZKNet-Error: mix-timeout`)                                                                                                                                                                                                                                                                |
+| `permission-denied` | `ExitRefused`         | the exit refused the request: a network key it does not serve, a provider URL its destination policy refuses, or provider selection turned off by its operator (`provider-selection-off`). Nothing went upstream.                                                                                                                                                |
+| `queue-full`        | `ExitBusy`            | the exit was already serving its maximum number of requests                                                                                                                                                                                                                                                                                                      |
+| `network-error`     | `UpstreamUnreachable` | the exit could not complete the upstream request                                                                                                                                                                                                                                                                                                                 |
+| `too-large`         | `TooLarge`            | the request or the reply does not fit the mixnet payload                                                                                                                                                                                                                                                                                                         |
+| `protocol-error`    | `BadReply`            | WalletShield could not decode the exit's reply                                                                                                                                                                                                                                                                                                                   |
+| `protocol-error`    | `UnexpectedReply`     | a `ZKNet-Error` reason this worker does not know, or a reply that was redirected on the way from WalletShield                                                                                                                                                                                                                                                    |
+| `network-error`     | `RedirectRefused`     | the provider answered with a redirect and the call's `redirect` is `error`. The exit never follows a redirect: under `follow` or `manual` the 3xx is the response.                                                                                                                                                                                               |
+| `timeout`           | `Deadline`            | `timeoutMs` passed first                                                                                                                                                                                                                                                                                                                                         |
+| `cancelled`         | `AbortError`          | the host aborted the call                                                                                                                                                                                                                                                                                                                                        |
+| `internal-error`    | `InternalError`       | a bug                                                                                                                                                                                                                                                                                                                                                            |
 
 The rows from `MixTimeout` to `UnexpectedReply` are replies marked with the
 `ZKNet-Error` header (a redirected reply aside). A reply without that header is the upstream's reply,
@@ -140,17 +140,17 @@ ready regardless, because the user may start WalletShield later, while a
 Each entry is `("zknet-worker", event, fields?)`, where `fields` is a flat
 object of primitives.
 
-| level | event | fields |
-|---|---|---|
-| info | `boot.start` | `version` |
-| info | `boot.config` | `peer`, `target` (`loopback`/`lan`), `timeoutMs` |
-| info | `ready` | — |
-| info / warn | `probe` | `reach` (`none`/`peer`/`exit`), `ms`, `version?`, `code?`, `name?` |
-| debug | `call.done` | `seq`, `ms`, `route` (`network`/`url`), `outcome`, `status`, `bytesOut`, `bytesIn` |
-| warn | `call.refused` | `seq`, `reason` (`url`/`method`/`size`) |
-| warn | `call.failed` | `seq`, `route`, `code`, `name`, `ms` |
-| debug | `call.ignored` | `kind` |
-| error | `accept.failed` · `respond.failed` · `worker.failed` | `code?`, `reason` |
+| level       | event                                                | fields                                                                             |
+| ----------- | ---------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| info        | `boot.start`                                         | `version`                                                                          |
+| info        | `boot.config`                                        | `peer`, `target` (`loopback`/`lan`), `timeoutMs`                                   |
+| info        | `ready`                                              | —                                                                                  |
+| info / warn | `probe`                                              | `reach` (`none`/`peer`/`exit`), `ms`, `version?`, `code?`, `name?`                 |
+| debug       | `call.done`                                          | `seq`, `ms`, `route` (`network`/`url`), `outcome`, `status`, `bytesOut`, `bytesIn` |
+| warn        | `call.refused`                                       | `seq`, `reason` (`url`/`method`/`size`)                                            |
+| warn        | `call.failed`                                        | `seq`, `route`, `code`, `name`, `ms`                                               |
+| debug       | `call.ignored`                                       | `kind`                                                                             |
+| error       | `accept.failed` · `respond.failed` · `worker.failed` | `code?`, `reason`                                                                  |
 
 The worker probes WalletShield at boot and after a failed call, at most once
 every 10 s. The probe uses `GET /_/health`, which WalletShield answers

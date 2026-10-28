@@ -15,7 +15,7 @@ env:
 
 snapshot:
   # the stamp a plain `make app-walletshield` gives: `git describe`
-  version_template: "{{ .Summary }}"
+  version_template: '{{ .Summary }}'
 
 builds:
   - &build
@@ -30,8 +30,8 @@ builds:
       # the vendored sqisign Rust staticlib (linux/amd64 only) needs an unwinder
       - CGO_LDFLAGS=-lunwind
     flags: [-trimpath]
-    ldflags: ["-s -w -X main.version={{ .Version }}"]
-    mod_timestamp: "{{ .CommitTimestamp }}"
+    ldflags: ['-s -w -X main.version={{ .Version }}']
+    mod_timestamp: '{{ .CommitTimestamp }}'
   - <<: *build
     id: linux-arm64
     goarch: [arm64]
@@ -62,7 +62,7 @@ universal_binaries:
   - id: darwin-universal
     ids: [darwin-amd64, darwin-arm64]
     replace: false
-    mod_timestamp: "{{ .CommitTimestamp }}"
+    mod_timestamp: '{{ .CommitTimestamp }}'
 
 # UPX 5.2.1 refuses macOS binaries, so darwin stays unpacked
 upx:

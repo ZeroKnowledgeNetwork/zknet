@@ -58,7 +58,11 @@ export const MAX_LOGGED_TEXT = 300;
 
 /** Remove what must never reach host logs from free text: URLs, addresses, long hex, control characters. Bounded. */
 export function redact(text: string): string {
-  const cleaned = text.replace(URL_RE, '<url>').replace(IPV4_RE, '<addr>').replace(LONG_HEX_RE, '<hex>').replace(CONTROL_RE, ' ');
+  const cleaned = text
+    .replace(URL_RE, '<url>')
+    .replace(IPV4_RE, '<addr>')
+    .replace(LONG_HEX_RE, '<hex>')
+    .replace(CONTROL_RE, ' ');
   return cleaned.length <= MAX_LOGGED_TEXT ? cleaned : `${cleaned.slice(0, MAX_LOGGED_TEXT)}…`;
 }
 

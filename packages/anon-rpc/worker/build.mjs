@@ -42,5 +42,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   await rm(join(here, 'dist'), { recursive: true, force: true });
   await mkdir(dirname(outfile), { recursive: true });
   await writeFile(outfile, bytes);
-  console.log(`dist/zknet-anon-rpc-worker.js ${bytes.byteLength} bytes keccak256 0x${bytesToHex(keccak_256(bytes))}`);
+  console.log(
+    `dist/zknet-anon-rpc-worker.js ${bytes.byteLength} bytes keccak256 0x${bytesToHex(keccak_256(bytes))}`,
+  );
 }

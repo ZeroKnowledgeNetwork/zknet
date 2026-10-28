@@ -1,4 +1,8 @@
-import { marked, startStubWalletShield, type StubWalletShield } from '../testing/stub-walletshield.js';
+import {
+  marked,
+  startStubWalletShield,
+  type StubWalletShield,
+} from '../testing/stub-walletshield.js';
 import { TransportError } from './errors.js';
 import { WalletShieldTransport } from './walletshield.js';
 
@@ -36,12 +40,18 @@ describe('construction', () => {
     expect(new WalletShieldTransport().target).toBe('loopback');
   });
 
-  it.each(['http://8.8.8.8:7070', 'http://walletshield.example:7070', 'ftp://127.0.0.1/', 'http://u:p@127.0.0.1:7070', 'http://127.0.0.1:7070/?a=1', 'not a url'])(
-    'refuses %s',
-    (url) => {
-      expect(() => new WalletShieldTransport({ url })).toThrow(expect.objectContaining({ code: 'unsupported', name: 'TargetRefused' }));
-    },
-  );
+  it.each([
+    'http://8.8.8.8:7070',
+    'http://walletshield.example:7070',
+    'ftp://127.0.0.1/',
+    'http://u:p@127.0.0.1:7070',
+    'http://127.0.0.1:7070/?a=1',
+    'not a url',
+  ])('refuses %s', (url) => {
+    expect(() => new WalletShieldTransport({ url })).toThrow(
+      expect.objectContaining({ code: 'unsupported', name: 'TargetRefused' }),
+    );
+  });
 
   it('accepts a LAN peer', () => {
     expect(new WalletShieldTransport({ url: 'http://192.168.1.20:7070' }).target).toBe('lan');
@@ -66,9 +76,17 @@ describe('request', () => {
     let target = '';
     stub.upstream = (t) => {
       target = t;
-      return { status: 200, headers: { 'content-type': 'application/json' }, body: '{"result":"0x1"}' };
+      return {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+        body: '{"result":"0x1"}',
+      };
     };
-    const res = await new WalletShieldTransport({ url: stub.url }).request({ url: 'https://rpc.example/v3/key', body: RPC, contentType: 'application/json' });
+    const res = await new WalletShieldTransport({ url: stub.url }).request({
+      url: 'https://rpc.example/v3/key',
+      body: RPC,
+      contentType: 'application/json',
+    });
     expect(res.status).toBe(200);
     expect(target).toBe('https://rpc.example/v3/key');
     const seen = stub.requests.at(-1)!;
@@ -86,7 +104,11 @@ describe('request', () => {
   });
 
   it('passes an upstream non-200 through with allowlisted headers only', async () => {
-    stub.upstream = () => ({ status: 429, headers: { 'content-type': 'text/plain', 'retry-after': '7', 'x-upstream': 'drop' }, body: 'slow down %d %s' });
+    stub.upstream = () => ({
+      status: 429,
+      headers: { 'content-type': 'text/plain', 'retry-after': '7', 'x-upstream': 'drop' },
+      body: 'slow down %d %s',
+    });
     const res = await new WalletShieldTransport({ url: stub.url }).request(req());
     expect(res.status).toBe(429);
     expect(res.headers).toEqual([
@@ -102,7 +124,10 @@ describe('request', () => {
   });
 
   it('refuses a reply the peer redirected, which WalletShield never does', async () => {
-    stub.upstream = (target) => (target === 'elsewhere' ? { status: 200, body: '{}' } : { status: 307, headers: { location: `${stub.url}/elsewhere` }, body: '' });
+    stub.upstream = (target) =>
+      target === 'elsewhere'
+        ? { status: 200, body: '{}' }
+        : { status: 307, headers: { location: `${stub.url}/elsewhere` }, body: '' };
     const e = await rejection(new WalletShieldTransport({ url: stub.url }).request(req()));
     expect([e.code, e.name]).toEqual(['protocol-error', 'UnexpectedReply']);
   });
@@ -132,7 +157,9 @@ describe('request', () => {
 
   it('branches on the marker, not the status', async () => {
     stub.upstream = () => ({ ...marked('mix-timeout', 200), status: 200 });
-    expect((await rejection(new WalletShieldTransport({ url: stub.url }).request(req()))).name).toBe('MixTimeout');
+    expect(
+      (await rejection(new WalletShieldTransport({ url: stub.url }).request(req()))).name,
+    ).toBe('MixTimeout');
   });
 
   it('reports nothing listening as PeerUnreachable', async () => {
@@ -145,7 +172,9 @@ describe('request', () => {
 
   it('applies its deadline', async () => {
     stub.upstream = () => 'hang';
-    const e = await rejection(new WalletShieldTransport({ url: stub.url, timeoutMs: 150 }).request(req()));
+    const e = await rejection(
+      new WalletShieldTransport({ url: stub.url, timeoutMs: 150 }).request(req()),
+    );
     expect([e.code, e.name]).toEqual(['timeout', 'Deadline']);
   });
 
@@ -159,7 +188,9 @@ describe('request', () => {
   });
 
   it('rejects at once on an already-aborted signal', async () => {
-    const e = await rejection(new WalletShieldTransport({ url: stub.url }).request(req(), { signal: AbortSignal.abort() }));
+    const e = await rejection(
+      new WalletShieldTransport({ url: stub.url }).request(req(), { signal: AbortSignal.abort() }),
+    );
     expect(e.name).toBe('AbortError');
     expect(stub.requests).toHaveLength(0);
   });
@@ -175,7 +206,9 @@ describe('request', () => {
   });
 
   it('names a browser refusal before any reply PeerUnreachable', async () => {
-    const e = await rejection(new WalletShieldTransport({ url: stub.url, fetch: failingFetch }).request(req()));
+    const e = await rejection(
+      new WalletShieldTransport({ url: stub.url, fetch: failingFetch }).request(req()),
+    );
     expect([e.code, e.name]).toEqual(['network-error', 'PeerUnreachable']);
   });
 
@@ -193,15 +226,25 @@ describe('request', () => {
   });
 
   it('names a predicted mixed-content block for an http: LAN peer from a secure context', async () => {
-    const t = new WalletShieldTransport({ url: 'http://192.168.1.20:7070', fetch: failingFetch, isSecureContext: true });
+    const t = new WalletShieldTransport({
+      url: 'http://192.168.1.20:7070',
+      fetch: failingFetch,
+      isSecureContext: true,
+    });
     expect(t.mixedContentPredicted).toBe(true);
     const e = await rejection(t.request(req()));
     expect([e.code, e.name]).toEqual(['unsupported', 'MixedContentBlocked']);
   });
 
   it('predicts no mixed content for loopback or https', () => {
-    expect(new WalletShieldTransport({ url: 'http://127.0.0.1:7070', isSecureContext: true }).mixedContentPredicted).toBe(false);
-    expect(new WalletShieldTransport({ url: 'https://192.168.1.20:7070', isSecureContext: true }).mixedContentPredicted).toBe(false);
+    expect(
+      new WalletShieldTransport({ url: 'http://127.0.0.1:7070', isSecureContext: true })
+        .mixedContentPredicted,
+    ).toBe(false);
+    expect(
+      new WalletShieldTransport({ url: 'https://192.168.1.20:7070', isSecureContext: true })
+        .mixedContentPredicted,
+    ).toBe(false);
   });
 });
 
@@ -215,18 +258,27 @@ describe('probe', () => {
   it('reaches the exit when asked to', async () => {
     const r = await new WalletShieldTransport({ url: stub.url }).probe({ depth: 'exit' });
     expect(r).toMatchObject({ reach: 'exit', peerVersion: 'stub-0.0.0' });
-    expect(stub.requests.map((q) => `${q.method} ${q.path}`)).toEqual(['GET /_/health', 'POST /_/probe/0']);
+    expect(stub.requests.map((q) => `${q.method} ${q.path}`)).toEqual([
+      'GET /_/health',
+      'POST /_/probe/0',
+    ]);
   });
 
   it('stops at the peer on a mix timeout', async () => {
-    const t = new WalletShieldTransport({ url: stub.url, fetch: routedFetch({ '/_/probe/0': marked('mix-timeout', 504) }) });
+    const t = new WalletShieldTransport({
+      url: stub.url,
+      fetch: routedFetch({ '/_/probe/0': marked('mix-timeout', 504) }),
+    });
     const r = await t.probe({ depth: 'exit' });
     expect(r.reach).toBe('peer');
     expect(r.error).toMatchObject({ code: 'timeout', name: 'MixTimeout' });
   });
 
   it('counts an exit-originated failure as the exit answering', async () => {
-    const t = new WalletShieldTransport({ url: stub.url, fetch: routedFetch({ '/_/probe/0': marked('bad-reply', 502) }) });
+    const t = new WalletShieldTransport({
+      url: stub.url,
+      fetch: routedFetch({ '/_/probe/0': marked('bad-reply', 502) }),
+    });
     expect((await t.probe({ depth: 'exit' })).reach).toBe('exit');
   });
 
@@ -250,15 +302,26 @@ describe('probe', () => {
   });
 
   it('never rejects', async () => {
-    const r = await new WalletShieldTransport({ url: stub.url }).probe({ signal: AbortSignal.abort() });
+    const r = await new WalletShieldTransport({ url: stub.url }).probe({
+      signal: AbortSignal.abort(),
+    });
     expect(r).toMatchObject({ reach: 'none', error: { name: 'AbortError' } });
   });
 
   /** The stub's fetch, except that the listed paths answer with a canned reply. */
-  function routedFetch(routes: Record<string, { status: number; headers?: Record<string, string>; body: string | Uint8Array }>): typeof fetch {
+  function routedFetch(
+    routes: Record<
+      string,
+      { status: number; headers?: Record<string, string>; body: string | Uint8Array }
+    >,
+  ): typeof fetch {
     return (async (url: string, init?: RequestInit) => {
       const route = routes[new URL(url).pathname];
-      if (route) return new Response(route.body as BodyInit, { status: route.status, headers: route.headers });
+      if (route)
+        return new Response(route.body as BodyInit, {
+          status: route.status,
+          headers: route.headers,
+        });
       return fetch(url, init);
     }) as typeof fetch;
   }

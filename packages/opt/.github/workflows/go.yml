@@ -46,7 +46,7 @@ jobs:
           sudo -E make walletshield-start
           sleep 10
           sudo -E make walletshield-logs
-      
+
       # - name: Test walletshield
       #   run: ./tests/e2e/walletshield/test.sh
 

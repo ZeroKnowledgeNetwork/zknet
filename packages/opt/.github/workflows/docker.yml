@@ -12,7 +12,7 @@ on:
       - 'docs/**'
       - 'tests/**'
     tags:
-      - "v*"
+      - 'v*'
 
 permissions:
   contents: read

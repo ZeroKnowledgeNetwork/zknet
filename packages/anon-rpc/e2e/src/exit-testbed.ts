@@ -49,12 +49,28 @@ export async function startExitTestbed(
   bed = DEFAULT_BED,
   opts: { slowMs?: number; bigBytes?: number } = {},
 ): Promise<ExitTestbed> {
-  const names = docker('ps', '--filter', 'name=servicenode1', '--format', '{{.Names}}').split('\n').filter(Boolean);
-  if (names.length !== 1) throw new Error(`expected one running servicenode1 container, found: ${names.join(', ') || 'none'}`);
+  const names = docker('ps', '--filter', 'name=servicenode1', '--format', '{{.Names}}')
+    .split('\n')
+    .filter(Boolean);
+  if (names.length !== 1)
+    throw new Error(
+      `expected one running servicenode1 container, found: ${names.join(', ') || 'none'}`,
+    );
   const container = names[0]!;
-  const gateway = docker('inspect', container, '-f', '{{range .NetworkSettings.Networks}}{{.Gateway}}{{end}}');
-  const mount = docker('inspect', container, '-f', `{{range .Mounts}}{{if eq .Source "${bed}"}}{{.Destination}}{{end}}{{end}}`);
-  if (!gateway || !mount) throw new Error(`${container}: no network gateway, or ${bed} is not mounted`);
+  const gateway = docker(
+    'inspect',
+    container,
+    '-f',
+    '{{range .NetworkSettings.Networks}}{{.Gateway}}{{end}}',
+  );
+  const mount = docker(
+    'inspect',
+    container,
+    '-f',
+    `{{range .Mounts}}{{if eq .Source "${bed}"}}{{.Destination}}{{end}}{{end}}`,
+  );
+  if (!gateway || !mount)
+    throw new Error(`${container}: no network gateway, or ${bed} is not mounted`);
 
   const tls = selfSigned(gateway, STUB_HOST);
   const seen: string[] = [];
@@ -63,15 +79,31 @@ export async function startExitTestbed(
     req.resume();
     const delay = /^\/delay\/(\d+)$/.exec(req.url ?? '');
     if (delay) {
-      setTimeout(() => res.writeHead(200, { 'content-type': 'application/json' }).end('{"jsonrpc":"2.0","id":1,"result":"0xdelay"}'), Number(delay[1]));
+      setTimeout(
+        () =>
+          res
+            .writeHead(200, { 'content-type': 'application/json' })
+            .end('{"jsonrpc":"2.0","id":1,"result":"0xdelay"}'),
+        Number(delay[1]),
+      );
     } else if (req.url === '/slow') {
-      setTimeout(() => res.writeHead(200, { 'content-type': 'application/json' }).end('{"jsonrpc":"2.0","id":1,"result":"0xslow"}'), opts.slowMs ?? 15_000);
+      setTimeout(
+        () =>
+          res
+            .writeHead(200, { 'content-type': 'application/json' })
+            .end('{"jsonrpc":"2.0","id":1,"result":"0xslow"}'),
+        opts.slowMs ?? 15_000,
+      );
     } else if (req.url === '/big') {
-      res.writeHead(200, { 'content-type': 'application/json' }).end(Buffer.alloc(opts.bigBytes ?? 2 * 1024 * 1024, 0x20));
+      res
+        .writeHead(200, { 'content-type': 'application/json' })
+        .end(Buffer.alloc(opts.bigBytes ?? 2 * 1024 * 1024, 0x20));
     } else if (req.url === '/redirect-private') {
       res.writeHead(307, { location: 'https://10.0.0.1/' }).end();
     } else {
-      res.writeHead(200, { 'content-type': 'application/json' }).end('{"jsonrpc":"2.0","id":1,"result":"0xstub"}');
+      res
+        .writeHead(200, { 'content-type': 'application/json' })
+        .end('{"jsonrpc":"2.0","id":1,"result":"0xstub"}');
     }
   });
   await new Promise<void>((resolve) => server.listen(0, gateway, resolve));
@@ -88,7 +120,13 @@ export async function startExitTestbed(
   );
   docker('restart', container);
   // After the restart: a restart rewrites /etc/hosts. close() restarts it again.
-  docker('exec', container, 'sh', '-c', `printf '%s %s\n%s %s\n' ${gateway} ${STUB_HOST} 10.0.0.1 ${PRIVATE_HOST} >> /etc/hosts`);
+  docker(
+    'exec',
+    container,
+    'sh',
+    '-c',
+    `printf '%s %s\n%s %s\n' ${gateway} ${STUB_HOST} 10.0.0.1 ${PRIVATE_HOST} >> /etc/hosts`,
+  );
 
   return {
     origin,

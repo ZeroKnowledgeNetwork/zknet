@@ -48,7 +48,11 @@ export async function startStubWalletShield(version = 'stub-0.0.0'): Promise<Stu
   const stub: StubWalletShield = {
     url: '',
     requests: [],
-    upstream: () => ({ status: 200, headers: { 'content-type': 'application/json' }, body: '{"jsonrpc":"2.0","id":1,"result":"0x10"}' }),
+    upstream: () => ({
+      status: 200,
+      headers: { 'content-type': 'application/json' },
+      body: '{"jsonrpc":"2.0","id":1,"result":"0x10"}',
+    }),
     close: async () => {},
   };
   const open = new Set<ServerResponse>();
@@ -57,12 +61,21 @@ export async function startStubWalletShield(version = 'stub-0.0.0'): Promise<Stu
     const chunks: Buffer[] = [];
     for await (const chunk of req) chunks.push(chunk as Buffer);
     const path = req.url ?? '/';
-    stub.requests.push({ method: req.method ?? '', path, headers: req.headers, body: new Uint8Array(Buffer.concat(chunks)) });
+    stub.requests.push({
+      method: req.method ?? '',
+      path,
+      headers: req.headers,
+      body: new Uint8Array(Buffer.concat(chunks)),
+    });
 
     res.setHeader('access-control-allow-origin', '*');
     // As WalletShield does (apps/walletshield/cors.go): a browser's CORS
     // preflight is answered locally, never treated as a request.
-    if (req.method === 'OPTIONS' && req.headers.origin && req.headers['access-control-request-method']) {
+    if (
+      req.method === 'OPTIONS' &&
+      req.headers.origin &&
+      req.headers['access-control-request-method']
+    ) {
       res.setHeader('access-control-allow-methods', 'GET, POST');
       const requested = req.headers['access-control-request-headers'];
       if (requested) res.setHeader('access-control-allow-headers', requested);
@@ -75,7 +88,11 @@ export async function startStubWalletShield(version = 'stub-0.0.0'): Promise<Stu
     let reply: StubReply | 'hang';
     const providerURL = req.headers[URL_HEADER];
     if (req.method === 'GET' && path === '/_/health') {
-      reply = { status: 200, headers: { 'content-type': 'application/json' }, body: JSON.stringify({ version }) };
+      reply = {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ version }),
+      };
     } else if (path.startsWith('/_/probe')) {
       reply = { status: 200, body: '' };
     } else if (path === USER_URL_PATH) {

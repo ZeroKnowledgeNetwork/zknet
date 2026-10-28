@@ -110,7 +110,11 @@ function rpc(page: Page, url = `${stub.url}/ethereum`, method = 'POST'): Promise
 // Per chain: the demo's prefilled public provider and WalletShield's network key.
 const CHAINS = [
   { chain: 'mainnet', provider: 'https://ethereum-rpc.publicnode.com', network: 'ethereum' },
-  { chain: 'sepolia', provider: 'https://ethereum-sepolia-rpc.publicnode.com', network: 'ethereum/sepolia' },
+  {
+    chain: 'sepolia',
+    provider: 'https://ethereum-sepolia-rpc.publicnode.com',
+    network: 'ethereum/sepolia',
+  },
 ];
 
 const header = (r: FetchResult, name: string) => r.headers?.find(([k]) => k === name)?.[1];
@@ -140,7 +144,9 @@ test('boots the real worker bundle by specifier, in the sandbox', async ({ page 
 });
 
 for (const { chain: name, provider, network } of CHAINS) {
-  test(`${name}: a provider URL reaches WalletShield as POST /_/url with ZKNet-URL`, async ({ page }) => {
+  test(`${name}: a provider URL reaches WalletShield as POST /_/url with ZKNet-URL`, async ({
+    page,
+  }) => {
     await open(page);
     expect((await boot(page, { walletshield: stub.url })).ok).toBe(true);
     const r = await rpc(page, provider);
@@ -149,7 +155,9 @@ for (const { chain: name, provider, network } of CHAINS) {
     expect(JSON.parse(r.bodyText ?? '')).toEqual({ jsonrpc: '2.0', id: 1, result: '0x10' });
     const posts = stub.requests.filter((q) => q.method === 'POST');
     // The worker forwards the URL as parsed: the bare origin gains its "/" path.
-    expect(posts.map((q) => [q.path, q.headers['zknet-url']])).toEqual([['/_/url', new URL(provider).href]]);
+    expect(posts.map((q) => [q.path, q.headers['zknet-url']])).toEqual([
+      ['/_/url', new URL(provider).href],
+    ]);
     expect(Buffer.from(posts[0]!.body).toString()).toBe(RPC_BODY);
   });
 
@@ -160,7 +168,9 @@ for (const { chain: name, provider, network } of CHAINS) {
     expect(r.error).toBeUndefined();
     expect(r.status).toBe(200);
     const posts = stub.requests.filter((q) => q.method === 'POST');
-    expect(posts.map((q) => [q.path, q.headers['zknet-url']])).toEqual([[`/${network}`, undefined]]);
+    expect(posts.map((q) => [q.path, q.headers['zknet-url']])).toEqual([
+      [`/${network}`, undefined],
+    ]);
   });
 }
 

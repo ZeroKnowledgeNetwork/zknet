@@ -14,7 +14,14 @@
 //
 // STUB — this session ships the signature only.
 
-import type { ExitRequest, ExitResponse, ProbeOptions, ProbeResult, RequestOptions, Transport } from './types.js';
+import type {
+  ExitRequest,
+  ExitResponse,
+  ProbeOptions,
+  ProbeResult,
+  RequestOptions,
+  Transport,
+} from './types.js';
 
 /** Where the session token persists; the worker passes `anonRpcWorker.storage`. */
 export interface SessionStore {

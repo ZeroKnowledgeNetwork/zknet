@@ -1,0 +1,21 @@
+# Put a pinned, checksum-verified woodpecker-cli on PATH (Linux x86_64
+# runners). The workflows run the .woodpecker pipelines with it, through
+# .woodpecker/run, exactly as on a local machine.
+name: woodpecker-cli
+description: Install a pinned woodpecker-cli
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      env:
+        WOODPECKER_VERSION: 3.20.0
+        WOODPECKER_SHA256: ea80af520b6ca714f4b8482db5ce2ef19029856d8645981bb8405470de9e7389
+      run: |
+        f=woodpecker-cli_linux_amd64.tar.gz
+        d="$RUNNER_TEMP/woodpecker-cli"
+        mkdir -p "$d" && cd "$d"
+        curl -fsSLO "https://github.com/woodpecker-ci/woodpecker/releases/download/v${WOODPECKER_VERSION}/$f"
+        echo "${WOODPECKER_SHA256}  $f" | sha256sum -c -
+        tar -xzf "$f" woodpecker-cli && rm "$f"
+        echo "$d" >> "$GITHUB_PATH"
+        ./woodpecker-cli --version

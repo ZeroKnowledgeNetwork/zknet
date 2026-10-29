@@ -1,3 +1,6 @@
+# The checks: .woodpecker/ci.yaml (format, lint, test, build, typecheck) on the
+# Woodpecker docker backend, the same pipeline `.woodpecker/run ci` runs
+# locally. This workflow only supplies the runner and the format check's base.
 name: CI
 
 on:
@@ -19,59 +22,11 @@ jobs:
           filter: tree:0
           fetch-depth: 0
 
-      # pnpm version comes from the root package.json packageManager field
-      - uses: pnpm/action-setup@v6
-        name: Install pnpm
-        with:
-          run_install: false
-
-      # This enables task distribution via Nx Cloud
-      # Run this command as early as possible, before dependencies are installed
-      # Configure Nx Agents and task distribution in .nx/ci-config.yaml
-      # Learn more at https://nx.dev/ci/reference/nx-cloud-cli#nx-cloud-start-nx-agents
-      # Connect your workspace by running "nx connect" and uncomment this line to enable task distribution
-      # - run: pnpm dlx nx start-nx-agents
-
-      # Cache node_modules
-      - uses: actions/setup-node@v6
-        with:
-          node-version: 24
-          cache: "pnpm"
-
-      # Native prerequisites for the Tauri crate (apps/client/src-tauri). The
-      # lockfile's linked system libraries are WebKitGTK 4.1, JavaScriptCore,
-      # libsoup 3 and GTK 3, all pulled in by libwebkit2gtk-4.1-dev; the tray
-      # indicator library is loaded at runtime and is not needed to build.
-      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libwebkit2gtk-4.1-dev
-
-      # Rust toolchain pinned by rust-toolchain.toml (channel and components)
-      - run: rustup toolchain install && cargo --version
-
-      # Foundry (forge, anvil) for @zknet/anon-rpc-specifier's tests. Same pin
-      # and checksum as .woodpecker/lib.sh; keep the two in step.
-      - name: Install Foundry
-        env:
-          FOUNDRY_VERSION: 1.8.5
-          FOUNDRY_SHA256: 6c66ffcc55fa4249197721baa3098bc208014ea1d8aa04b2ed50ac6bccffb226
-        run: |
-          f="foundry_v${FOUNDRY_VERSION}_linux_amd64.tar.gz"
-          curl -fsSLO "https://github.com/foundry-rs/foundry/releases/download/v${FOUNDRY_VERSION}/$f"
-          echo "${FOUNDRY_SHA256}  $f" | sha256sum -c -
-          mkdir -p "$HOME/.foundry/bin"
-          tar -xzf "$f" -C "$HOME/.foundry/bin"
-          rm "$f"
-          echo "$HOME/.foundry/bin" >> "$GITHUB_PATH"
-          "$HOME/.foundry/bin/forge" --version
-
-      - run: pnpm install --frozen-lockfile
-
-      # Derive affected base/head SHAs so format:check compares against the last green main
+      # NX_BASE: the last commit on main whose CI succeeded (on a PR, the merge base)
       - uses: nrwl/nx-set-shas@v5
 
-      # Prepend any command with "nx record --" to record its logs to Nx Cloud
-      # - run: pnpm exec nx record -- echo Hello World
-      - run: pnpm exec nx format:check
-      - run: pnpm exec nx run-many -t lint test build typecheck
-      # Nx Cloud recommends fixes for failures to help you get CI green faster. Learn more: https://nx.dev/ci/features/self-healing-ci
-      - run: pnpm exec nx fix-ci
-        if: always()
+      - uses: ./.github/actions/woodpecker-cli
+
+      - run: .woodpecker/run ci --pipeline-event "$GITHUB_EVENT_NAME" --prev-commit-sha "$NX_BASE"
+        env:
+          ZKNET_WOODPECKER_CACHE: ${{ runner.temp }}/woodpecker-cache

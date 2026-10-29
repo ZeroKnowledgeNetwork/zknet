@@ -1,25 +1,25 @@
-# The checks of .github/workflows/ci.yml, run locally on the Woodpecker docker
-# backend against the committed HEAD. See .woodpecker/README.md.
+# The checks, on the Woodpecker docker backend against the committed HEAD:
+# .github/workflows/ci.yml runs this pipeline on GitHub, `.woodpecker/run ci`
+# locally. See .woodpecker/README.md.
 
 when:
   - event: [push, pull_request, manual]
 
 steps:
   ci:
-    # ci.yml runs on ubuntu-latest, which is Ubuntu 24.04
     image: ubuntu:24.04
     commands:
       - . "$CI_WORKSPACE/.woodpecker/lib.sh"
-      # ci.yml's runner has these preinstalled, except the Tauri prerequisites
+      # the Tauri prerequisites and what a minimal image lacks
       - apt_install ca-certificates curl git xz-utils build-essential pkg-config libwebkit2gtk-4.1-dev
-      # Foundry is not in ci.yml, but @zknet/anon-rpc-specifier:test needs it
+      # Foundry: @zknet/anon-rpc-specifier:test runs forge and anvil
       - tools node go rust foundry
       - checkout
       - cd "$SRC"
       - rustup toolchain install && cargo --version
       - pnpm_install
-      # ci.yml takes the base from nrwl/nx-set-shas (the last green commit on
-      # main); here it is the previous pipeline's commit, else the parent
+      # the format check's base: on GitHub, ci.yml passes nrwl/nx-set-shas's
+      # (the last green commit on main, or a PR's merge base); else the parent
       - base=$CI_PREV_COMMIT_SHA; [ -n "$base" ] || base=HEAD~1
       - pnpm exec nx format:check --base="$base" --head=HEAD
       - pnpm exec nx run-many -t lint test build typecheck

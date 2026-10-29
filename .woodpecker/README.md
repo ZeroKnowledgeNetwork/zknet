@@ -1,12 +1,12 @@
 # Woodpecker pipelines
 
 Local CI and distribution builds on the Woodpecker docker backend, run with
-`woodpecker-cli exec` (Woodpecker 3.19). No server is needed and nothing runs
+`woodpecker-cli exec` (Woodpecker 3.20). No server is needed and nothing runs
 docker-in-docker: each step's image is the toolchain.
 
 | Pipeline    | Does                                                                                                                                                                                                                                                                                               |
 | ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `ci.yaml`   | The checks of `.github/workflows/ci.yml`: `nx format:check` and `nx run-many -t lint test build typecheck`                                                                                                                                                                                         |
+| `ci.yaml`   | The checks: `nx format:check` and `nx run-many -t lint test build typecheck`; `.github/workflows/ci.yml` runs it on GitHub                                                                                                                                                                         |
 | `dist.yaml` | WalletShield for linux-amd64, linux-arm64, darwin-amd64, darwin-arm64 and windows-amd64 (the clients' download export, `served/`; the release rung's archive keeps a darwin-universal binary); the CLI for linux-amd64, linux-arm64, darwin-universal and windows-amd64; the Linux desktop bundles |
 | `lib.sh`    | Step setup both pipelines source: pinned toolchains, caches, the checkout                                                                                                                                                                                                                          |
 | `run`       | The entry point: `woodpecker-cli exec` with the host cache directory mounted                                                                                                                                                                                                                       |
@@ -167,16 +167,14 @@ secrets in a file named by `ZKNET_WOODPECKER_SECRETS`:
   `lib.sh` gives a step `dist/target-<release>` (e.g. `target-jammy`), because
   Cargo's fingerprints do not cover the system glibc.
 
-## Differences from `ci.yml`
+## On GitHub
 
-- **Foundry 1.8.5** is installed: `@zknet/anon-rpc-specifier:test` runs
-  `forge` and `anvil`, which `ci.yml` does not install.
-- The format check's base is the previous pipeline's commit
-  (`CI_PREV_COMMIT_SHA`), else `HEAD~1`; `ci.yml` asks `nrwl/nx-set-shas` for
-  the last green commit on `main`.
-- No `nx fix-ci` (Nx Cloud self-healing); the workspace has no Nx Cloud.
-- The Cargo target directory persists between runs in the cache directory;
-  Cargo runs with `CARGO_INCREMENTAL=0`. `node_modules` is reinstalled every
-  run, hard-linked from the pnpm store in the cache directory, so install-time
-  scripts such as `apps/ext`'s `wxt prepare` always run.
-- Go is 1.27.3 from `go.dev`; `ci.yml` uses whatever Go the runner image has.
+The workflows in `.github/workflows/` run these pipelines unchanged on an
+`ubuntu-latest` runner, through `run` and a pinned `woodpecker-cli`
+(`.github/actions/woodpecker-cli`), with the cache directory in the runner's
+temporary directory, so every run starts cold:
+
+- `ci.yml` runs `ci.yaml` on every push to `main` and every pull request,
+  passing the format check's base from `nrwl/nx-set-shas` as
+  `--prev-commit-sha`.
+- `release.yml` runs `dist.yaml` for a release.

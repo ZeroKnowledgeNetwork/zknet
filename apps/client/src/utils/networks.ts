@@ -1,4 +1,4 @@
-// The network list as zknet_core::network serializes it, and how it is shown.
+// The network list as zknet_client_core::network serializes it, and how it is shown.
 // Status and sorting are decided in Rust; this file only presents them.
 
 export type Status = "ready" | "available" | "cached" | "unpublished";

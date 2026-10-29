@@ -13,12 +13,12 @@ pnpm nx show projects
 
 Four Nx projects define the active Go and Make workflows:
 
-| Project        | Root                                                 | Targets                                                                              |
-| -------------- | ---------------------------------------------------- | ------------------------------------------------------------------------------------ |
-| `opt-common`   | `packages/opt/common`                                | `test`                                                                               |
-| `rpc-proxy`    | `packages/opt/server_plugins/cbor_plugins/rpc_proxy` | `build`                                                                              |
-| `walletshield` | `packages/opt/apps/walletshield`                     | `build`, `dev-remote`                                                                |
-| `mixnet`       | `packages/opt/docker`                                | `start`, `ready`, `probe`, `serve`, `e2e-rpc`, `e2e-rpc-matrix`, `stop`, `dev-local` |
+| Project            | Root                                                 | Targets                                                                              |
+| ------------------ | ---------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| `opt-common`       | `packages/opt/common`                                | `test`                                                                               |
+| `rpc-proxy`        | `packages/opt/server_plugins/cbor_plugins/rpc_proxy` | `build`                                                                              |
+| `app-walletshield` | `packages/opt/apps/walletshield`                     | `build`, `dev-remote`                                                                |
+| `mixnet`           | `packages/opt/docker`                                | `start`, `ready`, `probe`, `serve`, `e2e-rpc`, `e2e-rpc-matrix`, `stop`, `dev-local` |
 
 The clients run against that mixnet through `network-assets` (`apps/network-assets`:
 `stage`, `serve`, `ready`, `test`), which assembles a network's assets in the clients' download

@@ -1,7 +1,7 @@
 //! WalletShield, spawned from a network's directory with the CLI's stdio.
 
 use anyhow::Result;
-use zknet_core::{
+use zknet_client_core::{
     config::AppConfig,
     network::{Asset, Layout, NetworkId},
 };
@@ -82,7 +82,7 @@ pub async fn run(config: &AppConfig, layout: &Layout, network_id: &NetworkId) ->
 #[cfg(test)]
 mod tests {
     use super::walletshield_args;
-    use zknet_core::config::AppConfig;
+    use zknet_client_core::config::AppConfig;
 
     /// WalletShield picks its mode from the network's config; the CLI never does.
     #[test]

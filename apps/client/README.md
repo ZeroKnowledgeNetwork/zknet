@@ -16,11 +16,11 @@ again rather than shadowed by a cached copy.
 ## Networks
 
 The network list and the asset download are Rust: `src-tauri/src/network.rs` exposes
-`zknet_core::network` (shared with the CLI) as the `networks_list`, `network_fetch` and
+`zknet_client_core::network` (shared with the CLI) as the `networks_list`, `network_fetch` and
 `platform` commands, with download progress on a `Channel`. The webview therefore holds
 no `http`, `upload` or `chmod` grant; it only spawns WalletShield from the directory
 `network_fetch` returns. The _Mix Networks_ table lists every network the client knows,
-each at its own source, with a status badge (`zknet_core::network::Status`), published ones
+each at its own source, with a status badge (`zknet_client_core::network::Status`), published ones
 first, and fills in the newest one; an id can still be typed. Every listed network connects,
 whatever `urlNetwork` the app was started with. The built-in network source is never shown:
 the caption names the launch source only when `urlNetwork` is overridden, and a Source

@@ -1,10 +1,10 @@
-//! The desktop's adapter onto zknet_core::network: it supplies the layout from
+//! The desktop's adapter onto zknet_client_core::network: it supplies the layout from
 //! the app's config and data dir, streams progress over a Channel, and turns
 //! errors into a shape the webview can branch on.
 
 use serde::Serialize;
 use tauri::{ipc::Channel, AppHandle, Manager, Runtime, State};
-use zknet_core::network::{
+use zknet_client_core::network::{
     self, FetchError, FetchEvent, FetchOptions, Layout, Listing, NetworkId, OnFetchEvent, Platform,
     Prepared,
 };
@@ -56,7 +56,7 @@ pub async fn networks_list<R: Runtime>(
     Ok(network::list(&network::http_client()?, &layout).await)
 }
 
-/// Make a network ready to run (`zknet_core::network::prepare`), streaming
+/// Make a network ready to run (`zknet_client_core::network::prepare`), streaming
 /// progress over `on_event`. Its `dir` is where WalletShield is spawned.
 #[tauri::command]
 pub async fn network_fetch<R: Runtime>(
@@ -125,7 +125,7 @@ mod tests {
         );
     }
 
-    /// "Is this the built-in source?" is answered by zknet_core alone.
+    /// "Is this the built-in source?" is answered by zknet_client_core alone.
     #[test]
     fn the_configured_source_is_the_built_in_one() {
         let conf: serde_json::Value =

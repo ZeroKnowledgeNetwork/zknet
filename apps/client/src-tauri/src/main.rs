@@ -2,5 +2,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-    zkn_client_lib::run()
+    zknet_client_lib::run()
 }

@@ -4,7 +4,7 @@ use std::io::Write;
 
 use clap::ValueEnum;
 use serde::Serialize;
-use zknet_core::network::{Listing, NetworkEntry, Status};
+use zknet_client_core::network::{Listing, NetworkEntry, Status};
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, ValueEnum)]
 pub enum Format {
@@ -152,7 +152,7 @@ pub fn print(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use zknet_core::network::{IndexEntry, NetworkId, NetworkKind, SourceError};
+    use zknet_client_core::network::{IndexEntry, NetworkId, NetworkKind, SourceError};
 
     const DIST: &str = "https://dist.zknet.io";
     const LOCAL: &str = "http://127.0.0.1:8765";
@@ -176,20 +176,20 @@ mod tests {
             created_ago,
             entry,
             source: source.into(),
-            source_label: zknet_core::network::source_label(source),
+            source_label: zknet_client_core::network::source_label(source),
         }
     }
 
     fn listing(launch: &str, networks: Vec<NetworkEntry>, unreachable: &[&str]) -> Listing {
         Listing {
             launch_source: launch.into(),
-            launch_label: zknet_core::network::source_label(launch),
+            launch_label: zknet_client_core::network::source_label(launch),
             networks,
             unreachable: unreachable
                 .iter()
                 .map(|s| SourceError {
                     source: s.to_string(),
-                    source_label: zknet_core::network::source_label(s),
+                    source_label: zknet_client_core::network::source_label(s),
                     error: "request failed: error sending request".into(),
                 })
                 .collect(),

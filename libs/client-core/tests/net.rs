@@ -12,7 +12,7 @@ use hyper_util::rt::TokioIo;
 use tempfile::NamedTempFile;
 use tokio::{fs::File, io::AsyncReadExt};
 
-use zknet_core::net::{download, upload, ProgressPayload};
+use zknet_client_core::net::{download, upload, ProgressPayload};
 
 /// Handle a single request.
 async fn handle_req(

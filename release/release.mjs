@@ -69,7 +69,7 @@ function stamp(tag) {
 }
 
 function previousTag(c) {
-  // the newest earlier tag of the same component (anchored: `cli@` never matches `client@`)
+  // the newest earlier tag of the same component (anchored: `client@` never matches `client-cli@`)
   const tags = execFileSync("git", ["tag", "--list", `${c.id}@*`, "--sort=-version:refname"], {
     cwd: root,
     encoding: "utf8",

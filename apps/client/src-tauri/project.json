@@ -20,7 +20,7 @@
       "executor": "nx:run-commands",
       "cache": false,
       "options": {
-        "command": "cargo build --locked --target-dir dist/target -p zkn-client"
+        "command": "cargo build --locked --target-dir dist/target -p zknet-client"
       }
     },
     "test": {
@@ -35,7 +35,7 @@
         "cargoWorkspace"
       ],
       "options": {
-        "command": "cargo test --locked --target-dir dist/target -p zkn-client"
+        "command": "cargo test --locked --target-dir dist/target -p zknet-client"
       }
     },
     "lint": {
@@ -50,14 +50,14 @@
         "cargoWorkspace"
       ],
       "options": {
-        "command": "cargo clippy --locked --target-dir dist/target -p zkn-client --all-targets"
+        "command": "cargo clippy --locked --target-dir dist/target -p zknet-client --all-targets"
       }
     },
     "format": {
       "executor": "nx:run-commands",
       "cache": false,
       "options": {
-        "command": "cargo fmt -p zkn-client"
+        "command": "cargo fmt -p zknet-client"
       }
     },
     "format:check": {
@@ -65,14 +65,14 @@
       "cache": true,
       "inputs": ["rustSources"],
       "options": {
-        "command": "cargo fmt -p zkn-client -- --check"
+        "command": "cargo fmt -p zknet-client -- --check"
       }
     },
     "clean": {
       "executor": "nx:run-commands",
       "cache": false,
       "options": {
-        "command": "cargo clean --target-dir dist/target -p zkn-client"
+        "command": "cargo clean --target-dir dist/target -p zknet-client"
       }
     }
   }

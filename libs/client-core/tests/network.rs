@@ -16,7 +16,7 @@ use hyper_util::rt::TokioIo;
 use tempfile::TempDir;
 
 use sha2::{Digest, Sha256};
-use zknet_core::{
+use zknet_client_core::{
     auth::TrustRoot,
     network::{
         cached, fetch_index, http_client, list, prepare, Asset, FetchError, FetchEvent,
@@ -612,7 +612,7 @@ async fn the_generated_index_fixture_parses() {
     assert_eq!(index.networks[0].name, "Devnet · 2026-10-23");
 }
 
-fn rows(listing: &zknet_core::network::Listing) -> Vec<(&str, Status, &str)> {
+fn rows(listing: &zknet_client_core::network::Listing) -> Vec<(&str, Status, &str)> {
     listing
         .networks
         .iter()

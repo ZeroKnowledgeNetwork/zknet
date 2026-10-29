@@ -44,13 +44,13 @@ export type FetchEvent =
   | { event: "cached"; data: { asset: Asset } }
   | { event: "finished"; data: { asset: Asset } };
 
-// Rejections of the network commands: `kind` is zknet_core's FetchError::kind()
+// Rejections of the network commands: `kind` is zknet_client_core's FetchError::kind()
 export type CmdError = { kind: string; message: string };
 
 // Live networks from the index merged with those cached on this device
 export const listNetworks = (): Promise<Listing> => invoke<Listing>("networks_list");
 
-// Make a network ready to run (zknet_core::network::prepare)
+// Make a network ready to run (zknet_client_core::network::prepare)
 export const fetchNetwork = (
   networkId: string,
   refresh: boolean,

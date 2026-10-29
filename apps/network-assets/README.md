@@ -10,7 +10,7 @@ generated/<network_id>/{client.toml,services.json,walletshield-<platform>,checks
                         checksums.txt.minisig,network.json}
 ```
 
-The clients read this layout through one contract, `zknet_core::network` in `libs/client-core`.
+The clients read this layout through one contract, `zknet_client_core::network` in `libs/client-core`.
 
 It only collects. Whether the mixnet is running is the concern of `mixnet:ready` and the
 clients; what the binaries are and how they are built is the concern of `app-walletshield:dist`.

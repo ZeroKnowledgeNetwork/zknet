@@ -18,7 +18,7 @@
       "cache": true,
       "inputs": ["rustSources", "^rustSources", "cargoWorkspace"],
       "options": {
-        "command": "cargo check --locked --target-dir dist/target -p zknet_core --all-targets"
+        "command": "cargo check --locked --target-dir dist/target -p zknet_client_core --all-targets"
       }
     },
     "test": {
@@ -31,7 +31,7 @@
         "{workspaceRoot}/apps/network-assets/fixtures/**"
       ],
       "options": {
-        "command": "cargo test --locked --target-dir dist/target -p zknet_core"
+        "command": "cargo test --locked --target-dir dist/target -p zknet_client_core"
       }
     },
     "lint": {
@@ -39,14 +39,14 @@
       "cache": true,
       "inputs": ["rustSources", "^rustSources", "cargoWorkspace"],
       "options": {
-        "command": "cargo clippy --locked --target-dir dist/target -p zknet_core --all-targets"
+        "command": "cargo clippy --locked --target-dir dist/target -p zknet_client_core --all-targets"
       }
     },
     "format": {
       "executor": "nx:run-commands",
       "cache": false,
       "options": {
-        "command": "cargo fmt -p zknet_core"
+        "command": "cargo fmt -p zknet_client_core"
       }
     },
     "format:check": {
@@ -54,14 +54,14 @@
       "cache": true,
       "inputs": ["rustSources"],
       "options": {
-        "command": "cargo fmt -p zknet_core -- --check"
+        "command": "cargo fmt -p zknet_client_core -- --check"
       }
     },
     "clean": {
       "executor": "nx:run-commands",
       "cache": false,
       "options": {
-        "command": "cargo clean --target-dir dist/target -p zknet_core"
+        "command": "cargo clean --target-dir dist/target -p zknet_client_core"
       }
     }
   }

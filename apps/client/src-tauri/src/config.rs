@@ -13,7 +13,7 @@ pub struct ZKNetClientCfg {
     /// Whether the UI checks for app updates; dev builds turn it off.
     pub updater: bool,
     /// Accept a network whose binary is unsigned: only the dev-local overlay
-    /// sets it, and zknet_core honours it only for a loopback source in a
+    /// sets it, and zknet_client_core honours it only for a loopback source in a
     /// debug build.
     pub allow_unsigned: bool,
 }

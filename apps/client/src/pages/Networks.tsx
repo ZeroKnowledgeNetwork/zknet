@@ -96,7 +96,7 @@ export function Networks() {
     const { walletshieldLogLevel } = await getZKNetClientCfg();
 
     ////////////////////////////////////////////////////////////////////////
-    // make the network ready at its own source (zknet_core::network::prepare)
+    // make the network ready at its own source (zknet_client_core::network::prepare)
     ////////////////////////////////////////////////////////////////////////
     setMessage("info", "Checking network...");
     let percent = -1;

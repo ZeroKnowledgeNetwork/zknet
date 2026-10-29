@@ -17,15 +17,15 @@
       "executor": "nx:run-commands",
       "cache": true,
       "inputs": ["rustSources", "^rustSources", "cargoWorkspace"],
-      "outputs": ["{workspaceRoot}/dist/target/debug/zknet_client_cli"],
+      "outputs": ["{workspaceRoot}/dist/target/debug/zknet"],
       "options": {
-        "command": "cargo build --locked --target-dir dist/target -p zknet_client_cli"
+        "command": "cargo build --locked --target-dir dist/target -p zknet-client-cli"
       }
     },
     "dist": {
       "executor": "nx:run-commands",
       "cache": false,
-      "outputs": ["{workspaceRoot}/dist/zknet_client_cli"],
+      "outputs": ["{workspaceRoot}/dist/client-cli"],
       "defaultConfiguration": "dev",
       "configurations": {
         "dev": {
@@ -41,7 +41,7 @@
       "cache": true,
       "inputs": ["rustSources", "^rustSources", "cargoWorkspace"],
       "options": {
-        "command": "cargo test --locked --target-dir dist/target -p zknet_client_cli"
+        "command": "cargo test --locked --target-dir dist/target -p zknet-client-cli"
       }
     },
     "lint": {
@@ -49,14 +49,14 @@
       "cache": true,
       "inputs": ["rustSources", "^rustSources", "cargoWorkspace"],
       "options": {
-        "command": "cargo clippy --locked --target-dir dist/target -p zknet_client_cli --all-targets"
+        "command": "cargo clippy --locked --target-dir dist/target -p zknet-client-cli --all-targets"
       }
     },
     "format": {
       "executor": "nx:run-commands",
       "cache": false,
       "options": {
-        "command": "cargo fmt -p zknet_client_cli"
+        "command": "cargo fmt -p zknet-client-cli"
       }
     },
     "format:check": {
@@ -64,14 +64,14 @@
       "cache": true,
       "inputs": ["rustSources"],
       "options": {
-        "command": "cargo fmt -p zknet_client_cli -- --check"
+        "command": "cargo fmt -p zknet-client-cli -- --check"
       }
     },
     "run": {
       "executor": "nx:run-commands",
       "cache": false,
       "options": {
-        "command": "cargo run --locked --target-dir dist/target -p zknet_client_cli --"
+        "command": "cargo run --locked --target-dir dist/target -p zknet-client-cli --"
       }
     },
     "dev-local": {
@@ -79,14 +79,14 @@
       "cache": false,
       "dependsOn": ["network-assets:serve"],
       "options": {
-        "command": "python3 apps/network-assets/server.py ready && cargo run --locked --target-dir dist/target -p zknet_client_cli -- --network-url \"$(python3 apps/network-assets/server.py url)\" --allow-unsigned"
+        "command": "python3 apps/network-assets/server.py ready && cargo run --locked --target-dir dist/target -p zknet-client-cli -- --network-url \"$(python3 apps/network-assets/server.py url)\" --allow-unsigned"
       }
     },
     "clean": {
       "executor": "nx:run-commands",
       "cache": false,
       "options": {
-        "command": "cargo clean --target-dir dist/target -p zknet_client_cli"
+        "command": "cargo clean --target-dir dist/target -p zknet-client-cli"
       }
     }
   }

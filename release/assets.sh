@@ -23,11 +23,11 @@ put() {
 wp=dist/woodpecker
 case "$(uname -s)-$project" in
   Linux-client)
-    for f in "$wp"/zkn-client/*; do put "$f" "$(basename "$f")"; done
+    for f in "$wp"/client/*; do put "$f" "$(basename "$f")"; done
     ;;
   Linux-client-cli)
-    for p in linux-amd64 linux-arm64; do put "$wp/zknet_client_cli/$p/zknet_client_cli" "zknet_client_cli_${version}_$p"; done
-    put "$wp/zknet_client_cli/windows-amd64/zknet_client_cli.exe" "zknet_client_cli_${version}_windows-amd64.exe"
+    for p in linux-amd64 linux-arm64; do put "$wp/client-cli/$p/zknet" "zknet_${version}_$p"; done
+    put "$wp/client-cli/windows-amd64/zknet.exe" "zknet_${version}_windows-amd64.exe"
     ;;
   Linux-app-walletshield | Darwin-app-walletshield)
     d=$wp/walletshield
@@ -44,7 +44,7 @@ case "$(uname -s)-$project" in
     done
     ;;
   Darwin-client-cli)
-    put dist/zknet_client_cli/darwin-universal/zknet_client_cli "zknet_client_cli_${version}_darwin-universal"
+    put dist/client-cli/darwin-universal/zknet "zknet_${version}_darwin-universal"
     ;;
   MINGW*-client | MSYS*-client)
     for f in dist/target/release/bundle/nsis/*-setup.exe dist/target/release/bundle/nsis/*-setup.exe.sig; do

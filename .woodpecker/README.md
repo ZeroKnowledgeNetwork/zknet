@@ -34,8 +34,8 @@ tree. The pipeline definitions themselves are read from the working tree.
 dist/woodpecker/
 ├── walletshield/           goreleaser dist: <id>_<os>_<arch>/walletshield[.exe], artifacts.json,
 │                           served/walletshield-<platform> + checksums.txt (the clients' names)
-├── zknet_client_cli/       <platform>/zknet_client_cli[.exe]
-└── zkn-client/             *.deb, *.rpm, *.AppImage
+├── client-cli/             <platform>/zknet[.exe]
+└── client/                 *.deb, *.rpm, *.AppImage
 ```
 
 A cold run (empty cache) takes about 7 minutes and a warm one about 2. The
@@ -162,7 +162,7 @@ pipeline's metadata, and the secrets in a file named by
 `ZKNET_WOODPECKER_SECRETS`:
 
 ```sh
-.woodpecker/run dist --pipeline-event tag --commit-ref refs/tags/cli@0.0.0-test.1
+.woodpecker/run dist --pipeline-event tag --commit-ref refs/tags/client-cli@0.0.0-test.1
 ```
 
 ## Platform notes

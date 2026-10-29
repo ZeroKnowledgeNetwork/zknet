@@ -84,7 +84,7 @@ describe("walletshield spawn", () => {
   it("gives the dev-local app no capability of its own", () => {
     expect(devLocal.app).toBeUndefined();
     expect(Object.keys(devLocal.plugins.zknet).sort()).toEqual([
-      "allowUnsigned", // unsigned assets from the loopback source (zknet_core gates it)
+      "allowUnsigned", // unsigned assets from the loopback source (zknet_client_core gates it)
       "urlNetwork",
       "walletshieldLogLevel",
     ]);
@@ -96,7 +96,7 @@ describe("walletshield spawn", () => {
   });
 });
 
-// Network assets are fetched in Rust (zknet_core::network through the
+// Network assets are fetched in Rust (zknet_client_core::network through the
 // network_fetch command), so the webview holds no network or download grant.
 describe("network access", () => {
   it("grants no http, upload or chmod access", () => {

@@ -6501,7 +6501,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "zkn-client"
+name = "zknet-client"
 version = "0.0.0"
 dependencies = [
  "futures-util",
@@ -6521,11 +6521,11 @@ dependencies = [
  "time",
  "tokio",
  "tokio-tungstenite",
- "zknet_core",
+ "zknet-client-core",
 ]
 
 [[package]]
-name = "zknet_client_cli"
+name = "zknet-client-cli"
 version = "0.0.0"
 dependencies = [
  "anyhow",
@@ -6533,11 +6533,11 @@ dependencies = [
  "serde",
  "serde_json",
  "tokio",
- "zknet_core",
+ "zknet-client-core",
 ]
 
 [[package]]
-name = "zknet_core"
+name = "zknet-client-core"
 version = "0.1.0"
 dependencies = [
  "anyhow",

@@ -2,7 +2,7 @@ use std::{process::ExitCode, sync::Arc};
 
 use anyhow::Result;
 use clap::{Args, Parser, Subcommand};
-use zknet_core::{
+use zknet_client_core::{
     context::AppContext,
     network::{
         http_client, list, prepare, FetchEvent, FetchOptions, Layout, NetworkId, OnFetchEvent,
@@ -18,9 +18,10 @@ const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 const CONFIG_JSON: &str = include_str!("../assets/config.json");
 
-/// `zknet-client-cli <network_id>` is shorthand for `connect <network_id>`.
+/// `zknet <network_id>` is shorthand for `connect <network_id>`.
 #[derive(Parser, Debug)]
 #[command(
+    name = "zknet",
     author,
     version,
     about = "ZKNetwork Client CLI",
@@ -279,10 +280,13 @@ mod tests {
         assert!(parse(&[]).is_err());
     }
 
-    /// "Is this the built-in source?" is answered by zknet_core alone.
+    /// "Is this the built-in source?" is answered by zknet_client_core alone.
     #[test]
     fn the_configured_source_is_the_built_in_one() {
         let config: serde_json::Value = serde_json::from_str(CONFIG_JSON).unwrap();
-        assert_eq!(config["urlNetwork"], zknet_core::network::DEFAULT_SOURCE);
+        assert_eq!(
+            config["urlNetwork"],
+            zknet_client_core::network::DEFAULT_SOURCE
+        );
     }
 }

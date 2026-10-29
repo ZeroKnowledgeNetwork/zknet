@@ -15,7 +15,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: "A component tag to build as if pushed, e.g. desktop@0.1.0-dev.1 (nothing is published)"
+        description: "A component tag to build as if pushed, e.g. client@0.1.0-dev.1 (nothing is published)"
         required: true
 
 permissions:

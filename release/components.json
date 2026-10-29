@@ -4,7 +4,9 @@
     "paths": ["apps/client/**", "libs/client-core/**", "libs/rs-core/**"],
     "excludePaths": [],
     "cargo": ["apps/client/src-tauri/Cargo.toml"],
-    "runners": ["linux", "macos", "windows"]
+    "runners": ["linux", "macos", "windows"],
+    "manifest": true,
+    "latest": true
   },
   "client-cli": {
     "project": "client-cli",

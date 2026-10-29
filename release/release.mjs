@@ -101,9 +101,8 @@ function notes(tag) {
   for (const p of c.paths) args.push("--include-path", p);
   for (const p of c.excludePaths) args.push("--exclude-path", p);
   // a range plus --tag: --latest alone renders "unreleased" when the tagged
-  // commit is outside the include-path
-  const head = tagExists(c.tag) ? c.tag : "HEAD";
-  args.push(prev ? `${prev}..${head}` : head);
+  // commit is outside the include-path. A first release takes the whole history.
+  if (prev) args.push(`${prev}..${tagExists(c.tag) ? c.tag : "HEAD"}`);
   return execFileSync("git-cliff", args, { cwd: root, encoding: "utf8" });
 }
 

@@ -55,6 +55,10 @@ while steps whose `when` doesn't match need none. So:
 - `run` passes secrets as a file (`ZKNET_WOODPECKER_SECRETS`). Not
   `WOODPECKER_SECRETS`: its `name=value,...` form mangles a value with a `,`
   or `"`.
+- Woodpecker expands `${NAME}` in a pipeline file itself, before any step
+  runs and from its own metadata only, over the whole text, comments
+  included. A step's own variable (a secret, say) is written `$${NAME}` so the
+  step's shell expands it; `woodpecker-cli lint` does not catch a wrong one.
 
 ## The cache directory
 

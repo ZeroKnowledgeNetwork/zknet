@@ -1,14 +1,16 @@
 #!/usr/bin/env bash
-# Write the published root of a directory of assembled networks:
+# Write the index of a published root's assembled networks, and the root's
+# Pages files:
 #
-#   <out>/networks.json   the index of every <out>/<network_id>/network.json, newest first
-#   <out>/_headers        Cloudflare Pages headers: the index is always revalidated
-#   <out>/404.html        a real 404 for missing files, not Pages' single-page fallback
+#   <out>/networks/networks.json   the index of every <out>/networks/<network_id>/network.json,
+#                                  newest first
+#   <out>/_headers                 Cloudflare Pages headers: the index is always revalidated
+#   <out>/404.html                 a real 404 for missing files, not Pages' single-page fallback
 #
 #   index.sh [--out DIR]   (default: generated/ beside this script)
 #
 # The index is derived from the directory alone: a network is listed while its
-# directory exists. Needs bash and coreutils.
+# directory exists. Pages reads _headers only at the root of a deploy. Needs bash and coreutils.
 set -euo pipefail
 
 here=$(cd "$(dirname "$0")" && pwd)
@@ -22,7 +24,8 @@ while [ $# -gt 0 ]; do
     *) echo "index: $usage" >&2; exit 1 ;;
   esac
 done
-mkdir -p "$out"
+nets=$out/networks
+mkdir -p "$nets"
 
 # each network.json is one line whose "created" sorts by time (RFC 3339 UTC)
 created() { sed -n 's/.*"created": *"\([^"]*\)".*/\1/p' "$1"; }
@@ -30,13 +33,13 @@ entries=()
 while IFS=$'\t' read -r _ file; do
   entries+=("$(cat "$file")")
 done < <(
-  for file in "$out"/*/network.json; do
+  for file in "$nets"/*/network.json; do
     [ -f "$file" ] || continue
     printf '%s\t%s\n' "$(created "$file")" "$file"
   done | sort -r
 )
 
-index=$(mktemp "$out/.networks.json.XXXXXX")
+index=$(mktemp "$nets/.networks.json.XXXXXX")
 trap 'rm -f "$index"' EXIT
 {
   printf '{\n  "schema": 1,\n  "networks": ['
@@ -48,6 +51,6 @@ trap 'rm -f "$index"' EXIT
   printf ']\n}\n'
 } >"$index"
 chmod 644 "$index"
-mv "$index" "$out/networks.json"
+mv "$index" "$nets/networks.json"
 cp "$here/site/_headers" "$here/site/404.html" "$out/"
-echo "Indexed ${#entries[@]} network(s) in $out/networks.json"
+echo "Indexed ${#entries[@]} network(s) in $nets/networks.json"

@@ -1,6 +1,6 @@
 {
   "apiListenAddress": "127.0.0.1:7000",
-  "urlNetwork": "https://dist.zknet.io",
+  "urlNetwork": "https://dist.zknet.io/networks",
   "walletshieldListenAddress": ":7070",
   "walletshieldLogLevel": "INFO"
 }

@@ -2,10 +2,11 @@
 """Serve assembled network assets to development clients on loopback.
 
 Clients download `<base>/<network id>/{client.toml,services.json,walletshield-<platform>}`.
-This serves generated/, where assemble.sh writes every network, on a loopback-only
-HTTP server. Python standard library only.
+assemble.sh writes the published root to generated/, its networks in
+generated/networks/; this serves that networks directory as the base, on a
+loopback-only HTTP server. Python standard library only.
 
-    server.py serve   serve generated/ in the foreground (an Nx continuous task)
+    server.py serve   serve generated/networks/ in the foreground (an Nx continuous task)
     server.py ready   wait until the server answers with the dev-local assets
     server.py url     print the asset base URL for client flags
 """
@@ -30,6 +31,7 @@ BASE_URL = f'http://{HOST}:{PORT}'
 PROJECT = Path(__file__).resolve().parent
 WORKSPACE = PROJECT.parents[1]
 OUTPUT = PROJECT / 'generated'
+NETWORKS = 'networks'  # the clients' source under a published root, as on Pages
 STAGE_HINT = 'run `pnpm nx run network-assets:stage`'
 
 
@@ -47,7 +49,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
 
 
 def make_server(output: Path, host: str, port: int) -> http.server.ThreadingHTTPServer:
-    handler = functools.partial(Handler, directory=str(output))
+    handler = functools.partial(Handler, directory=str(output / NETWORKS))
     try:
         return http.server.ThreadingHTTPServer((host, port), handler)
     except OSError as error:
@@ -58,10 +60,10 @@ def make_server(output: Path, host: str, port: int) -> http.server.ThreadingHTTP
 
 
 def serve(output: Path = OUTPUT, host: str = HOST, port: int = PORT) -> None:
-    if not (output / NETWORK_ID).is_dir():
-        raise AssetError(f'Nothing assembled at {output / NETWORK_ID}: {STAGE_HINT}')
+    if not (output / NETWORKS / NETWORK_ID).is_dir():
+        raise AssetError(f'Nothing assembled at {output / NETWORKS / NETWORK_ID}: {STAGE_HINT}')
     server = make_server(output, host, port)
-    print(f'Serving {output} at http://{host}:{port}/ (Ctrl-C stops)', flush=True)
+    print(f'Serving {output / NETWORKS} at http://{host}:{port}/ (Ctrl-C stops)', flush=True)
     with server:
         try:
             server.serve_forever()
@@ -71,7 +73,7 @@ def serve(output: Path = OUTPUT, host: str = HOST, port: int = PORT) -> None:
 
 def ready(output: Path = OUTPUT, base_url: str = BASE_URL, timeout: float = 15) -> None:
     """Wait until every dev-local asset is served byte-identically."""
-    assets = output / NETWORK_ID
+    assets = output / NETWORKS / NETWORK_ID
     if not assets.is_dir():
         raise AssetError(f'Nothing assembled at {assets}: {STAGE_HINT}')
     expected = {p.name: sha256(p) for p in assets.iterdir()}

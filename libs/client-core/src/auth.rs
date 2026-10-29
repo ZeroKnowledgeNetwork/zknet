@@ -485,7 +485,7 @@ mod tests {
             );
         }
         for url in [
-            "https://dist.zknet.io",
+            "https://dist.zknet.io/networks",
             "http://192.168.1.2:8765",
             "http://localhost.evil:1",
         ] {
@@ -497,7 +497,7 @@ mod tests {
             assert_eq!(decide(url, false, true).unwrap(), Policy::Require);
         }
         assert_eq!(
-            decide("https://dist.zknet.io", true, true).unwrap_err().to_string(),
+            decide("https://dist.zknet.io/networks", true, true).unwrap_err().to_string(),
             "unsigned assets are allowed only from a local source (127.0.0.1, ::1 or localhost), not dist.zknet.io"
         );
     }

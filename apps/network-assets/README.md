@@ -4,13 +4,16 @@ Assembles a network's client assets in the layout the clients download, indexes 
 networks it holds, and serves them on loopback for development:
 
 ```
-generated/networks.json                  the index of live networks (clients' `list`)
 generated/_headers, generated/404.html   Cloudflare Pages: revalidate the index, real 404s
-generated/<network_id>/{client.toml,services.json,walletshield-<platform>,checksums.txt,
-                        checksums.txt.minisig,network.json}
+generated/networks/networks.json         the index of live networks (clients' `list`)
+generated/networks/<network_id>/{client.toml,services.json,walletshield-<platform>,
+                                 checksums.txt,checksums.txt.minisig,network.json}
 ```
 
-The clients read this layout through one contract, `zknet_client_core::network` in `libs/client-core`.
+`generated/` is the published root and `generated/networks/` is the clients' network
+source: `https://dist.zknet.io/networks` when published, `http://127.0.0.1:8765` locally.
+The clients read this layout through one contract, `zknet_client_core::network` in
+`libs/client-core`.
 
 It only collects. Whether the mixnet is running is the concern of `mixnet:ready` and the
 clients; what the binaries are and how they are built is the concern of `app-walletshield:dist`.
@@ -30,7 +33,7 @@ apps/network-assets/assemble.sh [--out DIR] --remove <network_id>
 | Input           | Default                                                                       |
 | --------------- | ----------------------------------------------------------------------------- |
 | `--served`      | `dist/woodpecker/walletshield/served`: the export of `.woodpecker/run dist`   |
-| `--out`         | `apps/network-assets/generated`                                               |
+| `--out`         | `apps/network-assets/generated`: the published root                           |
 | `--kind`        | `local` for `dev-local`, else the id's prefix: `devnet`, `testnet`, `mainnet` |
 | `--name`        | `<Kind> · <YYYY-MM-DD>` (UTC date of assembly): the name clients show         |
 | `services.json` | `packages/opt/docker/services.json`, the network's service manifest           |
@@ -41,14 +44,14 @@ apps/network-assets/assemble.sh [--out DIR] --remove <network_id>
   clients run a binary only if the signature is by the key in `libs/client-core/asset-key.pub`
   and the binary's hash is the one it lists. Every kind but `local` needs the signature;
   assembly checks only that it is there, and the clients verify it.
-- Only `<out>/<network_id>/` is replaced, so networks assembled side by side stay as they
-  are. `<out>` is the directory to publish.
+- Only `<out>/networks/<network_id>/` is replaced, so networks assembled side by side stay
+  as they are. `<out>` is the directory to publish.
 - A network id is one lowercase path component, `^[a-z0-9][a-z0-9._-]{0,63}$`, and not
   `list`, `connect` or `help` (the CLI's subcommands): the clients' `NetworkId` rule.
-- `<network_id>/network.json` holds the network's index entry (`id`, `kind`, `name`,
-  `created`). `index.sh [--out DIR]`, run by every assembly and removal, rebuilds
-  `networks.json` from those files, newest first, so a network is listed exactly while
-  its directory exists.
+- `networks/<network_id>/network.json` holds the network's index entry (`id`, `kind`,
+  `name`, `created`). `index.sh [--out DIR]`, run by every assembly and removal, rebuilds
+  `networks/networks.json` from those files, newest first, so a network is listed exactly
+  while its directory exists.
 
 `fixtures/networks.json` is the clients' sample index. The index test compares its
 parsed JSON with `index.sh` output, including network order; the fixture may use
@@ -77,7 +80,7 @@ running at once share one server.
 | Target  | Does                                                                                                               |
 | ------- | ------------------------------------------------------------------------------------------------------------------ |
 | `stage` | `assemble.sh dev-local` with the local mixnet's thin-client config (`katzenpost_dir`, `distro` as in its Makefile) |
-| `serve` | Serves `generated/` on `127.0.0.1:8765`: an Nx continuous task, stopped by Ctrl-C or its dependent                 |
+| `serve` | Serves `generated/networks/` on `127.0.0.1:8765`: an Nx continuous task, stopped by Ctrl-C or its dependent        |
 | `ready` | Waits until the server returns the `dev-local` bytes; fails if nothing or something else answers                   |
 | `test`  | Assembly, server and client-contract tests (`python3 -m unittest`)                                                 |
 

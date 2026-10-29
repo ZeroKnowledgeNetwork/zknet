@@ -54,6 +54,7 @@ class Fixture(unittest.TestCase):
         self.services = self.root / 'services.json'
         self.services.write_text('{"RPCEndpoints": []}\n')
         self.output = self.root / 'generated'
+        self.nets = self.output / 'networks'
 
     def assemble(self, network_id='dev-local', *extra, options=(), check=True):
         return self.run_script(ASSEMBLE, '--served', self.served, '--out', self.output, *options,
@@ -66,16 +67,18 @@ class Fixture(unittest.TestCase):
         return result
 
     def networks(self):
-        return sorted(p.name for p in self.output.iterdir() if p.is_dir())
+        return sorted(p.name for p in self.nets.iterdir() if p.is_dir())
 
     def index(self):
-        return json.loads((self.output / 'networks.json').read_text())
+        return json.loads((self.nets / 'networks.json').read_text())
 
 
 class AssembleTest(Fixture):
     def test_publishes_the_client_url_layout_with_the_signed_build_list(self):
         self.assemble()
-        assets = self.output / 'dev-local'
+        # the root holds Pages' files and the networks, never a network itself
+        self.assertEqual(sorted(p.name for p in self.output.iterdir()), ['404.html', '_headers', 'networks'])
+        assets = self.nets / 'dev-local'
         self.assertEqual(sorted(p.name for p in assets.iterdir()),
                          ['checksums.txt', 'checksums.txt.minisig', 'client.toml', 'network.json',
                           'services.json', *BINARIES])
@@ -99,27 +102,27 @@ class AssembleTest(Fixture):
         (self.served / 'checksums.txt.minisig').unlink()
         result = self.assemble('dev-local')
         self.assertIn('UNSIGNED', result.stdout)
-        self.assertFalse((self.output / 'dev-local' / 'checksums.txt.minisig').exists())
+        self.assertFalse((self.nets / 'dev-local' / 'checksums.txt.minisig').exists())
 
     def test_defaults_to_the_network_services_manifest(self):
         result = subprocess.run([ASSEMBLE, '--served', self.served, '--out', self.output, 'dev-local',
                                  self.client_config], capture_output=True, text=True)
         self.assertEqual(result.returncode, 0, result.stderr)
         manifest = server.WORKSPACE / 'packages/opt/docker/services.json'
-        self.assertEqual((self.output / 'dev-local' / 'services.json').read_bytes(), manifest.read_bytes())
+        self.assertEqual((self.nets / 'dev-local' / 'services.json').read_bytes(), manifest.read_bytes())
 
     def test_leaves_other_networks_alone(self):
         self.assemble('dev-local')
-        first = {p.name: p.read_bytes() for p in (self.output / 'dev-local').iterdir()}
+        first = {p.name: p.read_bytes() for p in (self.nets / 'dev-local').iterdir()}
         self.client_config.write_text(CLIENT_CONFIG.replace('203.0.113.7', '203.0.113.8'))
         self.assemble('devnet-test')
         self.assertEqual(self.networks(), ['dev-local', 'devnet-test'])
-        self.assertEqual({p.name: p.read_bytes() for p in (self.output / 'dev-local').iterdir()}, first)
-        self.assertIn('203.0.113.8', (self.output / 'devnet-test' / 'client.toml').read_text())
+        self.assertEqual({p.name: p.read_bytes() for p in (self.nets / 'dev-local').iterdir()}, first)
+        self.assertIn('203.0.113.8', (self.nets / 'devnet-test' / 'client.toml').read_text())
 
     def test_reassembling_replaces_the_network(self):
         self.assemble()
-        stale = self.output / 'dev-local' / 'walletshield-freebsd-x64'
+        stale = self.nets / 'dev-local' / 'walletshield-freebsd-x64'
         stale.write_bytes(b'stale')
         self.assemble()
         self.assertFalse(stale.exists())
@@ -130,7 +133,7 @@ class AssembleTest(Fixture):
         result = self.assemble(check=False)
         self.assertNotEqual(result.returncode, 0)
         self.assertIn('do not match their build checksums', result.stderr)
-        self.assertFalse((self.output / 'dev-local').exists())
+        self.assertFalse((self.nets / 'dev-local').exists())
 
     def test_refuses_a_missing_export(self):
         shutil.rmtree(self.served)
@@ -173,7 +176,7 @@ class IndexTest(Fixture):
     def test_publishes_pages_headers_and_a_real_404(self):
         self.assemble()
         headers = (self.output / '_headers').read_text()
-        self.assertIn('/networks.json\n  Cache-Control: public, max-age=0, must-revalidate', headers)
+        self.assertIn('\n/networks/networks.json\n  Cache-Control: public, max-age=0, must-revalidate', headers)
         self.assertTrue((self.output / '404.html').is_file())
 
     def test_remove_drops_the_network_and_its_entry(self):
@@ -192,7 +195,7 @@ class IndexTest(Fixture):
 
     def test_skips_staging_directories(self):
         self.assemble()
-        staging = self.output / '.assemble-devnet-x.abc'
+        staging = self.nets / '.assemble-devnet-x.abc'
         staging.mkdir()
         (staging / 'network.json').write_text(json.dumps(FIXTURE_NETWORKS['devnet-78c3de28']) + '\n')
         self.run_script(INDEX, '--out', self.output)
@@ -205,13 +208,12 @@ class IndexTest(Fixture):
         self.assertIn("unknown network kind 'lab'", result.stderr)
         result = self.assemble('devnet-1', options=['--name', 'a\nb'], check=False)
         self.assertIn('invalid network name', result.stderr)
-        self.assertFalse((self.output / 'devnet-1').exists())
+        self.assertFalse((self.nets / 'devnet-1').exists())
 
     def test_the_client_fixture_is_what_index_writes(self):
-        self.output.mkdir()
         for network_id, entry in FIXTURE_NETWORKS.items():
-            (self.output / network_id).mkdir()
-            (self.output / network_id / 'network.json').write_text(json.dumps(entry, ensure_ascii=False) + '\n')
+            (self.nets / network_id).mkdir(parents=True)
+            (self.nets / network_id / 'network.json').write_text(json.dumps(entry, ensure_ascii=False) + '\n')
         self.run_script(INDEX, '--out', self.output)
         self.assertEqual(self.index(), json.loads(FIXTURE.read_text()))
 
@@ -237,7 +239,7 @@ class ServeTest(Fixture):
     def test_ready_rejects_a_server_with_other_assets(self):
         other = self.root / 'other'
         shutil.copytree(self.output, other)
-        (other / 'dev-local' / 'client.toml').write_text(CLIENT_CONFIG + '# another network\n')
+        (other / 'networks' / 'dev-local' / 'client.toml').write_text(CLIENT_CONFIG + '# another network\n')
         with self.assertRaisesRegex(server.AssetError, 'different client.toml'):
             server.ready(other, self.url, timeout=2)
 

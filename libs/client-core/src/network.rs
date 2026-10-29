@@ -32,7 +32,7 @@ pub const INDEX_SCHEMA: u32 = 1;
 
 /// The built-in network source. Each client's config names it too (tests hold
 /// them equal); it is never shown to users, so it may change freely.
-pub const DEFAULT_SOURCE: &str = "https://dist.zknet.io";
+pub const DEFAULT_SOURCE: &str = "https://dist.zknet.io/networks";
 
 const INDEX_FILE: &str = "networks.json";
 const ORIGIN_FILE: &str = "origin.json";
@@ -149,7 +149,7 @@ impl Asset {
 /// The one place that knows the published URL shape and the local directory shape.
 #[derive(Clone, Debug)]
 pub struct Layout {
-    /// The published root, e.g. `https://dist.zknet.io`.
+    /// The network source, e.g. `https://dist.zknet.io/networks`.
     pub base_url: String,
     /// The client's network cache: `<app data>/networks`.
     pub networks_dir: PathBuf,
@@ -1322,6 +1322,26 @@ mod tests {
         assert_eq!(
             part_path(&windows, &id, Asset::Walletshield),
             Path::new("/d/networks/devnet-1/walletshield.exe.part")
+        );
+    }
+
+    #[test]
+    fn the_built_in_source_is_the_networks_path_of_the_published_root() {
+        // dist.zknet.io's root is the site; networks live under /networks/
+        let id = NetworkId::parse("devnet-1").unwrap();
+        let dist = Layout::new(DEFAULT_SOURCE, "/d/networks".into(), platform("linux-x64"));
+        assert_eq!(
+            dist.index_url(),
+            "https://dist.zknet.io/networks/networks.json"
+        );
+        assert_eq!(
+            dist.asset_url(&id, Asset::ClientToml),
+            "https://dist.zknet.io/networks/devnet-1/client.toml"
+        );
+        // the root itself is another source, so it is shown
+        assert_eq!(
+            source_label("https://dist.zknet.io").as_deref(),
+            Some("dist.zknet.io")
         );
     }
 

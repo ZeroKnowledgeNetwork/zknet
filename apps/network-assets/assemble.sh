@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
 # Assemble one network's client assets in the layout the clients download, and
-# list it in the index (index.sh):
+# list it in the index (index.sh). <out> is the published root; the clients'
+# network source is <out>/networks:
 #
-#   <out>/<network_id>/{client.toml,services.json,walletshield-<platform>,checksums.txt,
-#                       checksums.txt.minisig,network.json}
-#   <out>/{networks.json,_headers,404.html}
+#   <out>/networks/<network_id>/{client.toml,services.json,walletshield-<platform>,
+#                                checksums.txt,checksums.txt.minisig,network.json}
+#   <out>/networks/networks.json
+#   <out>/{_headers,404.html}
 #
 #   assemble.sh [--served DIR] [--out DIR] [--kind KIND] [--name NAME]
 #               <network_id> <client.toml> [<services.json>]
@@ -12,7 +14,7 @@
 #
 #   --served   the WalletShield dist export, served/ of `app-walletshield:dist`
 #              (default: dist/woodpecker/walletshield/served)
-#   --out      the directory of networks (default: generated/ beside this script)
+#   --out      the published root (default: generated/ beside this script)
 #   --kind     local, devnet, testnet or mainnet (default: local for dev-local,
 #              else the id's prefix before its first '-')
 #   --name     the name clients show (default: "<Kind> · <YYYY-MM-DD>", the
@@ -25,7 +27,7 @@
 # with its signature, checksums.txt.minisig (by the asset key): the clients
 # run a binary only if both check out. Every kind but local needs the signature;
 # assembly only checks it is there, the clients verify it. Only
-# <out>/<network_id>/ is replaced. Needs bash and coreutils.
+# <out>/networks/<network_id>/ is replaced. Needs bash and coreutils.
 set -euo pipefail
 
 here=$(cd "$(dirname "$0")" && pwd)
@@ -64,9 +66,9 @@ valid_id() {
 if [ -n "$remove" ]; then
   [ $# = 1 ] || die "$usage"
   valid_id "$1" || die "invalid network id: '$1'"
-  [ -d "$out/$1" ] || die "no network $1 in $out"
-  rm -rf "${out:?}/$1"
-  echo "Removed $out/$1"
+  [ -d "$out/networks/$1" ] || die "no network $1 in $out/networks"
+  rm -rf "${out:?}/networks/$1"
+  echo "Removed $out/networks/$1"
   exec "$here/index.sh" --out "$out"
 fi
 
@@ -96,8 +98,8 @@ signature=$served/checksums.txt.minisig
 [ -f "$signature" ] || [ "$kind" = local ] ||
   die "the WalletShield export in $served is unsigned: a published kind needs checksums.txt.minisig"
 
-mkdir -p "$out"
-staging=$(mktemp -d "$out/.assemble-$network_id.XXXXXX")
+mkdir -p "$out/networks"
+staging=$(mktemp -d "$out/networks/.assemble-$network_id.XXXXXX")
 trap 'rm -rf "$staging"' EXIT
 chmod 755 "$staging"
 cp "$client_config" "$staging/client.toml"
@@ -112,8 +114,8 @@ printf '{"id": %s, "kind": %s, "name": %s, "created": %s}\n' \
   "$(json "$network_id")" "$(json "$kind")" "$(json "$name")" "$(json "$created")" \
   >"$staging/network.json"
 
-target=$out/$network_id
-previous=$out/.previous-$network_id
+target=$out/networks/$network_id
+previous=$out/networks/.previous-$network_id
 rm -rf "$previous"
 [ ! -e "$target" ] || mv "$target" "$previous"
 mv "$staging" "$target"

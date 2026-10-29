@@ -154,7 +154,7 @@ mod tests {
     use super::*;
     use zknet_client_core::network::{IndexEntry, NetworkId, NetworkKind, SourceError};
 
-    const DIST: &str = "https://dist.zknet.io";
+    const DIST: &str = "https://dist.zknet.io/networks";
     const LOCAL: &str = "http://127.0.0.1:8765";
 
     fn net(

@@ -6502,7 +6502,7 @@ dependencies = [
 
 [[package]]
 name = "zkn-client"
-version = "0.1.0-dev"
+version = "0.0.0"
 dependencies = [
  "futures-util",
  "serde",
@@ -6526,7 +6526,7 @@ dependencies = [
 
 [[package]]
 name = "zknet_client_cli"
-version = "0.1.0"
+version = "0.0.0"
 dependencies = [
  "anyhow",
  "clap",

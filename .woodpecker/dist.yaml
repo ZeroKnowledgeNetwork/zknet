@@ -62,7 +62,8 @@ steps:
       - own_target_dir
       - cd "$SRC"
       # an empty secret (none supplied) is no key, rather than one Tauri can't decode
-      - '[ -n "${TAURI_SIGNING_PRIVATE_KEY:-}" ] || unset TAURI_SIGNING_PRIVATE_KEY TAURI_SIGNING_PRIVATE_KEY_PASSWORD'
+      # ($$ escapes Woodpecker's own ${…} substitution)
+      - '[ -n "$${TAURI_SIGNING_PRIVATE_KEY:-}" ] || unset TAURI_SIGNING_PRIVATE_KEY TAURI_SIGNING_PRIVATE_KEY_PASSWORD'
       - pnpm exec nx run client:desktop-build:$(rung)
 
   desktop-release:

@@ -142,11 +142,26 @@ event builds `dev`. The desktop is built by `desktop` on a dev run and by
 `desktop-release` maps the updater signing key (`tauri_signing_private_key`,
 `tauri_signing_private_key_password`), so a dev run needs no secret and a tag
 run without them is refused before any step starts. `collect` is split the
-same way. Try the release rung on a throwaway clone with a test tag, the
-secrets in a file named by `ZKNET_WOODPECKER_SECRETS`:
+same way.
+
+A tag is one component's release, `<id>@<semver>` (`release/components.json`).
+`prepare` stamps the version into that component's manifests
+(`stamp`), and each build step starts with `only <Nx project>`, which skips it
+unless it builds the tag's component. The desktop's release step also merges
+the version and the updater's key and endpoint into the Tauri configuration
+(`TAURI_CONFIG`, from `release/release.mjs tauri-config`).
+
+`run` passes build settings from its environment to the steps:
+`ZKNET_DIST_PLATFORMS` (the OSes to build for; default `linux windows darwin`,
+and the GitHub release builds `linux windows` here and darwin on macOS) and,
+for a desktop release, `ZKNET_UPDATER_PUBKEY` and `ZKNET_UPDATER_ENDPOINT`.
+
+Try the release rung with a test tag, which needs to exist only in the
+pipeline's metadata, and the secrets in a file named by
+`ZKNET_WOODPECKER_SECRETS`:
 
 ```sh
-.woodpecker/run dist --pipeline-event tag --commit-ref refs/tags/v0.0.0-test
+.woodpecker/run dist --pipeline-event tag --commit-ref refs/tags/cli@0.0.0-test.1
 ```
 
 ## Platform notes

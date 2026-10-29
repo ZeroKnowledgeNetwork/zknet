@@ -1,8 +1,10 @@
 # Distribution builds of the committed HEAD, on the Woodpecker docker backend.
 # One definition serves both rungs: a tag event selects each Nx `dist` target's
 # `release` configuration (see `rung` in lib.sh) and enables the release-only
-# steps; any other event builds `dev`. Outputs land in dist/woodpecker/.
-# See .woodpecker/README.md.
+# steps; any other event builds `dev`. A tag is one component's release
+# (<id>@<semver>): `stamp` writes its version and `only` skips the other
+# components' steps. ZKNET_DIST_PLATFORMS selects the OSes (run). Outputs land
+# in dist/woodpecker/. See .woodpecker/README.md.
 
 when:
   - event: [push, manual, tag]
@@ -12,9 +14,12 @@ steps:
     image: ghcr.io/rust-cross/cargo-zigbuild:0.23.4
     commands:
       - . "$CI_WORKSPACE/.woodpecker/lib.sh"
+      # the image's rustup proxies (stamp updates Cargo.lock)
+      - export PATH=/usr/local/cargo/bin:$PATH
       - tools node
       - checkout
       - pnpm_install
+      - stamp
 
   walletshield:
     image: ghcr.io/goreleaser/goreleaser-cross:v1.27.3
@@ -22,6 +27,7 @@ steps:
     commands:
       - . "$CI_WORKSPACE/.woodpecker/lib.sh"
       - tools node zig upx
+      - only walletshield
       - cd "$SRC"
       - pnpm exec nx run walletshield:dist:$(rung)
 
@@ -33,6 +39,7 @@ steps:
       # the image's rustup proxies, with RUSTUP_HOME in the cache directory
       - export PATH=/usr/local/cargo/bin:$PATH
       - tools node upx
+      - only zknet_client_cli
       - cd "$SRC"
       - pnpm exec nx run zknet_client_cli:dist:$(rung)
 
@@ -51,8 +58,11 @@ steps:
       - . "$CI_WORKSPACE/.woodpecker/lib.sh"
       - apt_install ca-certificates curl git xz-utils build-essential pkg-config file libwebkit2gtk-4.1-dev
       - tools node rust
+      - only @zknet/client
       - own_target_dir
       - cd "$SRC"
+      # a release: the version, and the updater's key and endpoint (release.mjs)
+      - '[ "$(rung)" = dev ] || export TAURI_CONFIG="$(node release/release.mjs tauri-config)"'
       - pnpm exec nx run @zknet/client:desktop-build:$(rung)
 
   desktop-release:

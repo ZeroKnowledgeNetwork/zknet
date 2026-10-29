@@ -52,10 +52,10 @@
       "defaultConfiguration": "dev",
       "configurations": {
         "dev": {
-          "command": "goreleaser build --snapshot --clean && ./served.sh"
+          "command": "./dist.sh dev"
         },
         "release": {
-          "command": "goreleaser release --clean --skip=publish && ./served.sh"
+          "command": "./dist.sh release"
         }
       }
     }

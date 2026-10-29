@@ -7,6 +7,8 @@
 //   release.mjs parse TAG              the component as JSON
 //   release.mjs gha-outputs TAG        the same as GitHub Actions step outputs
 //   release.mjs wanted PROJECT         exit 0 if this build includes the Nx project
+//   release.mjs id PROJECT             the Nx project's tag prefix
+//   release.mjs version [TAG]          the tag's version
 //   release.mjs stamp                  write the tag's version into the component's manifests
 //   release.mjs notes TAG              the release notes (git-cliff, cliff.toml)
 //   release.mjs tauri-config           the desktop build's TAURI_CONFIG
@@ -191,6 +193,15 @@ switch (cmd) {
     console.log(out.join("\n"));
     break;
   }
+  case "version":
+    console.log(parse(currentTag(a)).version);
+    break;
+  case "id": {
+    const id = Object.keys(components).find((k) => components[k].project === a);
+    if (!id) die(`no component for the Nx project ${a}`);
+    console.log(id);
+    break;
+  }
   case "wanted":
     if (!a) die("usage: wanted PROJECT");
     process.exit(wanted(a) ? 0 : 1);
@@ -208,5 +219,7 @@ switch (cmd) {
     console.log(manifest(a, b));
     break;
   default:
-    die(`usage: release.mjs parse|gha-outputs|wanted|stamp|notes|tauri-config|manifest …`);
+    die(
+      `usage: release.mjs parse|gha-outputs|wanted|id|version|stamp|notes|tauri-config|manifest …`,
+    );
 }

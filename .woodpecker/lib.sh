@@ -16,6 +16,13 @@ grep -q ' /cache ' /proc/self/mountinfo || {
 export CACHE=/cache
 export SRC=$CACHE/src
 
+# the build settings .woodpecker/run passes (ZKNET_DIST_PLATFORMS, ZKNET_UPDATER_*)
+if [ -f "$CI_WORKSPACE/.woodpecker/.run.env" ]; then
+  set -a
+  . "$CI_WORKSPACE/.woodpecker/.run.env"
+  set +a
+fi
+
 export GOMODCACHE=$CACHE/go/mod GOCACHE=$CACHE/go/build GOTOOLCHAIN=local
 export RUSTUP_HOME=$CACHE/rustup CARGO_HOME=$CACHE/cargo
 # incremental state pays off only in local edit loops, and it grows the target directory
@@ -172,4 +179,22 @@ pnpm_install() {
 # name. A tag builds the release rung; everything else builds dev.
 rung() {
   if [ "$CI_PIPELINE_EVENT" = tag ]; then echo release; else echo dev; fi
+}
+
+# --- releases: a tag is one component's, <id>@<semver> (release/components.json)
+
+# only PROJECT: end the step unless this pipeline builds the Nx project, which
+# a development build always does and a release only for its tag's component.
+only() {
+  [ "$(rung)" = release ] || return 0
+  node "$SRC/release/release.mjs" wanted "$1" && return 0
+  echo "only: $1 is not part of the release $CI_COMMIT_TAG; skipped"
+  exit 0
+}
+
+# stamp: write a release's version into its component's manifests in $SRC
+# (needs node and cargo). The checkout is shared by the steps that follow.
+stamp() {
+  [ "$(rung)" = release ] || return 0
+  node "$SRC/release/release.mjs" stamp
 }

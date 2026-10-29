@@ -49,3 +49,5 @@ vite.config.*.timestamp*
 vitest.config.*.timestamp*
 # local Woodpecker settings (.woodpecker/local.env.example)
 /.woodpecker/local.env
+# the build settings .woodpecker/run passes to the steps, for one run
+/.woodpecker/.run.env

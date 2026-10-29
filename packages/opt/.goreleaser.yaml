@@ -1,8 +1,10 @@
 # WalletShield distribution builds, goreleaser OSS v2. Run through the Nx
-# target `walletshield:dist` (dev: `build --snapshot`; release: `release`)
-# inside ghcr.io/goreleaser/goreleaser-cross, which carries the darwin
-# (osxcross) and windows (mingw) C toolchains; served.sh then exports the
-# client download layout with checksums. The Linux ids link with zig against
+# target `walletshield:dist` (dist.sh: dev `build --snapshot`, release
+# `release`) inside ghcr.io/goreleaser/goreleaser-cross, which carries the
+# darwin (osxcross) and windows (mingw) C toolchains, or natively on macOS for
+# the darwin builds (clang and the Xcode SDK); served.sh then exports the
+# client download layout with checksums. ZKNET_DIST_PLATFORMS (default
+# "linux windows darwin") selects the builds by OS. The Linux ids link with zig against
 # the glibc of the oldest supported Ubuntu LTS as the floor, currently 2.31
 # (the `.2.31` targets below); zig and upx come from .woodpecker/lib.sh.
 version: 2
@@ -14,8 +16,8 @@ env:
   - CGO_ENABLED=1
 
 snapshot:
-  # the stamp a plain `make app-walletshield` gives: `git describe`
-  version_template: "{{ .Summary }}"
+  # dist.sh: `git describe` of the WalletShield tags only
+  version_template: '{{ envOrDefault "ZKNET_SNAPSHOT_VERSION" .Summary }}'
 
 builds:
   - &build
@@ -29,6 +31,7 @@ builds:
       - CXX=zig c++ -target x86_64-linux-gnu.2.31
       # the vendored sqisign Rust staticlib (linux/amd64 only) needs an unwinder
       - CGO_LDFLAGS=-lunwind
+    skip: '{{ not (contains (envOrDefault "ZKNET_DIST_PLATFORMS" "linux windows darwin") "linux") }}'
     flags: [-trimpath]
     ldflags: ["-s -w -X main.version={{ .Version }}"]
     mod_timestamp: "{{ .CommitTimestamp }}"
@@ -41,18 +44,27 @@ builds:
       # replaces Go's default `-g -O2`: zig honours a -g that follows -s, which
       # would keep the debug info (linux-amd64 replaces it with -lunwind)
       - CGO_LDFLAGS=-O2
+  # darwin: osxcross in goreleaser-cross, else (on macOS) clang, to which Go
+  # passes the target's -arch
   - <<: *build
     id: darwin-amd64
     goos: [darwin]
-    env: [CC=o64-clang, CXX=o64-clang++]
+    skip: &skip-darwin '{{ not (contains (envOrDefault "ZKNET_DIST_PLATFORMS" "linux windows darwin") "darwin") }}'
+    env:
+      - CC={{ if eq .Runtime.Goos "darwin" }}clang{{ else }}o64-clang{{ end }}
+      - CXX={{ if eq .Runtime.Goos "darwin" }}clang++{{ else }}o64-clang++{{ end }}
   - <<: *build
     id: darwin-arm64
     goos: [darwin]
     goarch: [arm64]
-    env: [CC=oa64-clang, CXX=oa64-clang++]
+    skip: *skip-darwin
+    env:
+      - CC={{ if eq .Runtime.Goos "darwin" }}clang{{ else }}oa64-clang{{ end }}
+      - CXX={{ if eq .Runtime.Goos "darwin" }}clang++{{ else }}oa64-clang++{{ end }}
   - <<: *build
     id: windows-amd64
     goos: [windows]
+    skip: '{{ not (contains (envOrDefault "ZKNET_DIST_PLATFORMS" "linux windows darwin") "windows") }}'
     env: [CC=x86_64-w64-mingw32-gcc, CXX=x86_64-w64-mingw32-g++]
 
 # The release archive ships one universal macOS binary; the clients download

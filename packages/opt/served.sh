@@ -2,7 +2,8 @@
 # Export a WalletShield goreleaser dist in the layout the clients download:
 # served/walletshield-<platform> for every client platform, and
 # served/checksums.txt, their sha256. Chained after goreleaser in both rungs of
-# the Nx target `walletshield:dist`.
+# the Nx target `walletshield:dist`. ZKNET_DIST_PLATFORMS (default "linux
+# windows darwin") limits it to the builds of those OSes.
 #
 #   served.sh [DIST]    DIST: the goreleaser dist (default: the workspace's dist/walletshield)
 set -euo pipefail
@@ -18,12 +19,14 @@ platforms=(
   windows-amd64=windows-x64
 )
 
+selected=" ${ZKNET_DIST_PLATFORMS:-linux windows darwin} "
 dist=${1:-$(dirname "$0")/../../dist/walletshield}
 served=$dist/served
 rm -rf "$served"
 mkdir "$served"
 for platform in "${platforms[@]}"; do
   id=${platform%%=*}
+  [[ $selected == *" ${id%%-*} "* ]] || continue
   # goreleaser builds into <id>_<os>_<arch>[_<variant>]/walletshield[.exe]
   binaries=("$dist/${id}"_*/walletshield*)
   if [ ${#binaries[@]} != 1 ]; then
@@ -32,5 +35,6 @@ for platform in "${platforms[@]}"; do
   fi
   cp -p "${binaries[0]}" "$served/walletshield-${platform#*=}"
 done
-(cd "$served" && sha256sum walletshield-* >checksums.txt)
+sha256() { if command -v sha256sum >/dev/null; then sha256sum "$@"; else shasum -a 256 "$@"; fi; }
+(cd "$served" && sha256 walletshield-* >checksums.txt)
 echo "served.sh: $served"

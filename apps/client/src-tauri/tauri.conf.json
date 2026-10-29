@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "ZKNetwork",
-  "identifier": "com.zkn-client.app",
+  "identifier": "io.zknet.client",
   "build": {
     "beforeDevCommand": "pnpm dev",
     "devUrl": "http://localhost:1420",
@@ -34,10 +34,8 @@
   },
   "plugins": {
     "updater": {
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDNGMjNBNTM3MjA2QzY1QjMKUldTelpXd2dONlVqUDc4TW4xK3owUkJJOXdleW1lNkR2MVlRcExtL1lpcjVhVW5HS3Rmb0hOM3gK",
-      "endpoints": [
-        "https://github.com/ZeroKnowledgeNetwork/client/releases/latest/download/latest.json"
-      ]
+      "pubkey": "SET-AT-BUILD-TIME: the release build passes ZKNET_UPDATER_PUBKEY",
+      "endpoints": ["https://updater-endpoint.invalid/set-at-build-time/latest.json"]
     },
     "zknet": {
       "apiListenAddress": "127.0.0.1:7000",

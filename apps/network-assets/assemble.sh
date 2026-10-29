@@ -55,7 +55,7 @@ while [ $# -gt 0 ]; do
     *) break ;;
   esac
 done
-# the clients' NetworkId (libs/rs-core network.rs): one plain lowercase path
+# the clients' NetworkId (libs/client-core network.rs): one plain lowercase path
 # component, not a CLI subcommand; dot names are staging
 valid_id() {
   [[ $1 =~ ^[a-z0-9][a-z0-9._-]{0,63}$ ]] && [[ ! $1 =~ ^(list|connect|help)$ ]]

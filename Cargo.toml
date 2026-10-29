@@ -1,7 +1,7 @@
 
 [workspace]
 resolver = '2'
-members = ['apps/client-cli', 'apps/client/src-tauri', 'libs/rs-core']
+members = ['apps/client-cli', 'apps/client/src-tauri', 'libs/client-core']
 
 [workspace.package]
 license = "AGPL-3.0-only"

@@ -2,7 +2,7 @@
   "$schema": "../../node_modules/nx/schemas/project-schema.json",
   "name": "zknet_core",
   "projectType": "library",
-  "sourceRoot": "libs/rs-core/src",
+  "sourceRoot": "libs/client-core/src",
   "tags": [],
   "namedInputs": {
     "rustSources": [

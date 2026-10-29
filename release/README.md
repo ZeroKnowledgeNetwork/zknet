@@ -27,7 +27,7 @@ component's tag prefix lives, so renaming one is a one-line change there.
 | `walletshield` | `walletshield`     | Linux + Windows (Woodpecker, cross), macOS (native)           | goreleaser's archives: linux amd64/arm64, windows amd64, darwin universal                                                    |
 
 Every release also carries `checksums.txt` (sha256 of every asset). Both the
-desktop and the CLI build in `zknet_core` (`libs/rs-core`), so its commits
+desktop and the CLI build in `zknet_core` (`libs/client-core`), so its commits
 appear in both their notes. The darwin builds run natively on macOS, with
 Xcode's SDK, never with an SDK inside a Linux image.
 

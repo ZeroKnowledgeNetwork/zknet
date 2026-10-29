@@ -2,7 +2,7 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "outDir": "out-tsc/demo",
-    "tsBuildInfoFile": "out-tsc/demo/tsconfig.app.tsbuildinfo",
+    "tsBuildInfoFile": "out-tsc/sdk-demo/tsconfig.app.tsbuildinfo",
     "rootDir": "src",
     "jsx": "react-jsx",
     "module": "esnext",

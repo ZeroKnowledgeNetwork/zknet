@@ -7,7 +7,7 @@
       "path": "./packages/sdk"
     },
     {
-      "path": "./apps/demo"
+      "path": "./apps/sdk-demo"
     },
     {
       "path": "./apps/ext"

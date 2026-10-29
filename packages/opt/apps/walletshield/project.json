@@ -15,7 +15,7 @@
         "{workspaceRoot}/packages/opt/served.sh",
         "{workspaceRoot}/packages/opt/test_served.py",
         "{workspaceRoot}/packages/opt/.goreleaser.yaml",
-        "{workspaceRoot}/libs/rs-core/src/network.rs"
+        "{workspaceRoot}/libs/client-core/src/network.rs"
       ],
       "options": {
         "commands": ["go test ./...", "python3 -B -m unittest discover -s ../.. -p test_served.py"],

@@ -10,7 +10,7 @@ set -euo pipefail
 shopt -s nullglob
 
 # goreleaser build id (.goreleaser.yaml) = client platform name
-# (Platform::from_os_arch in libs/rs-core/src/network.rs)
+# (Platform::from_os_arch in libs/client-core/src/network.rs)
 platforms=(
   linux-amd64=linux-x64
   linux-arm64=linux-arm64

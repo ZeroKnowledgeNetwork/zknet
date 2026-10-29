@@ -10,7 +10,7 @@ generated/<network_id>/{client.toml,services.json,walletshield-<platform>,checks
                         checksums.txt.minisig,network.json}
 ```
 
-The clients read this layout through one contract, `zknet_core::network` in `libs/rs-core`.
+The clients read this layout through one contract, `zknet_core::network` in `libs/client-core`.
 
 It only collects. Whether the mixnet is running is the concern of `mixnet:ready` and the
 clients; what the binaries are and how they are built is the concern of `walletshield:dist`.
@@ -38,7 +38,7 @@ apps/network-assets/assemble.sh [--out DIR] --remove <network_id>
 - `client.toml` is copied verbatim: the caller picks the config its clients run.
 - The binaries must match the build's `checksums.txt`. It is published as it is, with its
   signature `checksums.txt.minisig`, by the asset key: the
-  clients run a binary only if the signature is by the key in `libs/rs-core/asset-key.pub`
+  clients run a binary only if the signature is by the key in `libs/client-core/asset-key.pub`
   and the binary's hash is the one it lists. Every kind but `local` needs the signature;
   assembly checks only that it is there, and the clients verify it.
 - Only `<out>/<network_id>/` is replaced, so networks assembled side by side stay as they

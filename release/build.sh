@@ -13,6 +13,8 @@ cd "$(dirname "$0")/.."
 rel() { node release/release.mjs "$@"; }
 project=$(rel parse | node -pe 'JSON.parse(require("fs").readFileSync(0)).project')
 
+# an unset secret arrives as an empty variable, which Tauri would take for a key
+[ -n "${TAURI_SIGNING_PRIVATE_KEY:-}" ] || unset TAURI_SIGNING_PRIVATE_KEY TAURI_SIGNING_PRIVATE_KEY_PASSWORD
 rel stamp
 case "$(uname -s)-$project" in
   Darwin-@zknet/client)

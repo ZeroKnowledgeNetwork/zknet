@@ -2,7 +2,7 @@
 // Release helpers shared by .github/workflows/release.yml and the .woodpecker
 // pipelines. Everything a component's release needs is derived from its tag,
 // <id>@<semver>, and release/components.json, keyed by <id>: renaming a
-// component's tag prefix is a one-line change there.
+// component's tag prefix is a one-line change there. See release/README.md.
 //
 //   release.mjs parse TAG              the component as JSON
 //   release.mjs gha-outputs TAG        the same as GitHub Actions step outputs

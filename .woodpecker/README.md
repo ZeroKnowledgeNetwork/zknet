@@ -144,8 +144,8 @@ event builds `dev`. The desktop is built by `desktop` on a dev run and by
 run without them is refused before any step starts. `collect` is split the
 same way.
 
-A tag is one component's release, `<id>@<semver>` (`release/components.json`).
-`prepare` stamps the version into that component's manifests
+A tag is one component's release, `<id>@<semver>` (`release/components.json`,
+`release/README.md`). `prepare` stamps the version into that component's manifests
 (`stamp`), and each build step starts with `only <Nx project>`, which skips it
 unless it builds the tag's component. The desktop's release step also merges
 the version and the updater's key and endpoint into the Tauri configuration
@@ -192,4 +192,4 @@ temporary directory, so every run starts cold:
 - `ci.yml` runs `ci.yaml` on every push to `main` and every pull request,
   passing the format check's base from `nrwl/nx-set-shas` as
   `--prev-commit-sha`.
-- `release.yml` runs `dist.yaml` for a release.
+- `release.yml` runs `dist.yaml` for a release; see `release/README.md`.

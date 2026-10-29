@@ -1,7 +1,8 @@
 # A component release: a pushed tag <id>@<semver> (release/components.json)
 # becomes a GitHub pre-release with every platform's build, checksums and
 # git-cliff notes. It is never marked latest. A manual run builds the same for
-# any tag name, published nowhere: the outputs attach to the run.
+# any tag name, published nowhere: the outputs attach to the run. See
+# release/README.md.
 #
 # Linux builds, and the CLI's and WalletShield's Windows builds, run
 # .woodpecker/dist.yaml, as locally; macOS and the Windows desktop run the

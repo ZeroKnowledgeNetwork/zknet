@@ -1,8 +1,8 @@
 # ZKN UI Client
 
 ```sh
-pnpm nx run @zknet/client:desktop-dev         # against the configured remote networks
-pnpm nx run @zknet/client:desktop-dev-local   # against the local mixnet; connect to `dev-local`
+pnpm nx run client:desktop-dev         # against the configured remote networks
+pnpm nx run client:desktop-dev-local   # against the local mixnet; connect to `dev-local`
 ```
 
 `desktop-dev-local` serves the local mixnet's assets (see `apps/network-assets`) and

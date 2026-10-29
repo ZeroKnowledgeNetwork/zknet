@@ -1,10 +1,10 @@
 {
   "$schema": "../../node_modules/nx/schemas/project-schema.json",
-  "name": "zknet_client_cli",
+  "name": "client-cli",
   "projectType": "application",
   "sourceRoot": "apps/client-cli/src",
   "tags": [],
-  "implicitDependencies": ["zknet_core"],
+  "implicitDependencies": ["client-core"],
   "namedInputs": {
     "rustSources": [
       "{projectRoot}/Cargo.toml",

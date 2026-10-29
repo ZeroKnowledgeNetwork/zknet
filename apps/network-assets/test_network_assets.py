@@ -37,7 +37,7 @@ def free_port() -> int:
 
 
 class Fixture(unittest.TestCase):
-    """A WalletShield export (served/ of walletshield:dist), network files and an output directory."""
+    """A WalletShield export (served/ of app-walletshield:dist), network files and an output directory."""
 
     def setUp(self):
         self.root = Path(tempfile.mkdtemp())

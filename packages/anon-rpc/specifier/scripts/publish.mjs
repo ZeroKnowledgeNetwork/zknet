@@ -118,7 +118,7 @@ async function main(argv) {
   console.log("\nupload it with your Cloudflare credentials (from the repository root):");
   console.log(`  wrangler pages deploy ${rel} --project-name ${project} --branch main`);
   console.log(
-    `then: nx run @zknet/anon-rpc-specifier:deploy:${tier.name}   (checks every resolver serves the bytes)`,
+    `then: nx run anon-rpc-specifier:deploy:${tier.name}   (checks every resolver serves the bytes)`,
   );
 }
 

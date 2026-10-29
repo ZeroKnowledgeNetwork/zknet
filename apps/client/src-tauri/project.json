@@ -1,10 +1,10 @@
 {
   "$schema": "../../../node_modules/nx/schemas/project-schema.json",
-  "name": "zkn-client",
+  "name": "client-tauri",
   "projectType": "application",
   "sourceRoot": "apps/client/src-tauri/src",
   "tags": [],
-  "implicitDependencies": ["@zknet/client", "zknet_core"],
+  "implicitDependencies": ["client", "client-core"],
   "namedInputs": {
     "rustSources": [
       "{projectRoot}/Cargo.toml",
@@ -28,7 +28,10 @@
       "cache": true,
       "inputs": [
         "rustSources",
-        { "input": "rustSources", "projects": ["zknet_core"] },
+        {
+          "input": "rustSources",
+          "projects": ["client-core"]
+        },
         "cargoWorkspace"
       ],
       "options": {
@@ -40,7 +43,10 @@
       "cache": true,
       "inputs": [
         "rustSources",
-        { "input": "rustSources", "projects": ["zknet_core"] },
+        {
+          "input": "rustSources",
+          "projects": ["client-core"]
+        },
         "cargoWorkspace"
       ],
       "options": {

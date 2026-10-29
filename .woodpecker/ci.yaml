@@ -12,7 +12,7 @@ steps:
       - . "$CI_WORKSPACE/.woodpecker/lib.sh"
       # the Tauri prerequisites and what a minimal image lacks
       - apt_install ca-certificates curl git xz-utils build-essential pkg-config libwebkit2gtk-4.1-dev
-      # Foundry: @zknet/anon-rpc-specifier:test runs forge and anvil
+      # Foundry: anon-rpc-specifier:test runs forge and anvil
       - tools node go rust foundry
       - checkout
       - cd "$SRC"

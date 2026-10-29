@@ -100,7 +100,7 @@ ZKNet anon-rpc demo backend is up.
   Bundle keccak256   ${digest.keccak256}  (${digest.bytes} bytes)
   Resolver           ${resolver}
 
-Stop it with: nx run @zknet/anon-rpc-specifier:demo-down`);
+Stop it with: nx run anon-rpc-specifier:demo-down`);
 }
 
 async function down() {

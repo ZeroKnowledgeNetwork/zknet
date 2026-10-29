@@ -27,9 +27,9 @@ steps:
     commands:
       - . "$CI_WORKSPACE/.woodpecker/lib.sh"
       - tools node zig upx
-      - only walletshield
+      - only app-walletshield
       - cd "$SRC"
-      - pnpm exec nx run walletshield:dist:$(rung)
+      - pnpm exec nx run app-walletshield:dist:$(rung)
 
   cli:
     image: ghcr.io/rust-cross/cargo-zigbuild:0.23.4
@@ -39,9 +39,9 @@ steps:
       # the image's rustup proxies, with RUSTUP_HOME in the cache directory
       - export PATH=/usr/local/cargo/bin:$PATH
       - tools node upx
-      - only zknet_client_cli
+      - only client-cli
       - cd "$SRC"
-      - pnpm exec nx run zknet_client_cli:dist:$(rung)
+      - pnpm exec nx run client-cli:dist:$(rung)
 
   # The desktop is two steps of one definition, split by event: only the tag
   # (release) build maps the updater signing key, so a dev run needs no secret.
@@ -58,12 +58,12 @@ steps:
       - . "$CI_WORKSPACE/.woodpecker/lib.sh"
       - apt_install ca-certificates curl git xz-utils build-essential pkg-config file libwebkit2gtk-4.1-dev
       - tools node rust
-      - only @zknet/client
+      - only client
       - own_target_dir
       - cd "$SRC"
       # an empty secret (none supplied) is no key, rather than one Tauri can't decode
       - '[ -n "${TAURI_SIGNING_PRIVATE_KEY:-}" ] || unset TAURI_SIGNING_PRIVATE_KEY TAURI_SIGNING_PRIVATE_KEY_PASSWORD'
-      - pnpm exec nx run @zknet/client:desktop-build:$(rung)
+      - pnpm exec nx run client:desktop-build:$(rung)
 
   desktop-release:
     image: ubuntu:22.04

@@ -435,7 +435,7 @@ async function publicTier(tier, values) {
   const gitCommit = head();
   if (!proof)
     throw new CliError(
-      `no preflight for ${tier.name}: run nx run @zknet/anon-rpc-specifier:deploy:${tier.name}`,
+      `no preflight for ${tier.name}: run nx run anon-rpc-specifier:deploy:${tier.name}`,
     );
   if (proof.workerHash !== workerHash)
     throw new CliError(
@@ -520,7 +520,7 @@ async function publicTier(tier, values) {
     signer: ["--account", config.account, "--from", deployer],
     dryRun,
     sign: runSigning,
-    hint: ` (nx run @zknet/anon-rpc-specifier:deploy:${tier.name} --update${common.hint})`,
+    hint: ` (nx run anon-rpc-specifier:deploy:${tier.name} --update${common.hint})`,
   });
   if (outcome.action === "dry-run") {
     const flags = [
@@ -530,7 +530,7 @@ async function publicTier(tier, values) {
       ...(values.address ? ["--address", values.address] : []),
     ];
     console.log(`\nnothing sent. To send it (one keystore password prompt per transaction):`);
-    console.log(`  nx run @zknet/anon-rpc-specifier:deploy:${tier.name} ${flags.join(" ")}`);
+    console.log(`  nx run anon-rpc-specifier:deploy:${tier.name} ${flags.join(" ")}`);
     return;
   }
   // A no-op writes nothing, unless a broadcast run adopts a contract (an --address,
@@ -671,7 +671,7 @@ async function rehearse(tier, upstream, port, common, record, bundleRef, bundle,
       signer: ["--unlocked", "--from", common.deployer],
       dryRun: false,
       sign: run,
-      hint: ` (nx run @zknet/anon-rpc-specifier:deploy:${tier.name} --rehearse --update${common.hint})`,
+      hint: ` (nx run anon-rpc-specifier:deploy:${tier.name} --rehearse --update${common.hint})`,
     });
     if (outcome.action !== "noop") {
       const cost = /** @type {bigint} */ (outcome.cost);

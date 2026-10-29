@@ -1,6 +1,6 @@
 {
   "$schema": "../../../node_modules/nx/schemas/project-schema.json",
-  "name": "@zknet/anon-rpc-specifier",
+  "name": "anon-rpc-specifier",
   "projectType": "library",
   "tags": ["scope:anon-rpc"],
   "targets": {
@@ -70,18 +70,18 @@
         "fmt-check",
         "lint",
         {
-          "projects": ["@zknet/anon-rpc-worker", "@zknet/anon-rpc-transport"],
+          "projects": ["anon-rpc-worker", "anon-rpc-transport"],
           "target": "lint"
         },
         {
-          "projects": ["@zknet/anon-rpc-worker", "@zknet/anon-rpc-transport"],
+          "projects": ["anon-rpc-worker", "anon-rpc-transport"],
           "target": "typecheck"
         },
         {
-          "projects": ["@zknet/anon-rpc-worker", "@zknet/anon-rpc-transport"],
+          "projects": ["anon-rpc-worker", "anon-rpc-transport"],
           "target": "test"
         },
-        "@zknet/anon-rpc-worker:build"
+        "anon-rpc-worker:build"
       ],
       "defaultConfiguration": "dev",
       "options": {
@@ -248,7 +248,7 @@
     "demo-up": {
       "executor": "nx:run-commands",
       "cache": false,
-      "dependsOn": ["@zknet/anon-rpc-worker:build"],
+      "dependsOn": ["anon-rpc-worker:build"],
       "options": {
         "command": "node scripts/demo.mjs up",
         "cwd": "{projectRoot}"

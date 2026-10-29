@@ -32,7 +32,7 @@ import { digestFile } from "./lib/digest.mjs";
 import { DEFAULT_BUNDLE, STATE_DIR, WORKSPACE_DIR } from "./lib/paths.mjs";
 import { CliError, isMain, runMain } from "./lib/proc.mjs";
 
-export const DEFAULT_BUILD = "pnpm nx run @zknet/anon-rpc-worker:build --skip-nx-cache";
+export const DEFAULT_BUILD = "pnpm nx run anon-rpc-worker:build --skip-nx-cache";
 export const DEFAULT_INSTALL = "pnpm install --frozen-lockfile --prefer-offline";
 
 /** The --ref value that exports the working tree instead of a commit. */

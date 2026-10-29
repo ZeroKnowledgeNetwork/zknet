@@ -23,9 +23,9 @@ builds it first.
 | `live`     | live (by hand)  | `tests/live.spec.ts` against a real WalletShield over a real mixnet     |
 
 ```sh
-nx run @zknet/anon-rpc-e2e:e2e
-ANON_RPC_REPO=/path/to/anon-rpc nx run @zknet/anon-rpc-e2e:e2e-fork
-WALLETSHIELD_URL=http://127.0.0.1:7070 nx run @zknet/anon-rpc-e2e:live
+nx run anon-rpc-e2e:e2e
+ANON_RPC_REPO=/path/to/anon-rpc nx run anon-rpc-e2e:e2e-fork
+WALLETSHIELD_URL=http://127.0.0.1:7070 nx run anon-rpc-e2e:live
 ```
 
 Requirements: Foundry's `anvil` and `forge` (see the specifier README) and Playwright's Chromium
@@ -107,7 +107,7 @@ The last two skip on a host without an RFC 1918 IPv4 address.
 
 ## See it yourself: the anon-rpc demo site
 
-The EF demo site boots any worker by its specifier. `nx run @zknet/anon-rpc-specifier:demo-up`
+The EF demo site boots any worker by its specifier. `nx run anon-rpc-specifier:demo-up`
 gives it one on this machine; `demo-down` stops it.
 
 What `demo-up` does:
@@ -169,7 +169,7 @@ For a human with a running ZKNet dev mixnet. Nothing here starts one.
 2. Run:
 
    ```sh
-   WALLETSHIELD_URL=http://127.0.0.1:7070 nx run @zknet/anon-rpc-e2e:live
+   WALLETSHIELD_URL=http://127.0.0.1:7070 nx run anon-rpc-e2e:live
    ```
 
    `LIVE_TIMEOUT_MS` is the worker's per-call deadline (default 60000), `LIVE_RTT_PROBES` the

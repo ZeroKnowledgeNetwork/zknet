@@ -109,18 +109,18 @@ docker run --rm -v /var/tmp:/v alpine rm -rf /v/zknet-woodpecker
 Every build is an Nx target, so the pipeline, a human and a future native runner
 call the same command. Each has a `dev` (default) and a `release` configuration:
 
-| Target                        | `dev`                                                                                       | `release`                                                     |
-| ----------------------------- | ------------------------------------------------------------------------------------------- | ------------------------------------------------------------- |
-| `walletshield:dist`           | `goreleaser build --snapshot`, then `served.sh`: `served/` with checksums                   | `goreleaser release --skip=publish`: adds archives, checksums |
-| `zknet_client_cli:dist`       | `scripts/dist.sh dev`                                                                       | `scripts/dist.sh release`: adds checksums                     |
-| `@zknet/client:desktop-build` | `tauri build --debug` with the dev-local overlay, no updater artifacts, debug info stripped | `tauri build`: needs `TAURI_SIGNING_PRIVATE_KEY`              |
+| Target                  | `dev`                                                                                       | `release`                                                     |
+| ----------------------- | ------------------------------------------------------------------------------------------- | ------------------------------------------------------------- |
+| `app-walletshield:dist` | `goreleaser build --snapshot`, then `served.sh`: `served/` with checksums                   | `goreleaser release --skip=publish`: adds archives, checksums |
+| `client-cli:dist`       | `scripts/dist.sh dev`                                                                       | `scripts/dist.sh release`: adds checksums                     |
+| `client:desktop-build`  | `tauri build --debug` with the dev-local overlay, no updater artifacts, debug info stripped | `tauri build`: needs `TAURI_SIGNING_PRIVATE_KEY`              |
 
 ```sh
-pnpm nx run @zknet/client:desktop-build             # dev, on this host
-pnpm nx run @zknet/client:desktop-build:release     # macOS/Windows native runners, later
+pnpm nx run client:desktop-build             # dev, on this host
+pnpm nx run client:desktop-build:release     # macOS/Windows native runners, later
 ```
 
-`walletshield:dist` and `zknet_client_cli:dist` need their cross toolchains
+`app-walletshield:dist` and `client-cli:dist` need their cross toolchains
 (goreleaser-cross, cargo-zigbuild, zig, upx), so build them through
 `dist.yaml`, whose steps run exactly these targets inside the toolchain images.
 
@@ -148,7 +148,7 @@ A tag is one component's release, `<id>@<semver>` (`release/components.json`,
 `release/README.md`). `prepare` stamps the version into that component's manifests
 (`stamp`), and each build step starts with `only <Nx project>`, which skips it
 unless it builds the tag's component. The desktop's release configuration
-(`@zknet/client:desktop-build:release`) merges the version and the updater's
+(`client:desktop-build:release`) merges the version and the updater's
 key and endpoint into the Tauri configuration (`release/release.mjs
 tauri-config`).
 

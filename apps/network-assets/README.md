@@ -13,7 +13,7 @@ generated/<network_id>/{client.toml,services.json,walletshield-<platform>,checks
 The clients read this layout through one contract, `zknet_core::network` in `libs/client-core`.
 
 It only collects. Whether the mixnet is running is the concern of `mixnet:ready` and the
-clients; what the binaries are and how they are built is the concern of `walletshield:dist`.
+clients; what the binaries are and how they are built is the concern of `app-walletshield:dist`.
 
 ## Assemble
 
@@ -66,8 +66,8 @@ missing paths unless the site has a `404.html`; `index.sh` writes one.
 ```sh
 .woodpecker/run dist                                   # after committing any change under packages/opt
 pnpm nx run mixnet:start && pnpm nx run mixnet:ready   # once, if no local mixnet is running
-pnpm nx run zknet_client_cli:dev-local -- connect dev-local   # headless client on :7070
-pnpm nx run @zknet/client:desktop-dev-local            # desktop; connect to network id `dev-local`
+pnpm nx run client-cli:dev-local -- connect dev-local   # headless client on :7070
+pnpm nx run client:desktop-dev-local            # desktop; connect to network id `dev-local`
 ```
 
 Each client target stages, serves, waits for `ready`, then starts the client. Ctrl-C (or

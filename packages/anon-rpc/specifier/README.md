@@ -45,7 +45,7 @@ to it automatically).
 | `demo-up` / `demo-down`            | the backend for trying the worker in the anon-rpc demo site (see `@zknet/anon-rpc-e2e`'s README)  |
 
 Arguments after the target reach the script, e.g.
-`nx run @zknet/anon-rpc-specifier:hash --bundle=fixtures/keccak/19/4f04…`.
+`nx run anon-rpc-specifier:hash --bundle=fixtures/keccak/19/4f04…`.
 
 `preflight`, `publish`, `deploy` and `verify` take a tier as their Nx configuration —
 `deploy:dev` (the default), `deploy:test`, `deploy:prod`. The configuration is a tier, never a
@@ -54,17 +54,17 @@ verb: `test` the target runs tests, `deploy:test` deploys to the test tier.
 ## Local loop
 
 ```sh
-nx run @zknet/anon-rpc-specifier:resolver-put
-nx run @zknet/anon-rpc-specifier:resolver-start
-nx run @zknet/anon-rpc-specifier:anvil-start
-nx run @zknet/anon-rpc-specifier:deploy      # prints the specifier address
-nx run @zknet/anon-rpc-specifier:verify
-nx run @zknet/anon-rpc-specifier:anvil-stop
-nx run @zknet/anon-rpc-specifier:resolver-stop
+nx run anon-rpc-specifier:resolver-put
+nx run anon-rpc-specifier:resolver-start
+nx run anon-rpc-specifier:anvil-start
+nx run anon-rpc-specifier:deploy      # prints the specifier address
+nx run anon-rpc-specifier:verify
+nx run anon-rpc-specifier:anvil-stop
+nx run anon-rpc-specifier:resolver-stop
 ```
 
 Or all of it, against fresh ports, with an idempotency and an update check:
-`nx run @zknet/anon-rpc-specifier:e2e`.
+`nx run anon-rpc-specifier:e2e`.
 
 Runtime state (pid files, logs, the resolver store, deployment records) lives in `.state/`
 (gitignored).
@@ -154,13 +154,13 @@ the code, not secret.
 From the repository root:
 
 ```sh
-nx run @zknet/anon-rpc-specifier:publish:test           # gate, then stage .state/publish/test; prints the wrangler line
+nx run anon-rpc-specifier:publish:test           # gate, then stage .state/publish/test; prints the wrangler line
 wrangler pages deploy packages/anon-rpc/specifier/.state/publish/test --project-name <pages project> --branch main
-nx run @zknet/anon-rpc-specifier:deploy:test --rehearse  # gate, then the whole deploy on a local fork of Sepolia
-nx run @zknet/anon-rpc-specifier:deploy:test             # gate, then a dry run: chain check, resolver check, plan
-nx run @zknet/anon-rpc-specifier:deploy:test --broadcast # one keystore password prompt; writes .state/records/test.json
-nx run @zknet/anon-rpc-specifier:verify:test             # boot-resolve from Sepolia through the pinned resolvers
-nx run @zknet/anon-rpc-specifier:verify-source:test      # Sourcify, no API key
+nx run anon-rpc-specifier:deploy:test --rehearse  # gate, then the whole deploy on a local fork of Sepolia
+nx run anon-rpc-specifier:deploy:test             # gate, then a dry run: chain check, resolver check, plan
+nx run anon-rpc-specifier:deploy:test --broadcast # one keystore password prompt; writes .state/records/test.json
+nx run anon-rpc-specifier:verify:test             # boot-resolve from Sepolia through the pinned resolvers
+nx run anon-rpc-specifier:verify-source:test      # Sourcify, no API key
 ```
 
 A redeploy of a new bundle is the same lines with `--update` on the `deploy` steps: `setWorker` on
@@ -255,7 +255,7 @@ from the top-level fields, with `updates` missing or empty.
 
 The pinned hash is only meaningful if anyone can rebuild the same bytes from the same commit.
 `reproducible` builds the bundle twice (`WORKER_BUILD_CMD`, default
-`pnpm nx run @zknet/anon-rpc-worker:build --skip-nx-cache`) and fails on any difference, naming
+`pnpm nx run anon-rpc-worker:build --skip-nx-cache`) and fails on any difference, naming
 the first differing byte. `--clean-export` builds each run from a fresh `git archive` of `--ref` at
 paths of different lengths, after `pnpm install --frozen-lockfile`, which also catches leaks of the
 build path and of untracked files. `--ref WORKTREE` exports what committing the working tree would

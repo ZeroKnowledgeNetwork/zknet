@@ -2,7 +2,7 @@
   "$schema": "../../../node_modules/nx/schemas/project-schema.json",
   "name": "mixnet",
   "projectType": "application",
-  "implicitDependencies": ["opt-common", "rpc-proxy", "walletshield"],
+  "implicitDependencies": ["opt-common", "rpc-proxy", "app-walletshield"],
   "targets": {
     "start": {
       "executor": "nx:run-commands",

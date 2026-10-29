@@ -38,9 +38,7 @@ let tamperedAddress: string;
 
 test.beforeAll(async () => {
   if (!existsSync(WORKER_BUNDLE)) {
-    throw new Error(
-      `no worker bundle at ${WORKER_BUNDLE}: run nx run @zknet/anon-rpc-worker:build`,
-    );
+    throw new Error(`no worker bundle at ${WORKER_BUNDLE}: run nx run anon-rpc-worker:build`);
   }
   chain = await startChain();
   address = await chain.deploy(WORKER_BUNDLE);

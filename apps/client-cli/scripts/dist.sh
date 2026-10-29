@@ -2,7 +2,7 @@
 # Cross-build zknet_client_cli for the distribution platforms with
 # cargo-zigbuild, into dist/zknet_client_cli/<platform>/. Needs cargo-zigbuild
 # (with zig and a macOS SDK, as in ghcr.io/rust-cross/cargo-zigbuild) and upx;
-# the Nx target `zknet_client_cli:dist` runs it.
+# the Nx target `client-cli:dist` runs it.
 #
 # On macOS, the darwin build is native instead: cargo and the Xcode SDK, the
 # two architectures joined with lipo.

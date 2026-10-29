@@ -1,14 +1,14 @@
 {
   "$schema": "../../../node_modules/nx/schemas/project-schema.json",
-  "name": "@zknet/anon-rpc-e2e",
+  "name": "anon-rpc-e2e",
   "projectType": "application",
   "tags": ["scope:anon-rpc"],
-  "implicitDependencies": ["@zknet/anon-rpc-specifier", "@zknet/anon-rpc-worker"],
+  "implicitDependencies": ["anon-rpc-specifier", "anon-rpc-worker"],
   "targets": {
     "e2e": {
       "executor": "nx:run-commands",
       "cache": false,
-      "dependsOn": ["@zknet/anon-rpc-worker:build"],
+      "dependsOn": ["anon-rpc-worker:build"],
       "options": {
         "command": "node_modules/.bin/playwright test --project=pinned",
         "cwd": "{projectRoot}"
@@ -17,7 +17,7 @@
     "e2e-fork": {
       "executor": "nx:run-commands",
       "cache": false,
-      "dependsOn": ["@zknet/anon-rpc-worker:build"],
+      "dependsOn": ["anon-rpc-worker:build"],
       "options": {
         "command": "node_modules/.bin/playwright test --project=fork",
         "cwd": "{projectRoot}"
@@ -26,7 +26,7 @@
     "live": {
       "executor": "nx:run-commands",
       "cache": false,
-      "dependsOn": ["@zknet/anon-rpc-worker:build"],
+      "dependsOn": ["anon-rpc-worker:build"],
       "options": {
         "command": "node_modules/.bin/playwright test --project=live --reporter=list",
         "cwd": "{projectRoot}"

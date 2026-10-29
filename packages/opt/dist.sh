@@ -1,5 +1,5 @@
 #!/bin/sh
-# goreleaser for the Nx target `walletshield:dist`, with the version taken from
+# goreleaser for the Nx target `app-walletshield:dist`, with the version taken from
 # WalletShield's own tags only (`git describe` would take any component's).
 #
 #   dist.sh dev       a snapshot build, version `git describe` of the WalletShield tags
@@ -12,7 +12,7 @@
 set -eu
 cd "$(dirname "$0")"
 rung=${1:?usage: dist.sh dev|release}
-id=$(node ../../release/release.mjs id walletshield)
+id=$(node ../../release/release.mjs id app-walletshield)
 
 case $rung in
   dev)

@@ -22,7 +22,7 @@ Four Nx projects define the active Go and Make workflows:
 
 The clients run against that mixnet through `network-assets` (`apps/network-assets`:
 `stage`, `serve`, `ready`, `test`), which assembles a network's assets in the clients' download
-layout and serves them to `zknet_client_cli:dev-local` and `@zknet/client:desktop-dev-local`.
+layout and serves them to `client-cli:dev-local` and `client:desktop-dev-local`.
 See [Run the clients locally](#run-the-clients-locally).
 
 `rpc-proxy` is one project for a library plus its `cmd/rpc_proxy` binary, not one per
@@ -47,7 +47,7 @@ Every target is `nx:run-commands` around a recipe that already exists:
 - `opt-common:test` → `go test ./...` in `packages/opt/common`.
 - `rpc-proxy:build` → `make rpc_proxy` in `packages/opt` (the module `Makefile`,
   which carries the `-ldflags -X …/common.CompressionEnabled` build flag).
-- `walletshield:build` → `make app-walletshield` in `packages/opt`.
+- `app-walletshield:build` → `make app-walletshield` in `packages/opt`.
 - every `mixnet:*` target → `make -e <target>` in `packages/opt/docker`, the thin
   wrapper that passes through to the pinned Katzenpost `docker/Makefile`. `-e` is what
   lets you override the wrapper's own variables from the environment.
@@ -68,14 +68,14 @@ cannot restore.
 `build`/`test` do **not** `dependsOn` each other: `go build` resolves the sibling
 packages from source, and the mixnet build compiles its own binaries inside the build
 container. Ordering is only declared where it is actually required
-(`walletshield:dev-remote → walletshield:build`, and the `mixnet:dev-local` chain).
+(`app-walletshield:dev-remote → app-walletshield:build`, and the `mixnet:dev-local` chain).
 
 ## Build and test
 
 ```sh
 pnpm nx run-many -t build,test       # all Go projects
 pnpm nx affected -t build,test       # only what a change touches
-pnpm nx run walletshield:build
+pnpm nx run app-walletshield:build
 ```
 
 CI checks and distribution builds (WalletShield and the CLI for four platforms,
@@ -154,21 +154,21 @@ on `127.0.0.1:8765` and launches the client with it as its source. `dev-local` p
 thin client config, so WalletShield dials the host-exposed client daemon:
 
 ```sh
-pnpm nx run zknet_client_cli:dev-local -- connect dev-local   # headless; WalletShield on :7070
-pnpm nx run zknet_client_cli:dev-local -- list                # every known network, with its source
-pnpm nx run @zknet/client:desktop-dev-local                   # desktop; connect to network id `dev-local`
+pnpm nx run client-cli:dev-local -- connect dev-local   # headless; WalletShield on :7070
+pnpm nx run client-cli:dev-local -- list                # every known network, with its source
+pnpm nx run client:desktop-dev-local                   # desktop; connect to network id `dev-local`
 ```
 
 Once connected, `dev-local` is known to the client and connects at its own source from any
-launch, e.g. `pnpm nx run zknet_client_cli:run -- connect dev-local`.
+launch, e.g. `pnpm nx run client-cli:run -- connect dev-local`.
 
 Ctrl-C stops the client, its WalletShield and the asset server. Here the asset server is
 an Nx `continuous` task, which suits a plain process: the dependents' explicit `ready` probe
 supplies the readiness gate Nx lacks. Details: `apps/network-assets/README.md`.
 
 For the browser path, keep the desktop client connected, build the extension with
-`pnpm nx run @zknet/ext:build`, load `apps/ext/.output/chrome-mv3/` as an unpacked
-extension in a Chromium development profile, and run `pnpm nx run @zknet/demo:serve`.
+`pnpm nx run ext:build`, load `apps/ext/.output/chrome-mv3/` as an unpacked
+extension in a Chromium development profile, and run `pnpm nx run sdk-demo:serve`.
 Exercise a demo RPC request and observe the response through the SDK → extension →
 desktop control API → WalletShield. This is a local integration check, not proof
 of a deployed mixnet or signed distribution.
@@ -176,7 +176,7 @@ of a deployed mixnet or signed distribution.
 ## Run against a remote mixnet
 
 ```sh
-env remote_client_config=/path/to/client.toml pnpm nx run walletshield:dev-remote
+env remote_client_config=/path/to/client.toml pnpm nx run app-walletshield:dev-remote
 ```
 
 `dev-remote` runs only the WalletShield binary. It has no dependency on any `mixnet:*`

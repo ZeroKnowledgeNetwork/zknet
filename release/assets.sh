@@ -22,19 +22,19 @@ put() {
 
 wp=dist/woodpecker
 case "$(uname -s)-$project" in
-  Linux-@zknet/client)
+  Linux-client)
     for f in "$wp"/zkn-client/*; do put "$f" "$(basename "$f")"; done
     ;;
-  Linux-zknet_client_cli)
+  Linux-client-cli)
     for p in linux-amd64 linux-arm64; do put "$wp/zknet_client_cli/$p/zknet_client_cli" "zknet_client_cli_${version}_$p"; done
     put "$wp/zknet_client_cli/windows-amd64/zknet_client_cli.exe" "zknet_client_cli_${version}_windows-amd64.exe"
     ;;
-  Linux-walletshield | Darwin-walletshield)
+  Linux-app-walletshield | Darwin-app-walletshield)
     d=$wp/walletshield
     [ "$(uname -s)" = Linux ] || d=dist/walletshield
     for f in "$d"/*.tar.xz "$d"/*.zip; do put "$f" "$(basename "$f")"; done
     ;;
-  Darwin-@zknet/client)
+  Darwin-client)
     b=dist/target/universal-apple-darwin/release/bundle
     for f in "$b"/dmg/*.dmg; do put "$f" "$(basename "$f")"; done
     # the updater bundle is named after the app only: add version and arch
@@ -43,10 +43,10 @@ case "$(uname -s)-$project" in
       put "$f" "${n%%.app.tar.gz*}_${version}_universal.app.tar.gz${n#*.app.tar.gz}"
     done
     ;;
-  Darwin-zknet_client_cli)
+  Darwin-client-cli)
     put dist/zknet_client_cli/darwin-universal/zknet_client_cli "zknet_client_cli_${version}_darwin-universal"
     ;;
-  MINGW*-@zknet/client | MSYS*-@zknet/client)
+  MINGW*-client | MSYS*-client)
     for f in dist/target/release/bundle/nsis/*-setup.exe dist/target/release/bundle/nsis/*-setup.exe.sig; do
       put "$f" "$(basename "$f")"
     done

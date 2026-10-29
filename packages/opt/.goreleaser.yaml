@@ -1,5 +1,5 @@
 # WalletShield distribution builds, goreleaser OSS v2. Run through the Nx
-# target `walletshield:dist` (dist.sh: dev `build --snapshot`, release
+# target `app-walletshield:dist` (dist.sh: dev `build --snapshot`, release
 # `release`) inside ghcr.io/goreleaser/goreleaser-cross, which carries the
 # darwin (osxcross) and windows (mingw) C toolchains, or natively on macOS for
 # the darwin builds (clang and the Xcode SDK); served.sh then exports the

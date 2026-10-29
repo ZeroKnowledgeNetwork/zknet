@@ -128,12 +128,12 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: rustup toolchain install && rustup target add aarch64-apple-darwin x86_64-apple-darwin
-      - if: needs.prepare.outputs.project == 'walletshield'
+      - if: needs.prepare.outputs.project == 'app-walletshield'
         uses: actions/setup-go@v7
         with:
           go-version-file: packages/opt/go.mod
           cache-dependency-path: packages/opt/go.sum
-      - if: needs.prepare.outputs.project == 'walletshield'
+      - if: needs.prepare.outputs.project == 'app-walletshield'
         uses: goreleaser/goreleaser-action@v7
         with:
           install-only: true
@@ -205,7 +205,7 @@ jobs:
       - name: checksums.txt and the desktop updater's latest.json
         run: |
           cd "$RUNNER_TEMP/assets"
-          if [ "${{ needs.prepare.outputs.project }}" = @zknet/client ] && ls ./*.sig >/dev/null 2>&1; then
+          if [ "${{ needs.prepare.outputs.project }}" = client ] && ls ./*.sig >/dev/null 2>&1; then
             node "$GITHUB_WORKSPACE/release/release.mjs" manifest "$ZKNET_TAG" . > latest.json
           fi
           sha256sum -- * > checksums.txt

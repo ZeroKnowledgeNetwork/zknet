@@ -10,7 +10,7 @@
 #               <network_id> <client.toml> [<services.json>]
 #   assemble.sh [--out DIR] --remove <network_id>
 #
-#   --served   the WalletShield dist export, served/ of `walletshield:dist`
+#   --served   the WalletShield dist export, served/ of `app-walletshield:dist`
 #              (default: dist/woodpecker/walletshield/served)
 #   --out      the directory of networks (default: generated/ beside this script)
 #   --kind     local, devnet, testnet or mainnet (default: local for dev-local,

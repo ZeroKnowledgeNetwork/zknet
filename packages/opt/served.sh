@@ -2,7 +2,7 @@
 # Export a WalletShield goreleaser dist in the layout the clients download:
 # served/walletshield-<platform> for every client platform, and
 # served/checksums.txt, their sha256. Chained after goreleaser in both rungs of
-# the Nx target `walletshield:dist`. ZKNET_DIST_PLATFORMS (default "linux
+# the Nx target `app-walletshield:dist`. ZKNET_DIST_PLATFORMS (default "linux
 # windows darwin") limits it to the builds of those OSes.
 #
 #   served.sh [DIST]    DIST: the goreleaser dist (default: the workspace's dist/walletshield)

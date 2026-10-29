@@ -19,5 +19,8 @@
       "default": "./dist/index.js"
     }
   },
-  "dependencies": {}
+  "dependencies": {},
+  "nx": {
+    "name": "sdk"
+  }
 }

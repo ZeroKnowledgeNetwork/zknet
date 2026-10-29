@@ -17,13 +17,13 @@ project=$(rel parse | node -pe 'JSON.parse(require("fs").readFileSync(0)).projec
 [ -n "${TAURI_SIGNING_PRIVATE_KEY:-}" ] || unset TAURI_SIGNING_PRIVATE_KEY TAURI_SIGNING_PRIVATE_KEY_PASSWORD
 rel stamp
 case "$(uname -s)-$project" in
-  Darwin-@zknet/client)
-    pnpm exec nx run @zknet/client:desktop-build:release --args="--target universal-apple-darwin"
+  Darwin-client)
+    pnpm exec nx run client:desktop-build:release --args="--target universal-apple-darwin"
     ;;
-  MINGW*-@zknet/client | MSYS*-@zknet/client)
-    pnpm exec nx run @zknet/client:desktop-build:release
+  MINGW*-client | MSYS*-client)
+    pnpm exec nx run client:desktop-build:release
     ;;
-  Darwin-zknet_client_cli | Darwin-walletshield)
+  Darwin-client-cli | Darwin-app-walletshield)
     ZKNET_DIST_PLATFORMS=darwin pnpm exec nx run "$project:dist:release"
     ;;
   *)

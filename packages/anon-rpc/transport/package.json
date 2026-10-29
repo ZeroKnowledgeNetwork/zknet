@@ -19,5 +19,8 @@
     },
     "./package.json": "./package.json"
   },
-  "dependencies": {}
+  "dependencies": {},
+  "nx": {
+    "name": "anon-rpc-transport"
+  }
 }

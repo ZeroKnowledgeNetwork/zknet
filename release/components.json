@@ -1,20 +1,20 @@
 {
-  "desktop": {
-    "project": "@zknet/client",
-    "paths": ["apps/client/**", "libs/rs-core/**"],
+  "client": {
+    "project": "client",
+    "paths": ["apps/client/**", "libs/client-core/**", "libs/rs-core/**"],
     "excludePaths": [],
     "cargo": ["apps/client/src-tauri/Cargo.toml"],
     "runners": ["linux", "macos", "windows"]
   },
-  "cli": {
-    "project": "zknet_client_cli",
-    "paths": ["apps/client-cli/**", "libs/rs-core/**"],
+  "client-cli": {
+    "project": "client-cli",
+    "paths": ["apps/client-cli/**", "libs/client-core/**", "libs/rs-core/**"],
     "excludePaths": [],
     "cargo": ["apps/client-cli/Cargo.toml"],
     "runners": ["linux", "macos"]
   },
-  "walletshield": {
-    "project": "walletshield",
+  "app-walletshield": {
+    "project": "app-walletshield",
     "paths": ["packages/opt/**"],
     "excludePaths": ["packages/opt/docker/**"],
     "cargo": [],

@@ -17,9 +17,10 @@ jobs:
   main:
     runs-on: ubuntu-latest
     steps:
+      # a full clone: the pipeline's checkout fetches from it, which a partial
+      # (filter) clone cannot serve
       - uses: actions/checkout@v7
         with:
-          filter: tree:0
           fetch-depth: 0
 
       # NX_BASE: the last commit on main whose CI succeeded (on a PR, the merge base)

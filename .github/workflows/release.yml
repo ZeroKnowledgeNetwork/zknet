@@ -1,0 +1,221 @@
+# A component release: a pushed tag <id>@<semver> (release/components.json)
+# becomes a GitHub pre-release with every platform's build, checksums and
+# git-cliff notes. It is never marked latest. A manual run builds the same for
+# any tag name, published nowhere: the outputs attach to the run.
+#
+# Linux builds, and the CLI's and WalletShield's Windows builds, run
+# .woodpecker/dist.yaml, as locally; macOS and the Windows desktop run the
+# Nx targets natively (release/build.sh).
+name: release
+
+on:
+  push:
+    tags: ["*@*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "A component tag to build as if pushed, e.g. desktop@0.1.0-dev.1 (nothing is published)"
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ inputs.tag || github.ref_name }}
+
+env:
+  ZKNET_TAG: ${{ inputs.tag || github.ref_name }}
+  PUBLISH: ${{ github.event_name == 'push' }}
+  NX_DAEMON: "false"
+  NX_NO_CLOUD: "true"
+  NX_TUI: "false"
+  GIT_CLIFF_VERSION: 2.14.2
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      project: ${{ steps.component.outputs.project }}
+      linux: ${{ steps.component.outputs.linux }}
+      macos: ${{ steps.component.outputs.macos }}
+      windows: ${{ steps.component.outputs.windows }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - id: component
+        run: node release/release.mjs gha-outputs | tee -a "$GITHUB_OUTPUT"
+      - name: Release notes
+        env:
+          ZKNET_REPO_URL: ${{ github.server_url }}/${{ github.repository }}
+        run: |
+          npm install --global "git-cliff@$GIT_CLIFF_VERSION"
+          node release/release.mjs notes > "$RUNNER_TEMP/notes.md"
+          cat "$RUNNER_TEMP/notes.md" >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: notes
+          path: ${{ runner.temp }}/notes.md
+      # a draft until every build is attached; never latest
+      - if: env.PUBLISH == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >
+          gh release create "$ZKNET_TAG" --verify-tag --draft --prerelease --latest=false
+          --title "$ZKNET_TAG" --notes-file "$RUNNER_TEMP/notes.md"
+
+  linux:
+    needs: prepare
+    if: needs.prepare.outputs.linux == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - uses: ./.github/actions/woodpecker-cli
+      # dist.yaml's desktop-release step maps these; empty when unset, and
+      # without a key the desktop builds no updater bundles
+      - name: Woodpecker secrets file
+        env:
+          KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          umask 077
+          f="$RUNNER_TEMP/woodpecker-secrets.yaml"
+          {
+            printf 'tauri_signing_private_key: |2-\n'
+            printf '%s\n' "$KEY" | sed 's/^/  /'
+            printf 'tauri_signing_private_key_password: |2-\n'
+            printf '%s\n' "$PASSWORD" | sed 's/^/  /'
+          } > "$f"
+          echo "ZKNET_WOODPECKER_SECRETS=$f" >> "$GITHUB_ENV"
+      - name: .woodpecker/run dist
+        env:
+          ZKNET_WOODPECKER_CACHE: ${{ runner.temp }}/woodpecker-cache
+          ZKNET_DIST_PLATFORMS: linux windows
+          ZKNET_UPDATER_PUBKEY: ${{ vars.ZKNET_UPDATER_PUBKEY }}
+          ZKNET_UPDATER_ENDPOINT: ${{ vars.ZKNET_UPDATER_ENDPOINT }}
+        run: .woodpecker/run dist --pipeline-event tag --commit-ref "refs/tags/$ZKNET_TAG"
+      - run: release/assets.sh "$RUNNER_TEMP/assets"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: assets-linux
+          path: ${{ runner.temp }}/assets/*
+          if-no-files-found: error
+
+  macos:
+    needs: prepare
+    if: needs.prepare.outputs.macos == 'true'
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v6
+        with:
+          run_install: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: rustup toolchain install && rustup target add aarch64-apple-darwin x86_64-apple-darwin
+      - if: needs.prepare.outputs.project == 'walletshield'
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: packages/opt/go.mod
+          cache-dependency-path: packages/opt/go.sum
+      - if: needs.prepare.outputs.project == 'walletshield'
+        uses: goreleaser/goreleaser-action@v7
+        with:
+          install-only: true
+          version: "~> v2"
+      - run: pnpm install --frozen-lockfile
+      - run: release/build.sh
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          ZKNET_UPDATER_PUBKEY: ${{ vars.ZKNET_UPDATER_PUBKEY }}
+          ZKNET_UPDATER_ENDPOINT: ${{ vars.ZKNET_UPDATER_ENDPOINT }}
+      - run: release/assets.sh "$RUNNER_TEMP/assets"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: assets-macos
+          path: ${{ runner.temp }}/assets/*
+          if-no-files-found: error
+
+  windows:
+    needs: prepare
+    if: needs.prepare.outputs.windows == 'true'
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v6
+        with:
+          run_install: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: rustup toolchain install
+      - run: pnpm install --frozen-lockfile
+      - run: release/build.sh
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          ZKNET_UPDATER_PUBKEY: ${{ vars.ZKNET_UPDATER_PUBKEY }}
+          ZKNET_UPDATER_ENDPOINT: ${{ vars.ZKNET_UPDATER_ENDPOINT }}
+      - run: release/assets.sh "$RUNNER_TEMP/assets"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: assets-windows
+          path: ${{ runner.temp }}/assets/*
+          if-no-files-found: error
+
+  publish:
+    needs: [prepare, linux, macos, windows]
+    # a component builds on some runners only: the others are skipped, not failed
+    if: ${{ !cancelled() && needs.prepare.result == 'success' && !contains(needs.*.result, 'failure') }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: assets-*
+          path: ${{ runner.temp }}/assets
+          merge-multiple: true
+      - name: checksums.txt and the desktop updater's latest.json
+        run: |
+          cd "$RUNNER_TEMP/assets"
+          if [ "${{ needs.prepare.outputs.project }}" = @zknet/client ] && ls ./*.sig >/dev/null 2>&1; then
+            node "$GITHUB_WORKSPACE/release/release.mjs" manifest "$ZKNET_TAG" . > latest.json
+          fi
+          sha256sum -- * > checksums.txt
+          ls -l
+      - uses: actions/upload-artifact@v7
+        with:
+          name: release
+          path: ${{ runner.temp }}/assets/*
+      - if: env.PUBLISH == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release upload "$ZKNET_TAG" "$RUNNER_TEMP"/assets/* --clobber
+          gh release edit "$ZKNET_TAG" --draft=false --prerelease --latest=false

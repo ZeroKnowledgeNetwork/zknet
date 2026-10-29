@@ -110,7 +110,7 @@ steps:
       - rm -rf "$out" && mkdir -p "$out"
       - cd /cache/src/dist
       - for d in walletshield zknet_client_cli; do [ ! -d $d ] || cp -a $d "$out/"; done
-      - for p in target*/*/bundle/*/*.deb target*/*/bundle/*/*.rpm target*/*/bundle/*/*.AppImage; do [ ! -f $p ] || { mkdir -p "$out/zkn-client" && cp -a $p "$out/zkn-client/"; }; done
+      - for p in target*/*/bundle/*/*.deb target*/*/bundle/*/*.rpm target*/*/bundle/*/*.AppImage target*/*/bundle/*/*.AppImage.sig; do [ ! -f $p ] || { mkdir -p "$out/zkn-client" && cp -a $p "$out/zkn-client/"; }; done
       - owner=$(stat -c %u:%g "$CI_WORKSPACE")
       - chown "$owner" "$CI_WORKSPACE/dist" && chown -R "$owner" "$out"
       - ls -R "$out" | head -60

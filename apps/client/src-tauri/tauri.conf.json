@@ -34,7 +34,7 @@
   },
   "plugins": {
     "updater": {
-      "pubkey": "SET-AT-BUILD-TIME: the release build passes ZKNET_UPDATER_PUBKEY",
+      "pubkey": "SET-AT-BUILD-TIME: the release build passes ZKNET_UPDATER_PUBKEY (release.yml)",
       "endpoints": ["https://updater-endpoint.invalid/set-at-build-time/latest.json"]
     },
     "zknet": {

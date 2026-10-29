@@ -39,7 +39,7 @@
           }
         },
         "release": {
-          "command": "pnpm tauri build"
+          "command": "node ../../release/release.mjs tauri-config ../../dist/tauri.release.conf.json && pnpm tauri build --config ../../dist/tauri.release.conf.json"
         }
       }
     }

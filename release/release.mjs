@@ -11,14 +11,14 @@
 //   release.mjs version [TAG]          the tag's version
 //   release.mjs stamp                  write the tag's version into the component's manifests
 //   release.mjs notes TAG              the release notes (git-cliff, cliff.toml)
-//   release.mjs tauri-config           the desktop build's TAURI_CONFIG
+//   release.mjs tauri-config FILE      write the desktop release build's Tauri configuration
 //   release.mjs manifest TAG DIR       the desktop updater's latest.json from the assets in DIR
 //
 // The tag comes from the argument, else ZKNET_TAG, else CI_COMMIT_TAG
 // (Woodpecker). No tag means a development build: every project is wanted and
 // nothing is stamped.
 import { execFileSync } from "node:child_process";
-import { readFileSync, readdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -210,9 +210,12 @@ switch (cmd) {
   case "notes":
     process.stdout.write(notes(currentTag(a)));
     break;
-  case "tauri-config":
-    console.log(tauriConfig(currentTag(a)));
+  case "tauri-config": {
+    if (!a) die("usage: tauri-config FILE");
+    mkdirSync(dirname(a), { recursive: true });
+    writeFileSync(a, `${tauriConfig(currentTag())}\n`);
     break;
+  }
   case "manifest":
     if (!b) die("usage: manifest TAG DIR");
     console.log(manifest(a, b));

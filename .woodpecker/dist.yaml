@@ -63,8 +63,6 @@ steps:
       - cd "$SRC"
       # an empty secret (none supplied) is no key, rather than one Tauri can't decode
       - '[ -n "${TAURI_SIGNING_PRIVATE_KEY:-}" ] || unset TAURI_SIGNING_PRIVATE_KEY TAURI_SIGNING_PRIVATE_KEY_PASSWORD'
-      # a release: the version, and the updater's key and endpoint (release.mjs)
-      - '[ "$(rung)" = dev ] || export TAURI_CONFIG="$(node release/release.mjs tauri-config)"'
       - pnpm exec nx run @zknet/client:desktop-build:$(rung)
 
   desktop-release:

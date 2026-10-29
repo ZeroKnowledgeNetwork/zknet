@@ -18,11 +18,10 @@ project=$(rel parse | node -pe 'JSON.parse(require("fs").readFileSync(0)).projec
 rel stamp
 case "$(uname -s)-$project" in
   Darwin-@zknet/client)
-    TAURI_CONFIG=$(rel tauri-config) pnpm exec nx run @zknet/client:desktop-build:release \
-      --args="--target universal-apple-darwin"
+    pnpm exec nx run @zknet/client:desktop-build:release --args="--target universal-apple-darwin"
     ;;
   MINGW*-@zknet/client | MSYS*-@zknet/client)
-    TAURI_CONFIG=$(rel tauri-config) pnpm exec nx run @zknet/client:desktop-build:release
+    pnpm exec nx run @zknet/client:desktop-build:release
     ;;
   Darwin-zknet_client_cli | Darwin-walletshield)
     ZKNET_DIST_PLATFORMS=darwin pnpm exec nx run "$project:dist:release"

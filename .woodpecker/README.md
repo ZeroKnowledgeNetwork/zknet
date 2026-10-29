@@ -147,9 +147,10 @@ same way.
 A tag is one component's release, `<id>@<semver>` (`release/components.json`,
 `release/README.md`). `prepare` stamps the version into that component's manifests
 (`stamp`), and each build step starts with `only <Nx project>`, which skips it
-unless it builds the tag's component. The desktop's release step also merges
-the version and the updater's key and endpoint into the Tauri configuration
-(`TAURI_CONFIG`, from `release/release.mjs tauri-config`).
+unless it builds the tag's component. The desktop's release configuration
+(`@zknet/client:desktop-build:release`) merges the version and the updater's
+key and endpoint into the Tauri configuration (`release/release.mjs
+tauri-config`).
 
 `run` passes build settings from its environment to the steps:
 `ZKNET_DIST_PLATFORMS` (the OSes to build for; default `linux windows darwin`,

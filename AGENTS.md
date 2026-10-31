@@ -22,6 +22,10 @@
 
 <!-- nx configuration end-->
 
+# Deployment
+
+Deployment and release operations live in the private sibling `zknetwork-deploy.git` (its `RELEASING.md`). Building and testing this source never needs it.
+
 # Upgrading Katzenpost
 
 When asked to upgrade the upstream katzenpost version, follow `packages/opt/UPGRADING.md`.

@@ -215,7 +215,8 @@ function Cli({ releases, platform }: Loaded) {
         <h2 className="text-2xl">Command line</h2>
         <p className="opacity-80">
           <code>zknet</code> is the client for servers and terminals: it lists the mix networks and
-          connects to one. It is a single binary with no runtime dependencies.
+          connects to one. It is a single binary; on Linux it needs glibc 2.31 or newer (Alpine and
+          other musl systems aren't supported yet).
         </p>
         {cli && (
           <p className="text-sm opacity-70">

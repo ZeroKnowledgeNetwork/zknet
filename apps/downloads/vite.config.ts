@@ -34,6 +34,10 @@ function headers(downloadsBase: string): Plugin {
           "  Permissions-Policy: browsing-topics=()",
           "/downloads/*",
           "  Cache-Control: public, max-age=60",
+          // shown as text in a browser, so it can be read before it is piped to sh
+          "/install.sh",
+          "  Content-Type: text/plain; charset=utf-8",
+          "  Cache-Control: public, max-age=300",
           "",
         ].join("\n"),
       });

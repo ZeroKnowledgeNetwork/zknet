@@ -1,4 +1,4 @@
-# ZKN UI Client
+# ZKNet UI Client
 
 ```sh
 pnpm nx run client:desktop-dev         # against the configured remote networks

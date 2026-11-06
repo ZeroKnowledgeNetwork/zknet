@@ -1,91 +1,134 @@
-# zknetwork source
+# ZKNetwork
 
-ZKNetwork's [Nx](https://nx.dev) monorepo contains the `packages/opt` Go module:
-WalletShield, the `rpc_proxy` CBOR plugin, and the local Katzenpost mixnet tooling.
-The projects below build and exercise the client → mixnet → RPC path.
+Privacy-first decentralized infrastructure for sovereign coordination. Post-quantum mixnets, zero-knowledge cryptography, and tamper-resistant edge hardware, forged into one modular substrate.
+
+WalletShield is the first app on ZKNet: a local RPC endpoint for wallets that carries
+their blockchain RPC requests, for Ethereum and other chains, through the
+[Katzenpost](https://katzenpost.network) mixnet to an exit that forwards them to an RPC
+provider, so the provider sees the request but not who sent it. The desktop and
+command-line clients run it for you.
+
+> **ZKNet is beta software.** Expect breaking changes between releases.
+
+**Download** the desktop client, the `zknet` CLI or WalletShield from this repository's
+[Releases](../../releases) page.
+
+The rest of this README is for building ZKNet from source.
+
+## Source
+
+An [Nx](https://nx.dev) monorepo with pnpm, a Go module (`packages/opt`) and a Cargo
+workspace:
 
 ```sh
 pnpm install
-pnpm nx show projects
+pnpm nx show projects                    # every project
+pnpm nx show project <project>           # its root and every target
 ```
 
 ## Projects
 
-Four Nx projects define the active Go and Make workflows:
+Each project's targets, including those Nx plugins infer: `pnpm nx show project <project>`.
 
-| Project            | Root                                                 | Targets                                                                              |
-| ------------------ | ---------------------------------------------------- | ------------------------------------------------------------------------------------ |
-| `opt-common`       | `packages/opt/common`                                | `test`                                                                               |
-| `rpc-proxy`        | `packages/opt/server_plugins/cbor_plugins/rpc_proxy` | `build`                                                                              |
-| `app-walletshield` | `packages/opt/apps/walletshield`                     | `build`, `dev-remote`                                                                |
-| `mixnet`           | `packages/opt/docker`                                | `start`, `ready`, `probe`, `serve`, `e2e-rpc`, `e2e-rpc-matrix`, `stop`, `dev-local` |
+### Clients — Rust and TypeScript
 
-The clients run against that mixnet through `network-assets` (`apps/network-assets`:
-`stage`, `serve`, `ready`, `test`), which assembles a network's assets in the clients' download
-layout and serves them to `client-cli:dev-local` and `client:desktop-dev-local`.
-See [Run the clients locally](#run-the-clients-locally).
+| Project          | Root                    | What it is                                                                                      |
+| ---------------- | ----------------------- | ----------------------------------------------------------------------------------------------- |
+| `client`         | `apps/client`           | The desktop client (Tauri): its React UI and the desktop build and run targets                  |
+| `client-cli`     | `apps/client-cli`       | `zknet`, the command-line client                                                                |
+| `client-core`    | `libs/client-core`      | Rust library both clients share: network discovery, asset download and signature checks, config |
+| `client-tauri`   | `apps/client/src-tauri` | The desktop client's Rust side, including the local control API the browser extension uses      |
+| `network-assets` | `apps/network-assets`   | Assembles a network's client assets in the layout the clients download, and serves them locally |
 
-`rpc-proxy` is one project for a library plus its `cmd/rpc_proxy` binary, not one per
-file.
+### Mixnet — Go, `packages/opt`
 
-The [anon-rpc](https://github.com/ethereum/anon-rpc) worker, which lets a wallet send RPC
-through ZKNet from a browser, lives in `packages/anon-rpc`:
+| Project            | Root                                                 | What it is                                                                       |
+| ------------------ | ---------------------------------------------------- | -------------------------------------------------------------------------------- |
+| `mixnet`           | `packages/opt/docker`                                | A local Katzenpost testnet with `rpc-proxy` installed, and its end-to-end tests  |
+| `app-walletshield` | `packages/opt/apps/walletshield`                     | WalletShield: the local HTTP RPC listener that sends requests through the mixnet |
+| `rpc-proxy`        | `packages/opt/server_plugins/cbor_plugins/rpc_proxy` | The mixnet exit: a Katzenpost CBOR service plugin that forwards RPC requests     |
+| `opt-common`       | `packages/opt/common`                                | Shared Go code for the client and the exit: payload compression                  |
 
-| Project                     | Root                          | Targets                                                                                                                              |
-| --------------------------- | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| `@zknet/anon-rpc-transport` | `packages/anon-rpc/transport` | `test`, `typecheck`                                                                                                                  |
-| `@zknet/anon-rpc-worker`    | `packages/anon-rpc/worker`    | `build`, `test`, `typecheck`                                                                                                         |
-| `@zknet/anon-rpc-specifier` | `packages/anon-rpc/specifier` | `compile`, `test`, `hash`, `reproducible`, `resolver-start`, `resolver-stop`, `anvil-start`, `anvil-stop`, `deploy`, `verify`, `e2e` |
-| `@zknet/anon-rpc-e2e`       | `packages/anon-rpc/e2e`       | `e2e`, `e2e-fork`, `live`                                                                                                            |
+`rpc-proxy` is one project for a library plus its `cmd/rpc_proxy` binary.
 
-Each has a README with the details.
+### Browser — TypeScript
 
-### Nx wraps the existing Make targets — it does not replace them
+| Project    | Root            | What it is                                                                                            |
+| ---------- | --------------- | ----------------------------------------------------------------------------------------------------- |
+| `ext`      | `apps/ext`      | Browser extension that gives web pages `window.zknet` and relays their requests to the desktop client |
+| `sdk`      | `packages/sdk`  | `@zknet/sdk`: detects the extension and sends a page's requests through it                            |
+| `sdk-demo` | `apps/sdk-demo` | A demo web page for the SDK                                                                           |
 
-Every target is `nx:run-commands` around a recipe that already exists:
+### anon-rpc — TypeScript and Solidity, `packages/anon-rpc`
 
-- `opt-common:test` → `go test ./...` in `packages/opt/common`.
-- `rpc-proxy:build` → `make rpc_proxy` in `packages/opt` (the module `Makefile`,
-  which carries the `-ldflags -X …/common.CompressionEnabled` build flag).
-- `app-walletshield:build` → `make app-walletshield` in `packages/opt`.
-- every `mixnet:*` target → `make -e <target>` in `packages/opt/docker`, the thin
-  wrapper that passes through to the pinned Katzenpost `docker/Makefile`. `-e` is what
-  lets you override the wrapper's own variables from the environment.
+An [anon-rpc](https://github.com/ethereum/anon-rpc) worker, which lets a wallet send RPC
+through ZKNet from a browser. Each project has a README with the details.
 
-There is no Go Nx plugin and no generated graph parser. Consequently the Go dependency
-edges are declared by hand with `implicitDependencies`
-(`walletshield → opt-common, rpc-proxy`; `rpc-proxy → opt-common`; `mixnet → all
-three`) and must be updated if the Go imports change.
-
-### Caching
-
-The three `build`/`test` targets are cacheable and declare `inputs` (project `*.go`,
-`^default` for dependencies, and the `optModule` named input: `packages/opt/go.mod`,
-`go.sum` and `Makefile`) plus `outputs` for the two binaries. Every `mixnet:*` target
-sets `"cache": false` — its real output is host and Docker daemon state, which a cache
-cannot restore.
-
-`build`/`test` do **not** `dependsOn` each other: `go build` resolves the sibling
-packages from source, and the mixnet build compiles its own binaries inside the build
-container. Ordering is only declared where it is actually required
-(`app-walletshield:dev-remote → app-walletshield:build`, and the `mixnet:dev-local` chain).
+| Project              | Root                          | What it is                                                                                            |
+| -------------------- | ----------------------------- | ----------------------------------------------------------------------------------------------------- |
+| `anon-rpc-worker`    | `packages/anon-rpc/worker`    | The worker bundle that serves Ethereum JSON-RPC through ZKNet                                         |
+| `anon-rpc-transport` | `packages/anon-rpc/transport` | The worker's connection to the local WalletShield                                                     |
+| `anon-rpc-specifier` | `packages/anon-rpc/specifier` | The on-chain `WorkerSpecifier` that pins the worker bundle, with hashing, resolver and deploy tooling |
+| `anon-rpc-e2e`       | `packages/anon-rpc/e2e`       | End-to-end tests of the worker in a headless browser                                                  |
 
 ## Build and test
 
 ```sh
-pnpm nx run-many -t build,test       # all Go projects
+pnpm nx run-many -t build,test       # every project
 pnpm nx affected -t build,test       # only what a change touches
 pnpm nx run app-walletshield:build
 ```
 
-CI checks and distribution builds (WalletShield and the CLI for four platforms,
-the Linux desktop bundles) run locally on Woodpecker; see
+CI runs `pnpm nx format:check` and `pnpm nx run-many -t lint test build typecheck`.
+The CI and distribution pipelines (WalletShield, the `zknet` CLI and the Linux desktop
+bundles) run on Woodpecker's local docker backend. The GitHub workflows in
+`.github/workflows/` run the same pipelines, plus the local mixnet's `e2e-rpc`; see
 [`.woodpecker/README.md`](.woodpecker/README.md):
 
 ```sh
 .woodpecker/run ci
 .woodpecker/run dist
 ```
+
+[`release/README.md`](release/README.md) describes the release tags and assets.
+
+### The Go projects wrap the existing Make targets
+
+The Go targets are `nx:run-commands` around recipes that already exist:
+
+- `opt-common:test` → `go test ./...` in `packages/opt/common`.
+- `rpc-proxy:build` → `make rpc_proxy` in `packages/opt` (the module `Makefile`,
+  which carries the `-ldflags -X …/common.CompressionEnabled` build flag).
+- `app-walletshield:build` → `make app-walletshield` in `packages/opt`.
+- `app-walletshield:test` → `go test ./...`, plus the tests of `packages/opt/served.sh`
+  (WalletShield's export in the clients' download layout).
+- `app-walletshield:dist` → `packages/opt/dist.sh`, a goreleaser build
+  (`--configuration=dev` by default).
+- `mixnet:start`, `ready`, `probe`, `serve` and `stop` → `make -e …` in
+  `packages/opt/docker`, the thin wrapper that passes through to the pinned Katzenpost
+  `docker/Makefile`. `-e` is what lets you override the wrapper's own variables from the
+  environment.
+- `mixnet:e2e-rpc` and `e2e-rpc-matrix` → the scripts in `packages/opt/tests/e2e/walletshield`.
+
+There is no Go Nx plugin. The Go dependency edges are declared by hand with
+`implicitDependencies` (`app-walletshield → opt-common, rpc-proxy`;
+`rpc-proxy → opt-common`; `mixnet → all three`) and must be updated if the Go imports
+change.
+
+### Caching
+
+The four Go `build`/`test` targets are cacheable and declare `inputs` (project `*.go`,
+the `optModule` named input — `packages/opt/go.mod`, `go.sum` and `Makefile` — and
+`^default` where the project has dependencies; `app-walletshield:test` adds the files its
+`served.sh` tests read) plus `outputs` for the two binaries. Every `mixnet:*` target
+sets `"cache": false` — its real output is host and Docker daemon state, which a cache
+cannot restore.
+
+The Go `build`/`test` targets do **not** `dependsOn` each other: `go build` resolves the
+sibling packages from source, and the mixnet build compiles its own binaries inside the
+build container. Ordering is declared only where it is required:
+`app-walletshield:dev-remote → app-walletshield:build`, and
+`client-cli:dev-local` / `client:desktop-dev-local → network-assets:serve → network-assets:stage`.
 
 ## Run the local mixnet
 

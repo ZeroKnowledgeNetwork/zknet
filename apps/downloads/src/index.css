@@ -43,6 +43,12 @@
   --noise: 0;
 }
 
+/* daisyUI paints buttons, badges and alerts with an inline data: SVG noise
+   even at --noise: 0; the CSP's img-src 'self' blocks it, so drop it */
+:root {
+  --fx-noise: none;
+}
+
 @theme {
   --font-display: "Orbitron Variable", sans-serif;
   --font-sans: "Roboto Variable", system-ui, sans-serif;

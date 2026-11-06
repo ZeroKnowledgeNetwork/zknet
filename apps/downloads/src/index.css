@@ -1,0 +1,61 @@
+@import "tailwindcss" source("../src");
+@import "@fontsource-variable/orbitron";
+@import "@fontsource-variable/roboto";
+
+@plugin "daisyui" {
+  themes: false;
+}
+
+/* The three brand greens (the brand guide's palette) in their
+   roles: Core = surfaces, Support = secondary balance, Accent = interaction.
+   The guide defines no neutrals, so surfaces 200/300 are mixed from the greens
+   and text is plain white, the guide's observed lettering, not a brand token. */
+@plugin "daisyui/theme" {
+  name: "zknet";
+  default: true;
+  prefersdark: true;
+  color-scheme: dark;
+  --color-base-100: #050b01;
+  --color-base-200: color-mix(in oklab, #050b01 90%, #218b21);
+  --color-base-300: color-mix(in oklab, #050b01 78%, #218b21);
+  --color-base-content: #ffffff;
+  --color-primary: #28d628;
+  --color-primary-content: #050b01;
+  --color-secondary: #218b21;
+  --color-secondary-content: #050b01;
+  --color-accent: #28d628;
+  --color-accent-content: #050b01;
+  --color-neutral: color-mix(in oklab, #050b01 70%, #218b21);
+  --color-neutral-content: #ffffff;
+  --color-info: #28d628;
+  --color-info-content: #050b01;
+  --color-success: #28d628;
+  --color-success-content: #050b01;
+  --color-warning: #28d628;
+  --color-warning-content: #050b01;
+  --color-error: #ff6b6b;
+  --color-error-content: #050b01;
+  --radius-selector: 0.25rem;
+  --radius-field: 0.25rem;
+  --radius-box: 0.5rem;
+  --border: 1px;
+  --depth: 0;
+  --noise: 0;
+}
+
+@theme {
+  --font-display: "Orbitron Variable", sans-serif;
+  --font-sans: "Roboto Variable", system-ui, sans-serif;
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-display);
+  letter-spacing: 0.02em;
+}
+
+:focus-visible {
+  outline: 2px solid #28d628;
+  outline-offset: 2px;
+}

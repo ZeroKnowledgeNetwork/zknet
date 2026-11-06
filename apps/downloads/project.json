@@ -1,0 +1,21 @@
+{
+  "name": "downloads",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "application",
+  "tags": [],
+  "targets": {
+    "build": {
+      "dependsOn": ["snapshot"],
+      "outputs": ["{projectRoot}/dist"]
+    },
+    "snapshot": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "outputs": ["{projectRoot}/public/downloads"],
+      "options": {
+        "command": "node scripts/snapshot.mjs",
+        "cwd": "{projectRoot}"
+      }
+    }
+  }
+}

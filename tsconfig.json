@@ -20,6 +20,9 @@
     },
     {
       "path": "./packages/anon-rpc/worker"
+    },
+    {
+      "path": "./apps/downloads"
     }
   ]
 }

@@ -46,6 +46,23 @@ jobs:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
+      # A pushed tag publishes, so its commit must be on the default branch,
+      # i.e. reviewed. A manual run publishes nothing and builds the commit
+      # it was started on, so it is not checked. This catches a mistaken tag,
+      # not a hostile one: a tag on another branch runs that branch's copy of
+      # this file, which a tag ruleset, not this step, can stop.
+      - name: The tag is on ${{ github.event.repository.default_branch }}
+        if: env.PUBLISH == 'true'
+        env:
+          MAIN: ${{ github.event.repository.default_branch }}
+        run: |
+          git fetch --quiet origin "+refs/heads/$MAIN:refs/remotes/origin/$MAIN"
+          commit=$(git rev-parse "$GITHUB_REF^{commit}")
+          if ! git merge-base --is-ancestor "$commit" "origin/$MAIN"; then
+            echo "::error::$ZKNET_TAG is on ${commit:0:12}, which is not on $MAIN: tag a commit of $MAIN"
+            exit 1
+          fi
+          echo "$ZKNET_TAG: ${commit:0:12} is on $MAIN"
       - uses: actions/setup-node@v7
         with:
           node-version: 24

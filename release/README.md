@@ -1,7 +1,7 @@
 # Releases
 
-A pushed component tag becomes a GitHub pre-release with every platform's build
-(`.github/workflows/release.yml`); a manual run of that workflow builds the same
+A pushed component tag on a commit of `main` becomes a GitHub pre-release with every platform's build
+(`.github/workflows/release.yml`; a tag on any other commit fails its first step); a manual run of that workflow builds the same
 without publishing. The pipelines build the same locally
 (`.woodpecker/README.md`).
 

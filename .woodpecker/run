@@ -8,7 +8,7 @@
 # (git-ignored):
 #   ZKNET_WOODPECKER_CACHE    the host cache directory (default /var/tmp/zknet-woodpecker)
 #   ZKNET_WOODPECKER_SECRETS  a secrets file (woodpecker-cli --secrets-file) for
-#                             any pipeline, e.g. the Tauri key for a tag build
+#                             any pipeline
 #
 # Build settings, from the environment, reach every step through
 # .woodpecker/.run.env (git-ignored, removed on exit), since a docker-backend

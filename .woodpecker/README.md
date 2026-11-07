@@ -50,8 +50,8 @@ whose running steps map a secret it wasn't given (`secret "…" not found`),
 while steps whose `when` doesn't match need none. So:
 
 - a step maps a secret only if it runs exclusively when the secret is
-  supplied: behind a `when` that matches only then (the tag-only
-  `desktop-release` step of `dist.yaml`);
+  supplied: behind a `when` that matches only then. No pipeline maps one
+  today;
 - `run` passes secrets as a file (`ZKNET_WOODPECKER_SECRETS`). Not
   `WOODPECKER_SECRETS`: its `name=value,...` form mangles a value with a `,`
   or `"`.
@@ -141,12 +141,8 @@ the binary is 411 MB and the rpm bundler takes over 20 minutes.
 `dist.yaml` is one definition. A `tag` event selects the `release`
 configuration of each Nx target (`rung` in `lib.sh`) and enables the
 release-only steps `sign` and `publish`, which are stubs for now. Any other
-event builds `dev`. The desktop is built by `desktop` on a dev run and by
-`desktop-release` on a tag, one definition split by event: only
-`desktop-release` maps the updater signing key (`tauri_signing_private_key`,
-`tauri_signing_private_key_password`), so a dev run needs no secret and a tag
-run without them is refused before any step starts. `collect` is split the
-same way.
+event builds `dev`. No step needs a secret on either rung: the desktop's
+release build makes its updater bundles unsigned (`tauri build --no-sign`).
 
 A tag is one component's release, `<id>@<semver>` (`release/components.json`,
 `release/README.md`). `prepare` stamps the version into that component's manifests
@@ -162,8 +158,7 @@ and the GitHub release builds `linux windows` here and darwin on macOS) and,
 for a desktop release, `ZKNET_UPDATER_PUBKEY` and `ZKNET_UPDATER_ENDPOINT`.
 
 Try the release rung with a test tag, which needs to exist only in the
-pipeline's metadata, and the secrets in a file named by
-`ZKNET_WOODPECKER_SECRETS`:
+pipeline's metadata:
 
 ```sh
 .woodpecker/run dist --pipeline-event tag --commit-ref refs/tags/client-cli@0.0.0-test.1

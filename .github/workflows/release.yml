@@ -82,22 +82,6 @@ jobs:
         with:
           node-version: 24
       - uses: ./.github/actions/woodpecker-cli
-      # dist.yaml's desktop-release step maps these; empty when unset, and
-      # without a key the desktop builds no updater bundles
-      - name: Woodpecker secrets file
-        env:
-          KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-        run: |
-          umask 077
-          f="$RUNNER_TEMP/woodpecker-secrets.yaml"
-          {
-            printf 'tauri_signing_private_key: |2-\n'
-            printf '%s\n' "$KEY" | sed 's/^/  /'
-            printf 'tauri_signing_private_key_password: |2-\n'
-            printf '%s\n' "$PASSWORD" | sed 's/^/  /'
-          } > "$f"
-          echo "ZKNET_WOODPECKER_SECRETS=$f" >> "$GITHUB_ENV"
       - name: .woodpecker/run dist
         env:
           ZKNET_WOODPECKER_CACHE: ${{ runner.temp }}/woodpecker-cache
@@ -141,8 +125,6 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: release/build.sh
         env:
-          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
           ZKNET_UPDATER_PUBKEY: ${{ vars.ZKNET_UPDATER_PUBKEY }}
           ZKNET_UPDATER_ENDPOINT: ${{ vars.ZKNET_UPDATER_ENDPOINT }}
       - run: release/assets.sh "$RUNNER_TEMP/assets"
@@ -174,8 +156,6 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: release/build.sh
         env:
-          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
           ZKNET_UPDATER_PUBKEY: ${{ vars.ZKNET_UPDATER_PUBKEY }}
           ZKNET_UPDATER_ENDPOINT: ${{ vars.ZKNET_UPDATER_ENDPOINT }}
       - run: release/assets.sh "$RUNNER_TEMP/assets"
@@ -202,12 +182,11 @@ jobs:
           pattern: assets-*
           path: ${{ runner.temp }}/assets
           merge-multiple: true
-      - name: checksums.txt and the desktop updater's latest.json
+      # the desktop's updater bundles are unsigned: their .sig files and
+      # latest.json are added to the release after it is published
+      - name: checksums.txt
         run: |
           cd "$RUNNER_TEMP/assets"
-          if [ "${{ needs.prepare.outputs.project }}" = client ] && ls ./*.sig >/dev/null 2>&1; then
-            node "$GITHUB_WORKSPACE/release/release.mjs" manifest "$ZKNET_TAG" . > latest.json
-          fi
           sha256sum -- * > checksums.txt
           ls -l
       - uses: actions/upload-artifact@v7

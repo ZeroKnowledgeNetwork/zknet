@@ -26,6 +26,13 @@ component's tag prefix lives, so renaming one is a one-line change there.
 | `client-cli`       | `client-cli`       | Linux + Windows (Woodpecker, cross), macOS universal (native) | the `zknet` binary: `zknet_<version>_<platform>[.exe]` for linux-amd64, linux-arm64, windows-amd64, darwin-universal |
 | `app-walletshield` | `app-walletshield` | Linux + Windows (Woodpecker, cross), macOS (native)           | goreleaser's archives: linux amd64/arm64, windows amd64, darwin universal                                            |
 
+**Keep `libs/rs-core/**` in `client`'s and `client-cli`'s paths**, although
+the directory is gone: it is `libs/client-core`'s name before the rename
+(`f7db79e`), and git-cliff matches each commit's paths as they were then.
+Without it, every earlier `rs-core` change drops out of the notes; a first
+release, which takes the whole history, loses 13 lines for `client@0.2.0-beta.3`.
+(`components.json` is JSON and can't carry this comment.)
+
 Every release also carries `checksums.txt` (sha256 of every asset). Both the
 desktop and the CLI build in `zknet-client-core` (`libs/client-core`, Nx `client-core`), so its commits
 appear in both their notes. The darwin builds run natively on macOS, with

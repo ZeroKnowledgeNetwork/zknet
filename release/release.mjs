@@ -25,6 +25,41 @@ import { fileURLToPath } from "node:url";
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const components = JSON.parse(readFileSync(join(root, "release/components.json"), "utf8"));
 
+// every key a component may have, and what it must be; a misspelt key would
+// otherwise be read as absent
+const strings = (v) => Array.isArray(v) && v.every((s) => typeof s === "string");
+const KEYS = {
+  project: {
+    required: true,
+    ok: (v) => typeof v === "string" && v !== "",
+    is: "a non-empty string",
+  },
+  paths: { required: true, ok: strings, is: "an array of strings" },
+  excludePaths: { required: true, ok: strings, is: "an array of strings" },
+  cargo: { required: true, ok: strings, is: "an array of strings" },
+  runners: {
+    required: true,
+    ok: (v) =>
+      strings(v) && v.length > 0 && v.every((r) => ["linux", "macos", "windows"].includes(r)),
+    is: "a non-empty array of linux, macos, windows",
+  },
+  manifest: { ok: (v) => typeof v === "boolean", is: "true or false" },
+  latest: { ok: (v) => typeof v === "boolean", is: "true or false" },
+};
+for (const [id, c] of Object.entries(components)) {
+  const where = `release/components.json: "${id}"`;
+  for (const key of Object.keys(c))
+    if (!KEYS[key])
+      die(`${where} has an unknown key "${key}"; known: ${Object.keys(KEYS).join(", ")}`);
+  for (const [key, { required, ok, is }] of Object.entries(KEYS)) {
+    if (!(key in c)) {
+      if (required) die(`${where} has no "${key}"`);
+    } else if (!ok(c[key])) die(`${where}: "${key}" must be ${is}`);
+  }
+}
+if (Object.values(components).filter((c) => c.latest).length > 1)
+  die('release/components.json: only one component can be "latest"');
+
 // semver 2.0.0, without build metadata: a rebuild is a new version
 const SEMVER =
   /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?$/;

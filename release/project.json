@@ -1,0 +1,16 @@
+{
+  "$schema": "../node_modules/nx/schemas/project-schema.json",
+  "name": "release",
+  "projectType": "library",
+  "targets": {
+    "test": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": ["{projectRoot}/*.mjs", "{projectRoot}/components.json"],
+      "options": {
+        "command": "node --test release.test.mjs",
+        "cwd": "{projectRoot}"
+      }
+    }
+  }
+}

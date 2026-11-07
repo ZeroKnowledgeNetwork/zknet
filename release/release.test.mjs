@@ -49,7 +49,12 @@ test("a misspelt key fails loudly, naming it", () => {
 });
 
 test("a missing required key fails", () => {
-  const r = parse(client(({ cargo, ...c }) => c));
+  const r = parse(
+    client((c) => {
+      delete c.cargo;
+      return c;
+    }),
+  );
   assert.equal(r.status, 1);
   assert.equal(r.stderr, 'release.mjs: release/components.json: "client" has no "cargo"\n');
 });
@@ -81,7 +86,13 @@ test("only one component can be latest", () => {
 });
 
 test("the optional keys may be absent", () => {
-  const r = parse(client(({ manifest, latest, ...c }) => c));
+  const r = parse(
+    client((c) => {
+      delete c.manifest;
+      delete c.latest;
+      return c;
+    }),
+  );
   assert.equal(r.status, 0, r.stderr);
   assert.equal(JSON.parse(r.stdout).manifest, undefined);
 });

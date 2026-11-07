@@ -22,7 +22,7 @@ component's tag prefix lives, so renaming one is a one-line change there.
 
 | tag prefix         | Nx project         | built on                                                      | release assets                                                                                                       |
 | ------------------ | ------------------ | ------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
-| `client`           | `client`           | Linux (Woodpecker), macOS universal, Windows (native)         | `.deb`, `.rpm`, `.AppImage`, `.dmg`, NSIS `-setup.exe`; with `ZKNET_UPDATER_PUBKEY`, the updater bundles, unsigned   |
+| `client`           | `client`           | Linux (Woodpecker), macOS universal, Windows (native)         | `.deb`, `.rpm`, `.AppImage`, `.dmg`, NSIS `-setup.exe`; the updater bundles, unsigned                                |
 | `client-cli`       | `client-cli`       | Linux + Windows (Woodpecker, cross), macOS universal (native) | the `zknet` binary: `zknet_<version>_<platform>[.exe]` for linux-amd64, linux-arm64, windows-amd64, darwin-universal |
 | `app-walletshield` | `app-walletshield` | Linux + Windows (Woodpecker, cross), macOS (native)           | goreleaser's archives: linux amd64/arm64, windows amd64, darwin universal                                            |
 

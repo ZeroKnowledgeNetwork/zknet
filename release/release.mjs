@@ -153,15 +153,31 @@ function tagExists(tag) {
   }
 }
 
+// The updater's public key, as the reviewed file holds it: base64 of the
+// minisign public key file, the form Tauri's `plugins.updater.pubkey` takes.
+const UPDATER_KEY = "libs/client-core/updater-key.pub";
+function updaterPubkey() {
+  let pubkey;
+  try {
+    pubkey = readFileSync(join(root, UPDATER_KEY), "utf8").trim();
+  } catch {
+    die(`no ${UPDATER_KEY}: the desktop updater's public key`);
+  }
+  const text = Buffer.from(pubkey, "base64").toString("utf8");
+  if (!/^untrusted comment: .*\n[A-Za-z0-9+/]{56}\n?$/.test(text))
+    die(`${UPDATER_KEY} is not a Tauri updater public key (base64 of a minisign public key file)`);
+  return pubkey;
+}
+
 function tauriConfig(tag) {
   const config = { plugins: { updater: {} }, bundle: {} };
   if (tag) config.version = parse(tag).version;
-  const { ZKNET_UPDATER_PUBKEY: pubkey, ZKNET_UPDATER_ENDPOINT: endpoint } = process.env;
-  if (pubkey) config.plugins.updater.pubkey = pubkey;
+  const endpoint = process.env.ZKNET_UPDATER_ENDPOINT;
+  config.plugins.updater.pubkey = updaterPubkey();
   if (endpoint) config.plugins.updater.endpoints = [endpoint];
-  // the updater bundles whenever clients can verify them; the build never signs
-  // them (`tauri build --no-sign`): their .sig files are made after the build
-  config.bundle.createUpdaterArtifacts = Boolean(pubkey);
+  // the build never signs the updater bundles (`tauri build --no-sign`): their
+  // .sig files are made after the build, against this same key
+  config.bundle.createUpdaterArtifacts = true;
   return JSON.stringify(config);
 }
 

@@ -103,7 +103,6 @@ jobs:
         env:
           ZKNET_WOODPECKER_CACHE: ${{ runner.temp }}/woodpecker-cache
           ZKNET_DIST_PLATFORMS: linux windows
-          ZKNET_UPDATER_PUBKEY: ${{ vars.ZKNET_UPDATER_PUBKEY }}
           ZKNET_UPDATER_ENDPOINT: ${{ vars.ZKNET_UPDATER_ENDPOINT }}
         run: .woodpecker/run dist --pipeline-event tag --commit-ref "refs/tags/$ZKNET_TAG"
       - run: release/assets.sh "$RUNNER_TEMP/assets"
@@ -142,7 +141,6 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: release/build.sh
         env:
-          ZKNET_UPDATER_PUBKEY: ${{ vars.ZKNET_UPDATER_PUBKEY }}
           ZKNET_UPDATER_ENDPOINT: ${{ vars.ZKNET_UPDATER_ENDPOINT }}
       - run: release/assets.sh "$RUNNER_TEMP/assets"
       - uses: actions/upload-artifact@v7
@@ -173,7 +171,6 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: release/build.sh
         env:
-          ZKNET_UPDATER_PUBKEY: ${{ vars.ZKNET_UPDATER_PUBKEY }}
           ZKNET_UPDATER_ENDPOINT: ${{ vars.ZKNET_UPDATER_ENDPOINT }}
       - run: release/assets.sh "$RUNNER_TEMP/assets"
       - uses: actions/upload-artifact@v7

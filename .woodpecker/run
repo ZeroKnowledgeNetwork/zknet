@@ -14,7 +14,6 @@
 # .woodpecker/.run.env (git-ignored, removed on exit), since a docker-backend
 # step never sees the host's environment (lib.sh sources it):
 #   ZKNET_DIST_PLATFORMS      dist: the OSes to build for (default "linux windows darwin")
-#   ZKNET_UPDATER_PUBKEY      dist, a release: the desktop updater's public key
 #   ZKNET_UPDATER_ENDPOINT    dist, a release: the desktop updater's manifest URL
 set -eu
 
@@ -48,7 +47,7 @@ fi
 
 # the build settings, as shell assignments for lib.sh
 run_env=$here/.run.env
-for v in ZKNET_DIST_PLATFORMS ZKNET_UPDATER_PUBKEY ZKNET_UPDATER_ENDPOINT; do
+for v in ZKNET_DIST_PLATFORMS ZKNET_UPDATER_ENDPOINT; do
   eval "val=\${$v-}"
   # shellcheck disable=SC2154 # val is set by the eval
   [ -z "$val" ] || printf "%s='%s'\n" "$v" "$(printf '%s' "$val" | sed "s/'/'\\\\''/g")"

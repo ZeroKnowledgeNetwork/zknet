@@ -113,11 +113,11 @@ docker run --rm -v /var/tmp:/v alpine rm -rf /v/zknet-woodpecker
 Every build is an Nx target, so the pipeline, a human and a future native runner
 call the same command. Each has a `dev` (default) and a `release` configuration:
 
-| Target                  | `dev`                                                                                       | `release`                                                                     |
-| ----------------------- | ------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
-| `app-walletshield:dist` | `goreleaser build --snapshot`, then `served.sh`: `served/` with checksums                   | `goreleaser release --skip=publish`: adds archives, checksums                 |
-| `client-cli:dist`       | `scripts/dist.sh dev`                                                                       | `scripts/dist.sh release`: adds checksums                                     |
-| `client:desktop-build`  | `tauri build --debug` with the dev-local overlay, no updater artifacts, debug info stripped | `tauri build --no-sign`: unsigned updater bundles with `ZKNET_UPDATER_PUBKEY` |
+| Target                  | `dev`                                                                                       | `release`                                                                                |
+| ----------------------- | ------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| `app-walletshield:dist` | `goreleaser build --snapshot`, then `served.sh`: `served/` with checksums                   | `goreleaser release --skip=publish`: adds archives, checksums                            |
+| `client-cli:dist`       | `scripts/dist.sh dev`                                                                       | `scripts/dist.sh release`: adds checksums                                                |
+| `client:desktop-build`  | `tauri build --debug` with the dev-local overlay, no updater artifacts, debug info stripped | `tauri build --no-sign`: unsigned updater bundles for `libs/client-core/updater-key.pub` |
 
 ```sh
 pnpm nx run client:desktop-build             # dev, on this host
@@ -155,7 +155,7 @@ tauri-config`).
 `run` passes build settings from its environment to the steps:
 `ZKNET_DIST_PLATFORMS` (the OSes to build for; default `linux windows darwin`,
 and the GitHub release builds `linux windows` here and darwin on macOS) and,
-for a desktop release, `ZKNET_UPDATER_PUBKEY` and `ZKNET_UPDATER_ENDPOINT`.
+for a desktop release, `ZKNET_UPDATER_ENDPOINT`.
 
 Try the release rung with a test tag, which needs to exist only in the
 pipeline's metadata:

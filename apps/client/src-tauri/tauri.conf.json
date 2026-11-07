@@ -34,7 +34,7 @@
   },
   "plugins": {
     "updater": {
-      "pubkey": "SET-AT-BUILD-TIME: the release build passes ZKNET_UPDATER_PUBKEY (release.yml)",
+      "pubkey": "SET-AT-BUILD-TIME: the release build merges libs/client-core/updater-key.pub (release/release.mjs tauri-config)",
       "endpoints": ["https://dist.zknet.io/updates/client/stable/latest.json"]
     },
     "zknet": {

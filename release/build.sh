@@ -6,8 +6,9 @@
 #
 #   release/build.sh
 #
-# A desktop build makes its updater bundles, unsigned, when ZKNET_UPDATER_PUBKEY
-# is set; it and ZKNET_UPDATER_ENDPOINT configure the updater.
+# A desktop build makes its updater bundles, unsigned, for the committed
+# libs/client-core/updater-key.pub; ZKNET_UPDATER_ENDPOINT sets where installed
+# apps look for updates.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 rel() { node release/release.mjs "$@"; }

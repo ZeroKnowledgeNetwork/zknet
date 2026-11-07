@@ -6,7 +6,12 @@
     "test": {
       "executor": "nx:run-commands",
       "cache": true,
-      "inputs": ["{projectRoot}/*.mjs", "{projectRoot}/components.json"],
+      "inputs": [
+        "{projectRoot}/*.mjs",
+        "{projectRoot}/components.json",
+        "{workspaceRoot}/libs/client-core/updater-key.pub",
+        "{workspaceRoot}/apps/client/src-tauri/tauri.dev.conf.json"
+      ],
       "options": {
         "command": "node --test release.test.mjs",
         "cwd": "{projectRoot}"

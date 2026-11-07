@@ -6,15 +6,13 @@
 #
 #   release/build.sh
 #
-# A desktop build signs its updater bundles when TAURI_SIGNING_PRIVATE_KEY is
-# set; ZKNET_UPDATER_PUBKEY and ZKNET_UPDATER_ENDPOINT configure the updater.
+# A desktop build makes its updater bundles, unsigned, when ZKNET_UPDATER_PUBKEY
+# is set; it and ZKNET_UPDATER_ENDPOINT configure the updater.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 rel() { node release/release.mjs "$@"; }
 project=$(rel parse | node -pe 'JSON.parse(require("fs").readFileSync(0)).project')
 
-# an unset secret arrives as an empty variable, which Tauri would take for a key
-[ -n "${TAURI_SIGNING_PRIVATE_KEY:-}" ] || unset TAURI_SIGNING_PRIVATE_KEY TAURI_SIGNING_PRIVATE_KEY_PASSWORD
 rel stamp
 case "$(uname -s)-$project" in
   Darwin-client)

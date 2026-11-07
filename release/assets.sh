@@ -38,16 +38,16 @@ case "$(uname -s)-$project" in
     b=dist/target/universal-apple-darwin/release/bundle
     for f in "$b"/dmg/*.dmg; do put "$f" "$(basename "$f")"; done
     # the updater bundle is named after the app only: add version and arch
-    for f in "$b"/macos/*.app.tar.gz "$b"/macos/*.app.tar.gz.sig; do
+    for f in "$b"/macos/*.app.tar.gz; do
       n=$(basename "$f")
-      put "$f" "${n%%.app.tar.gz*}_${version}_universal.app.tar.gz${n#*.app.tar.gz}"
+      put "$f" "${n%.app.tar.gz}_${version}_universal.app.tar.gz"
     done
     ;;
   Darwin-client-cli)
     put dist/client-cli/darwin-universal/zknet "zknet_${version}_darwin-universal"
     ;;
   MINGW*-client | MSYS*-client)
-    for f in dist/target/release/bundle/nsis/*-setup.exe dist/target/release/bundle/nsis/*-setup.exe.sig; do
+    for f in dist/target/release/bundle/nsis/*-setup.exe; do
       put "$f" "$(basename "$f")"
     done
     ;;

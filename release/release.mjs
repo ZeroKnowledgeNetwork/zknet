@@ -121,26 +121,18 @@ function tagExists(tag) {
 function tauriConfig(tag) {
   const config = { plugins: { updater: {} }, bundle: {} };
   if (tag) config.version = parse(tag).version;
-  const {
-    ZKNET_UPDATER_PUBKEY: pubkey,
-    ZKNET_UPDATER_ENDPOINT: endpoint,
-    TAURI_SIGNING_PRIVATE_KEY: key,
-  } = process.env;
+  const { ZKNET_UPDATER_PUBKEY: pubkey, ZKNET_UPDATER_ENDPOINT: endpoint } = process.env;
   if (pubkey) config.plugins.updater.pubkey = pubkey;
   if (endpoint) config.plugins.updater.endpoints = [endpoint];
-  if (!key) {
-    // no signing key (a development build or a dispatch run): no updater artifacts
-    config.bundle.createUpdaterArtifacts = false;
-  } else if (!pubkey) {
-    die(
-      "TAURI_SIGNING_PRIVATE_KEY is set but ZKNET_UPDATER_PUBKEY is not: clients could not verify the update",
-    );
-  }
+  // the updater bundles whenever clients can verify them; the build never signs
+  // them (`tauri build --no-sign`): their .sig files are made after the build
+  config.bundle.createUpdaterArtifacts = Boolean(pubkey);
   return JSON.stringify(config);
 }
 
 // The Tauri updater's static manifest. Each platform points at its signed
 // bundle in this release; the universal macOS bundle serves both darwin keys.
+// DIR holds the updater bundles and their .sig files, signed after the build.
 function manifest(tag, dir) {
   const c = parse(tag);
   const repo = process.env.GITHUB_REPOSITORY || die("manifest: GITHUB_REPOSITORY is not set");

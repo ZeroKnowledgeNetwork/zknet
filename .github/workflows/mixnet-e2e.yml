@@ -20,7 +20,7 @@ permissions:
 
 jobs:
   changes:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     outputs:
       opt: ${{ steps.diff.outputs.opt }}
     steps:
@@ -42,7 +42,9 @@ jobs:
   mixnet-e2e:
     needs: changes
     if: needs.changes.outputs.opt == 'true'
-    runs-on: ubuntu-latest
+    # pinned: on ubuntu-26.04 (ubuntu-latest from 2026-11) the network's
+    # container builds ran past the job's timeout
+    runs-on: ubuntu-24.04
     timeout-minutes: 45
     env:
       NX_DAEMON: "false"
@@ -65,12 +67,20 @@ jobs:
       # the Go module and build caches of the network's container builds live
       # in the katzenpost clone, so clone it before restoring them
       - run: make -C packages/opt/docker clone-katzenpost
-      - uses: actions/cache@v6
+      - id: mixnet-cache
+        uses: actions/cache/restore@v6
         with:
           path: /tmp/katzenpost.opt/docker/cache
           key: mixnet-go-${{ hashFiles('packages/opt/go.sum') }}
           restore-keys: mixnet-go-
       - run: pnpm exec nx run mixnet:start
+      # saved once the builds are done rather than at the end of a successful
+      # job, so a run that fails or times out later still leaves a warm cache
+      - if: always() && steps.mixnet-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: /tmp/katzenpost.opt/docker/cache
+          key: ${{ steps.mixnet-cache.outputs.cache-primary-key }}
       - run: pnpm exec nx run mixnet:ready
       - run: pnpm exec nx run mixnet:probe
       - run: pnpm exec nx run mixnet:serve

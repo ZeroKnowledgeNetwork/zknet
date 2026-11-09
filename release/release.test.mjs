@@ -18,9 +18,13 @@ after(() => rmSync(T, { recursive: true, force: true }));
 const committedKey = join(here, "../libs/client-core/updater-key.pub");
 
 // release.mjs ARGS in a root with COMPONENTS and, unless null, PUBKEY as its
-// updater-key.pub: { root, status, stdout, stderr }
-function run(args, { components = real, pubkey = readFileSync(committedKey, "utf8"), env } = {}) {
+// updater-key.pub, after SETUP(root) if given: { root, status, stdout, stderr }
+function run(
+  args,
+  { components = real, pubkey = readFileSync(committedKey, "utf8"), env, setup } = {},
+) {
   const root = mkdtempSync(join(T, "root-"));
+  setup?.(root);
   mkdirSync(join(root, "release"));
   cpSync(join(here, "release.mjs"), join(root, "release/release.mjs"));
   writeFileSync(join(root, "release/components.json"), JSON.stringify(components));
@@ -154,6 +158,23 @@ test("tauri-config refuses without the key file, or with something else in it", 
     assert.equal(r.status, 1, JSON.stringify(bad));
     assert.match(r.stderr, /is not a Tauri updater public key/);
   }
+});
+
+test("a prerelease bundles everything but the .rpm", () => {
+  const conf = { bundle: { targets: ["deb", "rpm", "appimage", "nsis", "app", "dmg"] } };
+  const withConf = (env) =>
+    tauriConfig({
+      env,
+      setup: (root) => {
+        mkdirSync(join(root, "apps/client/src-tauri"), { recursive: true });
+        writeFileSync(join(root, "apps/client/src-tauri/tauri.conf.json"), JSON.stringify(conf));
+      },
+    });
+  const pre = withConf({ ZKNET_TAG: "client@1.2.3-beta.0" });
+  assert.equal(pre.status, 0, pre.stderr);
+  assert.deepEqual(pre.config.bundle.targets, ["deb", "appimage", "nsis", "app", "dmg"]);
+  const stable = withConf({ ZKNET_TAG: "client@1.2.3" });
+  assert.equal(stable.config.bundle.targets, undefined);
 });
 
 test("a dev build makes no updater artifacts", () => {

@@ -169,9 +169,19 @@ function updaterPubkey() {
   return pubkey;
 }
 
+// The desktop's bundle formats, as its own Tauri configuration lists them.
+const TAURI_CONF = "apps/client/src-tauri/tauri.conf.json";
+
 function tauriConfig(tag) {
   const config = { plugins: { updater: {} }, bundle: {} };
   if (tag) config.version = parse(tag).version;
+  // a prerelease builds no .rpm: tauri-bundler 2.10.3 and later (rpm-rs 0.30)
+  // refuse a version with "-", which every semver prerelease has
+  if (tag && parse(tag).prerelease) {
+    const { targets } = JSON.parse(readFileSync(join(root, TAURI_CONF), "utf8")).bundle;
+    if (!Array.isArray(targets)) die(`${TAURI_CONF}: bundle.targets is not a list`);
+    config.bundle.targets = targets.filter((t) => t !== "rpm");
+  }
   const endpoint = process.env.ZKNET_UPDATER_ENDPOINT;
   config.plugins.updater.pubkey = updaterPubkey();
   if (endpoint) config.plugins.updater.endpoints = [endpoint];

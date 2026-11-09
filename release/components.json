@@ -17,8 +17,18 @@
   },
   "app-walletshield": {
     "project": "app-walletshield",
-    "paths": ["packages/opt/**"],
-    "excludePaths": ["packages/opt/docker/**"],
+    "paths": [
+      "packages/opt/apps/walletshield/**",
+      "packages/opt/main.go",
+      "packages/opt/common/**",
+      "packages/opt/server_plugins/cbor_plugins/rpc_proxy/**",
+      "packages/opt/server_plugins/cbor_plugins/http_proxy/**",
+      "packages/opt/go.mod",
+      "packages/opt/tests/e2e/walletshield/**",
+      "packages/opt/tests/test-walletshield-*",
+      "packages/opt/.goreleaser.yaml"
+    ],
+    "excludePaths": [],
     "cargo": [],
     "runners": ["linux", "macos"]
   }

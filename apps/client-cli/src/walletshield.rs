@@ -4,19 +4,8 @@ use anyhow::Result;
 use zknet_client_core::{
     config::AppConfig,
     network::{Asset, Layout, NetworkId},
+    walletshield,
 };
-
-/// WalletShield's arguments, run from the network directory holding `client.toml`.
-fn walletshield_args(config: &AppConfig) -> Vec<String> {
-    vec![
-        "-listen".into(),
-        config.walletshield_listen_address.clone(),
-        "-config".into(),
-        "client.toml".into(),
-        "-log_level".into(),
-        config.walletshield_log_level.clone(),
-    ]
-}
 
 /// Run the network's WalletShield until it exits.
 pub async fn run(config: &AppConfig, layout: &Layout, network_id: &NetworkId) -> Result<()> {
@@ -29,7 +18,10 @@ pub async fn run(config: &AppConfig, layout: &Layout, network_id: &NetworkId) ->
     command.stdout(std::process::Stdio::piped());
     command.stderr(std::process::Stdio::piped());
 
-    command.args(walletshield_args(config));
+    command.args(walletshield::args(
+        &config.walletshield_listen_address,
+        &config.walletshield_log_level,
+    ));
 
     println!("Starting network client...");
     let mut child = command.spawn()?;
@@ -77,32 +69,4 @@ pub async fn run(config: &AppConfig, layout: &Layout, network_id: &NetworkId) ->
     println!("Client for network {network_id} exited with status: {status}");
 
     Ok(())
-}
-
-#[cfg(test)]
-mod tests {
-    use super::walletshield_args;
-    use zknet_client_core::config::AppConfig;
-
-    /// WalletShield picks its mode from the network's config; the CLI never does.
-    #[test]
-    fn walletshield_args_leave_the_mode_to_the_config() {
-        let config = AppConfig {
-            api_listen_address: "127.0.0.1:7000".into(),
-            url_network: "http://127.0.0.1:8765".into(),
-            walletshield_listen_address: ":7070".into(),
-            walletshield_log_level: "INFO".into(),
-        };
-        assert_eq!(
-            walletshield_args(&config),
-            [
-                "-listen",
-                ":7070",
-                "-config",
-                "client.toml",
-                "-log_level",
-                "INFO"
-            ]
-        );
-    }
 }

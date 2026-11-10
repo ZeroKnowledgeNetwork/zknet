@@ -35,6 +35,8 @@ pub const INDEX_SCHEMA: u32 = 1;
 pub const DEFAULT_SOURCE: &str = "https://dist.zknet.io/networks";
 
 const INDEX_FILE: &str = "networks.json";
+/// A network's WalletShield config, in its directory.
+pub const CLIENT_TOML: &str = "client.toml";
 const ORIGIN_FILE: &str = "origin.json";
 const PART_SUFFIX: &str = ".part";
 const PROGRESS_INTERVAL: Duration = Duration::from_millis(100);
@@ -134,7 +136,7 @@ impl Asset {
     /// The file name under `<networks_dir>/<network_id>/`.
     pub fn local_name(self, platform: &Platform) -> String {
         match self {
-            Asset::ClientToml => "client.toml".into(),
+            Asset::ClientToml => CLIENT_TOML.into(),
             Asset::ServicesJson => "services.json".into(),
             Asset::Walletshield if platform.is_windows() => "walletshield.exe".into(),
             Asset::Walletshield => "walletshield".into(),

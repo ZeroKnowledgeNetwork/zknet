@@ -1,41 +1,64 @@
 @import "tailwindcss";
+@import "@fontsource-variable/orbitron";
+@import "@fontsource-variable/roboto";
+
 @plugin "daisyui" {
-  themes: zkn-dark, light;
+  themes: false;
 }
 
+/* The three brand greens (the brand guide's palette) in their
+   roles: Core = surfaces, Support = secondary balance, Accent = interaction.
+   The guide defines no neutrals, so surfaces 200/300 are mixed from the greens
+   and text is plain white, the guide's observed lettering, not a brand token.
+   A copy of the downloads site's theme; keep the two in step. */
 @plugin "daisyui/theme" {
-  name: "zkn-dark";
+  name: "zknet";
   default: true;
   prefersdark: true;
-  color-scheme: "dark";
-  --color-base-100: oklch(22% 0.021 267);
-  --color-base-200: oklch(20% 0.021 267);
-  --color-base-300: oklch(18% 0.021 267);
-  --color-base-content: oklch(91% 0 0);
-  --color-primary: oklch(41.16% 0.139 142.51);
-  --color-primary-content: oklch(91% 0 0);
-  --color-secondary: oklch(41% 0.14 330);
-  --color-secondary-content: oklch(91% 0 0);
-  --color-accent: oklch(75% 0.25 143);
-  --color-accent-content: oklch(30% 0.021 267);
-  --color-neutral: oklch(15% 0.021 267);
-  --color-neutral-content: oklch(91% 0 0);
-  --color-info: oklch(36% 0.14 267);
-  --color-info-content: oklch(91% 0 0);
-  --color-success: oklch(53% 0.18 265);
-  --color-success-content: oklch(91% 0 0);
-  --color-warning: oklch(82% 0.189 84.429);
-  --color-warning-content: oklch(41% 0.112 45.904);
-  --color-error: oklch(42% 0.14 27);
-  --color-error-content: oklch(91% 0 0);
+  color-scheme: dark;
+  --color-base-100: #050b01;
+  --color-base-200: color-mix(in oklab, #050b01 90%, #218b21);
+  --color-base-300: color-mix(in oklab, #050b01 78%, #218b21);
+  --color-base-content: #ffffff;
+  --color-primary: #28d628;
+  --color-primary-content: #050b01;
+  --color-secondary: #218b21;
+  --color-secondary-content: #050b01;
+  --color-accent: #28d628;
+  --color-accent-content: #050b01;
+  --color-neutral: color-mix(in oklab, #050b01 70%, #218b21);
+  --color-neutral-content: #ffffff;
+  --color-info: #28d628;
+  --color-info-content: #050b01;
+  --color-success: #28d628;
+  --color-success-content: #050b01;
+  --color-warning: #28d628;
+  --color-warning-content: #050b01;
+  --color-error: #ff6b6b;
+  --color-error-content: #050b01;
   --radius-selector: 0.25rem;
   --radius-field: 0.25rem;
-  --radius-box: 0.25rem;
-  --size-selector: 0.3125rem;
-  --size-field: 0.3125rem;
-  --border: 2px;
-  --depth: 1;
+  --radius-box: 0.5rem;
+  --border: 1px;
+  --depth: 0;
   --noise: 0;
+}
+
+@theme {
+  --font-display: "Orbitron Variable", sans-serif;
+  --font-sans: "Roboto Variable", system-ui, sans-serif;
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-display);
+  letter-spacing: 0.02em;
+}
+
+:focus-visible {
+  outline: 2px solid #28d628;
+  outline-offset: 2px;
 }
 
 :root {
@@ -71,13 +94,13 @@ html:has(body.content-overflow-y) {
 
 @keyframes pulse-shadow {
   0% {
-    filter: drop-shadow(0 0 0.25em #00d400);
+    filter: drop-shadow(0 0 0.25em #28d628);
   }
   50% {
-    filter: drop-shadow(0 0 1.75em #00d400);
+    filter: drop-shadow(0 0 1.75em #28d628);
   }
   100% {
-    filter: drop-shadow(0 0 0.25em #00d400);
+    filter: drop-shadow(0 0 0.25em #28d628);
   }
 }
 

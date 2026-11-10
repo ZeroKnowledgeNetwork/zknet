@@ -34,12 +34,13 @@ export const isLive = (n: NetworkRow) => n.status === "ready" || n.status === "a
 
 type Badge = { label: string; className: string; dot: string };
 
-// daisyUI 5 classes. In the zkn-dark theme `accent` is the green and `success`
-// is blue, so live is accent; soft info/neutral badges are illegible on base-200.
+// daisyUI 5 classes. The zknet theme paints accent, info, success and warning all
+// in the Accent Green, so live is accent and cached takes the Support Green
+// (secondary) to stay apart from it; soft neutral badges are illegible on base-200.
 export const BADGES: Record<Status, Badge> = {
   ready: { label: "Ready", className: "badge-soft badge-accent", dot: "status-accent" },
   available: { label: "Available", className: "badge-soft badge-accent", dot: "status-accent" },
-  cached: { label: "Cached", className: "badge-soft badge-warning", dot: "status-warning" },
+  cached: { label: "Cached", className: "badge-soft badge-secondary", dot: "status-secondary" },
   unpublished: { label: "Unpublished", className: "badge-ghost", dot: "status-error" },
 };
 

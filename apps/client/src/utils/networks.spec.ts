@@ -53,9 +53,11 @@ describe("network list presentation", () => {
       expect(BADGES[status].label).not.toBe("");
       expect(statusHint(row("x", status))).not.toBe("");
     }
-    // live is the theme's green (accent); success is blue in zkn-dark
+    // live is the Accent Green; cached must not look live, and in the zknet
+    // theme warning is that same green
     expect(BADGES.ready.className).toContain("badge-accent");
     expect(BADGES.available.className).toContain("badge-accent");
+    expect(BADGES.cached.className).not.toMatch(/badge-(accent|warning|success|info)/);
   });
 
   it("fills in the top row only when it is live and nothing is chosen", () => {

@@ -25,11 +25,16 @@ const row = (
   ...extra,
 });
 
-const listing = (networks: NetworkRow[], launchLabel: string | null = null): Listing => ({
+const listing = (
+  networks: NetworkRow[],
+  launchLabel: string | null = null,
+  defaultId: string | null = null,
+): Listing => ({
   launchSource: launchLabel ? `http://${launchLabel}` : "https://built-in.example",
   launchLabel,
   networks,
   unreachable: [],
+  defaultId,
 });
 
 describe("network list presentation", () => {
@@ -60,12 +65,12 @@ describe("network list presentation", () => {
     expect(BADGES.cached.className).not.toMatch(/badge-(accent|warning|success|info)/);
   });
 
-  it("fills in the top row only when it is live and nothing is chosen", () => {
-    const live = listing([row("devnet-2", "available"), row("devnet-1", "ready")]);
+  // which network is the default is decided in Rust (Listing::default_network)
+  it("fills in the default only when nothing is chosen", () => {
+    const live = listing([row("devnet-2", "available"), row("devnet-1", "ready")], null, "devnet-2");
     expect(autoFillId(live, "")).toBe("devnet-2");
     expect(autoFillId(live, "typed")).toBeNull();
     expect(autoFillId(listing([row("old", "unpublished")]), "")).toBeNull();
-    expect(autoFillId(listing([]), "")).toBeNull();
   });
 
   it("knows when nothing is listed, whatever is on this device", () => {

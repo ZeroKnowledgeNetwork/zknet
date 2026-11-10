@@ -1,12 +1,12 @@
 use std::{process::ExitCode, sync::Arc};
 
-use anyhow::Result;
+use anyhow::{bail, Result};
 use clap::{Args, Parser, Subcommand};
 use zknet_client_core::{
     context::AppContext,
     network::{
-        http_client, list, prepare, FetchEvent, FetchOptions, Layout, NetworkId, OnFetchEvent,
-        Platform,
+        http_client, list, prepare, FetchEvent, FetchOptions, Layout, Listing, NetworkId,
+        OnFetchEvent, Platform,
     },
 };
 
@@ -18,7 +18,8 @@ const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 const CONFIG_JSON: &str = include_str!("../assets/config.json");
 
-/// `zknet <network_id>` is shorthand for `connect <network_id>`.
+/// `zknet <network_id>` is shorthand for `connect <network_id>`; `zknet connect`
+/// alone connects to the default network.
 #[derive(Parser, Debug)]
 #[command(
     name = "zknet",
@@ -86,9 +87,9 @@ struct ListArgs {
 
 #[derive(Args, Debug)]
 struct ConnectArgs {
-    /// The ID of the network to connect to
+    /// The ID of the network to connect to [default: the newest published network]
     #[arg(value_parser = parse_network_id)]
-    network_id: NetworkId,
+    network_id: Option<NetworkId>,
     /// Download the network's assets even if a current copy is on this device
     #[arg(long)]
     refresh: bool,
@@ -106,9 +107,39 @@ fn layout(ctx: &AppContext) -> Layout {
     )
 }
 
+/// The network a connect with no id goes to: the listing's default, or an
+/// error that says why there is none and how to name one.
+fn default_network(listing: &Listing) -> Result<NetworkId> {
+    if let Some(n) = listing.default_network() {
+        return Ok(n.id.clone());
+    }
+    // an overridden source names itself; the built-in one is never named
+    let at = listing
+        .launch_label
+        .as_ref()
+        .map_or_else(String::new, |host| format!(" at {host}"));
+    let unread = listing
+        .unreachable
+        .iter()
+        .find(|e| e.source == listing.launch_source);
+    let why = if let Some(e) = unread {
+        format!("couldn't read the network list{at} ({})", e.error)
+    } else {
+        format!("no published networks{at}")
+    };
+    bail!("{why}, so there is no default network; name one: zknet connect <NETWORK_ID> (zknet list shows them)")
+}
+
 async fn connect(ctx: AppContext, args: ConnectArgs, allow_unsigned: bool) -> Result<()> {
-    let id = args.network_id;
     let layout = layout(&ctx);
+    let id = match args.network_id {
+        Some(id) => id,
+        None => {
+            let id = default_network(&list(&http_client()?, &layout).await)?;
+            println!("No network named: connecting to the default, {id}");
+            id
+        }
+    };
     println!("Connecting to network {id}...");
 
     let on_event: OnFetchEvent = Arc::new(|event| match event {
@@ -187,7 +218,7 @@ mod tests {
 
     fn connect_id(cli: Cli) -> String {
         match cli.command {
-            Command::Connect(a) => a.network_id.to_string(),
+            Command::Connect(a) => a.network_id.expect("an id").to_string(),
             Command::List(_) => panic!("parsed as list"),
         }
     }
@@ -278,6 +309,100 @@ mod tests {
             );
         }
         assert!(parse(&[]).is_err());
+    }
+
+    #[test]
+    fn connect_without_an_id_asks_for_the_default() {
+        for argv in [
+            &["connect"][..],
+            &["--network-url", "http://x", "connect"],
+            &["connect", "--refresh"],
+            &["--refresh"],
+        ] {
+            match parse(argv).unwrap().command {
+                Command::Connect(a) => assert_eq!(a.network_id, None, "{argv:?}"),
+                Command::List(_) => panic!("{argv:?} parsed as list"),
+            }
+        }
+    }
+
+    mod default_network {
+        use super::super::default_network;
+        use zknet_client_core::network::{
+            Listing, NetworkEntry, NetworkId, SourceError, Status, DEFAULT_SOURCE,
+        };
+
+        const LOCAL: &str = "http://127.0.0.1:8765";
+
+        fn net(id: &str, status: Status) -> NetworkEntry {
+            NetworkEntry {
+                id: NetworkId::parse(id).unwrap(),
+                status,
+                entry: None,
+                source: DEFAULT_SOURCE.into(),
+                source_label: None,
+                created_ago: None,
+            }
+        }
+
+        fn listing(launch: &str, networks: Vec<NetworkEntry>, unread: bool) -> Listing {
+            let label = (launch != DEFAULT_SOURCE)
+                .then(|| launch.trim_start_matches("http://").to_string());
+            Listing {
+                launch_source: launch.into(),
+                launch_label: label.clone(),
+                networks,
+                unreachable: if unread {
+                    vec![SourceError {
+                        source: launch.into(),
+                        source_label: label,
+                        error: "HTTP 503".into(),
+                    }]
+                } else {
+                    vec![]
+                },
+            }
+        }
+
+        fn error(l: &Listing) -> String {
+            default_network(l).unwrap_err().to_string()
+        }
+
+        #[test]
+        fn is_the_listings_default() {
+            let l = listing(
+                DEFAULT_SOURCE,
+                vec![
+                    net("devnet-2", Status::Available),
+                    net("devnet-1", Status::Ready),
+                ],
+                false,
+            );
+            assert_eq!(default_network(&l).unwrap().as_str(), "devnet-2");
+        }
+
+        #[test]
+        fn none_live_fails_saying_why_and_how_to_name_one() {
+            let hint = "so there is no default network; name one: zknet connect <NETWORK_ID> (zknet list shows them)";
+            let l = listing(DEFAULT_SOURCE, vec![net("old", Status::Unpublished)], false);
+            assert_eq!(error(&l), format!("no published networks, {hint}"));
+            let l = listing(LOCAL, vec![], false);
+            assert_eq!(
+                error(&l),
+                format!("no published networks at 127.0.0.1:8765, {hint}")
+            );
+            // unreachable: the copies on this device are not a default
+            let l = listing(DEFAULT_SOURCE, vec![net("devnet-1", Status::Cached)], true);
+            assert_eq!(
+                error(&l),
+                format!("couldn't read the network list (HTTP 503), {hint}")
+            );
+            let l = listing(LOCAL, vec![], true);
+            assert_eq!(
+                error(&l),
+                format!("couldn't read the network list at 127.0.0.1:8765 (HTTP 503), {hint}")
+            );
+        }
     }
 
     /// "Is this the built-in source?" is answered by zknet_client_core alone.

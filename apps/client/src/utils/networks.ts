@@ -21,6 +21,7 @@ export type Listing = {
   launchLabel: string | null; // null for the built-in source
   networks: NetworkRow[]; // published at the launch source first, then elsewhere; newest first
   unreachable: SourceError[]; // known sources whose index couldn't be read
+  defaultId: string | null; // the network to connect to when none is named (Listing::default_network)
 };
 
 export type Prepared = {
@@ -75,9 +76,9 @@ export const showsSource = (l: Listing) => l.networks.some((n) => n.sourceLabel 
 // Whether any known source publishes a network now
 export const anyListed = (l: Listing) => l.networks.some(isLive);
 
-// The network to fill in: the top row when it is live and nothing is chosen
+// The network to fill in: the default, when nothing is chosen
 export const autoFillId = (l: Listing, chosen: string): string | null =>
-  chosen === "" && l.networks.length > 0 && isLive(l.networks[0]) ? l.networks[0].id : null;
+  chosen === "" ? l.defaultId : null;
 
 // The full created time in the user's locale, for the CREATED tooltip
 export const createdTitle = (n: NetworkRow, locale?: string) =>

@@ -68,7 +68,7 @@ export function Networks() {
     }
   }
 
-  // nothing chosen yet: fill in the newest live network, the list's top row
+  // nothing chosen yet: fill in the default network
   useEffect(() => {
     const id = autoFillId(networks, networkId);
     if (id) setNetworkId(id);

@@ -55,6 +55,12 @@ export async function readSpecifier(rpcUrl, address) {
  * Fetch one resolver entry as a harness would and report what it served.
  * Redirects are not followed (SPEC §4.2: alternatives are separate entries),
  * so a 3xx reports as a failure rather than as the target's bytes.
+ *
+ * An `https:` entry is a plain GET (Anon-RPC SPEC v0.3.2 §4.1), and a browser
+ * harness gets the body decoded whatever coding the host chose; the no-coding
+ * rule is §4.2's, for kps. So this asks for `identity`, which static hosts
+ * (raw.githubusercontent.com among them) honour, and checks the stored bytes
+ * themselves. A host that codes the body anyway is refused.
  * @param {string} entry
  * @param {string} expected 0x keccak256 the bytes must hash to
  * @returns {Promise<{ entry: string, ok: boolean, detail: string }>}
@@ -68,7 +74,11 @@ export async function checkResolver(entry, expected) {
     };
   }
   try {
-    const resp = await fetch(entry, { redirect: "manual", signal: AbortSignal.timeout(15_000) });
+    const resp = await fetch(entry, {
+      redirect: "manual",
+      headers: { "accept-encoding": "identity" },
+      signal: AbortSignal.timeout(15_000),
+    });
     if (resp.status !== 200) {
       await resp.body?.cancel();
       return { entry, ok: false, detail: `HTTP ${resp.status}` };

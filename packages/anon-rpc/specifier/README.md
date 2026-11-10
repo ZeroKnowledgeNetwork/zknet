@@ -81,7 +81,8 @@ and `kps:` entries.
 
 ### Deploying
 
-`deploy` hashes the bundle, checks that every `http(s)` resolver serves those exact bytes, then
+`deploy` hashes the bundle, checks that every `http(s)` resolver serves those exact bytes (asked
+for uncoded, `Accept-Encoding: identity`), then
 deploys and reads `workerHash()` / `workerResolvers()` back. The record of the deployment is
 `.state/deployments/<chainId>.json`. Re-running with the same bundle and resolvers is a no-op; with
 different ones it refuses unless given `--update` (owner `setWorker` on the same address) or
@@ -170,8 +171,9 @@ another existing specifier instead (see [Records](#records)).
 - **`publish`** stages a cumulative static site: every bundle ever staged for the tier stays at
   `keccak/<hash[0:2]>/<hash[2:]>`, because a Pages deploy replaces the whole site and older pins may
   still be fetched. `_headers` serves them as `application/octet-stream` with `no-transform`, so
-  Cloudflare does not compress them (a resolver must answer without `Content-Encoding`), plus
-  immutable caching and CORS. It never runs `wrangler`.
+  Cloudflare serves the stored bytes uncoded, plus immutable caching and CORS. (An `https:`
+  resolver may compress: Anon-RPC SPEC v0.3.2 §4.1 is a plain GET, which a browser decodes. The
+  no-coding rule is §4.2's, for kps resolvers.) It never runs `wrangler`.
 - **`--rehearse`** starts anvil on a fork of the tier's chain, impersonates the configured
   deployer (no key), deploys or updates, reads back, boot-resolves through the fork, and reports
   gas, cost and whether the deployer's real balance covers it. It writes the would-be record to

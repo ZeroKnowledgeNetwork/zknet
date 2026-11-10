@@ -16,8 +16,10 @@
 //   _headers                        octet-stream, immutable, no-transform, CORS
 //   404.html                        so a missing hash is a 404, not a fallback page
 //
-// `no-transform` and octet-stream keep Cloudflare from compressing the body:
-// resolvers must serve the bytes as-is (no Content-Encoding).
+// `no-transform` and octet-stream ask Cloudflare to serve the stored bytes
+// uncoded. An `https:` resolver may compress (Anon-RPC SPEC v0.3.2 §4.1 is a
+// plain GET, which a browser decodes); uncoded is simply the plainest answer,
+// and the one `deploy`'s resolver check asks for.
 
 import {
   copyFileSync,

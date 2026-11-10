@@ -38,6 +38,13 @@ The build is byte-stable: the same sources and the same esbuild version give
 the same bytes from any working directory. That is why `esbuild` is pinned
 exactly at the workspace root.
 
+It is also layout-blind. The bundle is whitespace- and syntax-minified, so
+reformatting the source (indentation, wrapping, quotes, comments) does not
+change the bytes or the pinned hash; only a code change does. Identifiers are
+kept as written. To read the bundle, run it through a formatter. To audit it,
+rebuild it from the tagged source and compare the keccak256: the hash is the
+check, not the eye.
+
 ## Config (`WorkerInit.config`)
 
 Every key is optional. An unknown key, a wrong type, or a peer that is not

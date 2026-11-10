@@ -4,6 +4,13 @@
 // build must be byte-stable: no timestamps, no absolute paths, the same output
 // from any working directory. esbuild is pinned exactly at the workspace root for the
 // same reason: a different esbuild may emit different bytes.
+//
+// It is also layout-blind: reformatting the source (indentation, wrapping, quote
+// style, quoted keys, braces around one statement) leaves the bytes, and so the
+// hash, unchanged. Unminified, esbuild keeps the source's line breaks inside
+// expressions and its comments; minifyWhitespace drops both, and minifySyntax
+// prints equivalent spellings one way. Identifiers stay as written so the bundle
+// still reads after a pretty-printer.
 
 import { build } from "esbuild";
 import { keccak_256 } from "@noble/hashes/sha3.js";
@@ -16,8 +23,12 @@ const here = dirname(fileURLToPath(import.meta.url));
 const outfile = join(here, "dist", "zknet-anon-rpc-worker.js");
 const { version } = JSON.parse(await readFile(join(here, "package.json"), "utf8"));
 
-/** Bundle to bytes without writing; exported for the byte-stability test. */
-export async function bundle() {
+/**
+ * Bundle to bytes without writing; exported for the byte-stability test, which
+ * passes `plugins` to rewrite sources on load.
+ * @param {{ plugins?: import("esbuild").Plugin[] }} [options]
+ */
+export async function bundle({ plugins = [] } = {}) {
   const result = await build({
     absWorkingDir: here,
     entryPoints: ["src/worker.ts"],
@@ -30,7 +41,10 @@ export async function bundle() {
     conditions: ["@zknet/source"],
     define: { __ZKNET_WORKER_VERSION__: JSON.stringify(version) },
     legalComments: "none",
+    minifyWhitespace: true,
+    minifySyntax: true,
     charset: "utf8",
+    plugins,
     logLevel: "warning",
   });
   return result.outputFiles[0].contents;

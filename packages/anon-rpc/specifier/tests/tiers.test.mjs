@@ -1,13 +1,13 @@
-// Tiers, local config, the committed record, the Pages staging and prod's
-// repository rules: the pure parts of the deploy cycle.
+// Tiers, public-tier inputs, the committed record and prod's repository
+// rules: the pure parts of the deploy cycle.
 
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
-import { FIXTURE_BUNDLE, PROJECT_DIR } from "../scripts/lib/paths.mjs";
+import { PROJECT_DIR } from "../scripts/lib/paths.mjs";
 import {
   checkRecord,
   createdRecord,
@@ -18,14 +18,14 @@ import {
 } from "../scripts/lib/record.mjs";
 import {
   assertChain,
+  envList,
   expandResolvers,
-  loadTierConfig,
+  publicInputs,
   TIERS,
   tierOf,
 } from "../scripts/lib/tiers.mjs";
 import { nextRecord } from "../scripts/deploy.mjs";
 import { prodRefusals } from "../scripts/preflight.mjs";
-import { HEADERS, stage } from "../scripts/publish.mjs";
 
 const H1 = "0x194f04bde4925f6bbb0bd8bdfceca7251125eaa0664ce3c0c25dce2a1545338d";
 const H2 = `0x${"ab".repeat(32)}`;
@@ -53,65 +53,54 @@ test("resolver templates expand to the content address", () => {
   );
 });
 
-/** @param {unknown} section */
-function configWith(section) {
-  const file = join(tmp(), "deploy.local.json");
-  writeFileSync(file, JSON.stringify({ test: section }));
-  return file;
-}
-
 const GOOD = {
   rpcUrl: "https://rpc.example",
-  account: "deployer",
   deployer: "0x00000000000000000000000000000000000000aa",
-  resolvers: ["https://x.pages.dev/keccak/{path}"],
-  pages: { project: "x" },
+  account: "deployer",
+  resolvers: ["https://a.example/keccak/{path}", "https://b.example/keccak/{path}"],
 };
 
-test("local config: a complete section loads", () => {
-  const c = loadTierConfig(tierOf("test"), configWith(GOOD));
-  assert.equal(c.account, "deployer");
-  assert.deepEqual(c.pages, { project: "x" });
-});
-
-test("local config: missing file, missing section, placeholders and bad entries are refused", () => {
+test("public inputs: complete inputs pass; a dry run needs no keystore", () => {
   const t = tierOf("test");
-  assert.throws(() => loadTierConfig(t, join(tmp(), "none.json")), /not found/);
-  assert.throws(() => loadTierConfig(tierOf("prod"), configWith(GOOD)), /no "prod" section/);
-  assert.throws(
-    () => loadTierConfig(t, configWith({ ...GOOD, account: "<keystore>" })),
-    /account is not set/,
-  );
-  assert.throws(
-    () => loadTierConfig(t, configWith({ ...GOOD, deployer: "0x12" })),
-    /not an address/,
-  );
-  assert.throws(
-    () => loadTierConfig(t, configWith({ ...GOOD, resolvers: ["https://x/keccak/"] })),
-    /\{path\}/,
-  );
-  assert.throws(
-    () => loadTierConfig(t, configWith({ ...GOOD, resolvers: ["http://x/{path}"] })),
-    /https/,
-  );
-  assert.throws(() => loadTierConfig(t, configWith({ ...GOOD, resolvers: [] })), /non-empty/);
-  const placeholder = { ...GOOD, resolvers: ["https://<pages project>.pages.dev/keccak/{path}"] };
-  assert.throws(() => loadTierConfig(t, configWith(placeholder)), /placeholder/);
-  // A caller with its own resolvers (dry run, rehearsal, verify) does not need the list yet.
-  assert.deepEqual(loadTierConfig(t, configWith(placeholder), { resolvers: false }).resolvers, []);
+  assert.equal(publicInputs(t, GOOD, { broadcast: true }).account, "deployer");
+  const { account: _, ...noKeystore } = GOOD;
+  assert.equal(publicInputs(t, noKeystore).account, undefined);
+  // A dry run or a rehearsal may point at a local resolver.
+  assert.doesNotThrow(() => publicInputs(t, { ...noKeystore, resolvers: ["http://127.0.0.1/x"] }));
 });
 
-test("the committed example config is valid JSON with test and prod sections, and is not ignored", () => {
-  const example = JSON.parse(readFileSync(join(PROJECT_DIR, "deploy.local.example.json"), "utf8"));
-  assert.ok(example.test && example.prod);
-  // Placeholders must not pass as real values.
-  const file = join(tmp(), "c.json");
-  writeFileSync(file, JSON.stringify(example));
-  assert.throws(() => loadTierConfig(tierOf("test"), file), /is not set/);
+test("public inputs: missing values, placeholders and a non-https broadcast are refused", () => {
+  const t = tierOf("test");
+  assert.throws(() => publicInputs(t, { ...GOOD, rpcUrl: undefined }), /--rpc-url \(or RPC_URL\)/);
+  assert.throws(() => publicInputs(t, { ...GOOD, deployer: "" }), /--from \(or ETH_FROM\)/);
+  assert.throws(() => publicInputs(t, { ...GOOD, deployer: "0x12" }), /not an address/);
+  assert.throws(() => publicInputs(t, { ...GOOD, rpcUrl: "<sepolia rpc>" }), /needs --rpc-url/);
+  assert.throws(
+    () => publicInputs(t, { ...GOOD, account: undefined }, { broadcast: true }),
+    /--account \(or ETH_KEYSTORE_ACCOUNT\)/,
+  );
+  assert.throws(() => publicInputs(t, { ...GOOD, resolvers: [] }), /at least one/);
+  assert.throws(
+    () => publicInputs(t, { ...GOOD, resolvers: ["https://<resolver>/keccak/{path}"] }),
+    /placeholder/,
+  );
+  assert.throws(
+    () => publicInputs(t, { ...GOOD, resolvers: ["http://x/{path}"] }, { broadcast: true }),
+    /https: resolvers only/,
+  );
+});
+
+test("RESOLVER_URLS is a comma-separated list", () => {
+  assert.deepEqual(envList(" https://a/{path}, ,https://b/{path} "), [
+    "https://a/{path}",
+    "https://b/{path}",
+  ]);
+  assert.deepEqual(envList(undefined), []);
+});
+
+test("the posted record is committable; the working record stays out of git", () => {
   const ignored = (/** @type {string} */ f) =>
     spawnSync("git", ["check-ignore", "-q", f], { cwd: PROJECT_DIR }).status === 0;
-  assert.equal(ignored("deploy.local.json"), true, "the real config must be git-ignored");
-  assert.equal(ignored("deploy.local.example.json"), false, "the example must be committable");
   assert.equal(ignored("deployments/test.json"), false, "the posted record must be committable");
   assert.equal(
     ignored(".state/records/test.json"),
@@ -137,7 +126,7 @@ test("record: no resolver URLs, ever", () => {
   assert.doesNotThrow(() => checkRecord(created()));
   assert.throws(() => checkRecord({ ...created(), resolvers: [] }), /resolvers do not belong/);
   assert.throws(
-    () => checkRecord({ ...created(), bundle: { ...BUNDLE, file: "https://x.pages.dev/a" } }),
+    () => checkRecord({ ...created(), bundle: { ...BUNDLE, file: "https://x.example/a" } }),
     /holds a URL/,
   );
   assert.throws(() => checkRecord({ ...created(), address: undefined }), /address missing/);
@@ -200,32 +189,6 @@ test("record: round-trips through a file, and nextRecord builds create and updat
   assert.equal(second.workerHash, H2);
   assert.equal(second.updates?.length, 1);
   assert.equal(readRecord(join(tmp(), "absent.json")), undefined);
-});
-
-test("publish staging is content-addressed, cumulative, and sets the resolver headers", async () => {
-  const site = tmp();
-  const other = join(tmp(), "other.js");
-  writeFileSync(other, "// another worker\n");
-  const one = await stage(FIXTURE_BUNDLE, site);
-  assert.equal(one.workerHash, H1);
-  assert.deepEqual(one.staged, [H1]);
-  const two = await stage(other, site);
-  assert.equal(two.staged.length, 2);
-  assert.ok(two.staged.includes(H1), "an earlier bundle stays on the site");
-  assert.ok(existsSync(join(site, "keccak/19", H1.slice(4))));
-  assert.equal(readFileSync(join(site, "_headers"), "utf8"), HEADERS);
-  assert.match(HEADERS, /no-transform/);
-  assert.match(HEADERS, /application\/octet-stream/);
-  assert.ok(existsSync(join(site, "404.html")));
-});
-
-test("publish staging refuses a corrupted site", async () => {
-  const site = tmp();
-  const other = join(tmp(), "other.js");
-  writeFileSync(other, "// another worker\n");
-  await stage(FIXTURE_BUNDLE, site);
-  writeFileSync(join(site, "keccak/19", H1.slice(4)), "tampered");
-  await assert.rejects(stage(other, site), /does not hash to its address/);
 });
 
 test("prod refuses a dirty tree, another branch, an unpushed HEAD, and a hash test does not pin", () => {

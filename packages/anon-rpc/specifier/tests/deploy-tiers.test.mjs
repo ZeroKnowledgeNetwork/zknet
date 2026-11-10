@@ -1,6 +1,6 @@
 // The public-tier deploy against a stand-in for Sepolia: a local anvil with
-// chain id 11155111, the in-process resolver, and throwaway config, records
-// and preflight proofs. Nothing here signs: public-tier sends are only ever
+// chain id 11155111, the in-process resolver, and throwaway records and
+// preflight proofs; every chain-facing value is a flag, as a public tier takes it. Nothing here signs: public-tier sends are only ever
 // dry runs or rehearsals on a fork (impersonated), which is what an agent may
 // run; a keystore broadcast stays the operator's.
 
@@ -28,7 +28,6 @@ const store = join(dir, "store");
 const records = join(dir, "records");
 const posted = join(dir, "posted");
 const preflight = join(dir, "preflight");
-const config = join(dir, "deploy.local.json");
 const rehearsal = join(dir, "rehearse.json");
 const second = join(dir, "second.js");
 
@@ -38,11 +37,15 @@ let chain;
 let resolver;
 let resolverBase = "";
 
-/** @param {string} script @param {string[]} args */
-function cli(script, args) {
+// What a public tier pins when a test gives no --resolver: never fetched by a dry run that fails first.
+const RESOLVER_ENV = { RESOLVER_URLS: "https://resolver.invalid/keccak/{path}" };
+
+/** @param {string} script @param {string[]} args @param {Record<string, string>} [env] */
+function cli(script, args, env = {}) {
   return new Promise((resolve) => {
     const p = spawn(process.execPath, [join(PROJECT_DIR, "scripts", script), ...args], {
       stdio: ["ignore", "pipe", "pipe"],
+      env: { ...process.env, ...env },
     });
     let out = "";
     p.stdout.on("data", (b) => (out += b));
@@ -76,25 +79,31 @@ async function prove(bundle) {
 
 /** @param {string} bundle @param {string[]} extra */
 const deployTest = (bundle, extra) =>
-  cli("deploy.mjs", [
-    "--tier",
-    "test",
-    "--bundle",
-    bundle,
-    "--config",
-    config,
-    "--records",
-    records,
-    "--posted",
-    posted,
-    "--preflight",
-    preflight,
-    "--fork-port",
-    String(FORK_PORT),
-    "--rehearse-record",
-    rehearsal,
-    ...extra,
-  ]);
+  cli(
+    "deploy.mjs",
+    [
+      "--tier",
+      "test",
+      "--bundle",
+      bundle,
+      "--rpc-url",
+      RPC,
+      "--from",
+      DEPLOYER,
+      "--records",
+      records,
+      "--posted",
+      posted,
+      "--preflight",
+      preflight,
+      "--fork-port",
+      String(FORK_PORT),
+      "--rehearse-record",
+      rehearsal,
+      ...extra,
+    ],
+    RESOLVER_ENV,
+  );
 
 before(async () => {
   chain = spawn(
@@ -109,23 +118,6 @@ before(async () => {
   await new Promise((r) => resolver.listen(0, "127.0.0.1", () => r(undefined)));
   const address = /** @type {import('node:net').AddressInfo} */ (resolver.address());
   resolverBase = `http://127.0.0.1:${address.port}`;
-  writeFileSync(
-    config,
-    JSON.stringify({
-      test: {
-        rpcUrl: RPC,
-        account: "unused-in-these-tests",
-        deployer: DEPLOYER,
-        resolvers: ["https://resolver.invalid/keccak/{path}"],
-      },
-      prod: {
-        rpcUrl: RPC,
-        account: "unused-in-these-tests",
-        deployer: DEPLOYER,
-        resolvers: ["https://resolver.invalid/keccak/{path}"],
-      },
-    }),
-  );
   copyFileSync(FIXTURE_BUNDLE, second);
   writeFileSync(second, `${readFileSync(second, "utf8")}\n// second version\n`);
 });
@@ -151,29 +143,36 @@ test("a public tier refuses a chain other than its own", async () => {
     join(preflight, "prod.json"),
     JSON.stringify({ tier: "prod", workerHash: d.keccak256, gitCommit: head(), dirty: true }),
   );
-  const r = await cli("deploy.mjs", [
-    "--tier",
-    "prod",
-    "--bundle",
-    FIXTURE_BUNDLE,
-    "--config",
-    config,
-    "--records",
-    records,
-    "--preflight",
-    preflight,
-  ]);
+  const r = await cli(
+    "deploy.mjs",
+    [
+      "--tier",
+      "prod",
+      "--bundle",
+      FIXTURE_BUNDLE,
+      "--rpc-url",
+      RPC,
+      "--from",
+      DEPLOYER,
+      "--records",
+      records,
+      "--preflight",
+      preflight,
+    ],
+    RESOLVER_ENV,
+  );
   assert.equal(r.status, 1);
   assert.match(r.out, /tier=prod chainId=1/);
   assert.match(r.out, /chain 11155111, but tier prod is chain 1/);
 });
 
-test("a public tier signs only as configured, and a broadcast pins only configured resolvers", async () => {
+test("a public tier signs only with a named keystore, and a broadcast pins only https: resolvers", async () => {
   await prove(FIXTURE_BUNDLE);
   for (const [flags, why] of /** @type {const} */ ([
     [["--password-file", "/dev/null"], /interactive password prompt/],
-    [["--account", "x"], /interactive password prompt/],
-    [["--broadcast", "--resolver", "http://x/y"], /overrides are for dry runs/],
+    [["--keystore", "x"], /interactive password prompt/],
+    [["--broadcast"], /--account \(or ETH_KEYSTORE_ACCOUNT\)/],
+    [["--broadcast", "--account", "x", "--resolver", "http://x/y"], /https: resolvers only/],
     [["--broadcast", "--skip-resolver-check"], /always checks its resolvers/],
     [["--broadcast", "--rehearse"], /exclusive/],
     [["--deployer", DEPLOYER], /rehearsal stand-in only/],
@@ -283,8 +282,8 @@ test("the cycle works on a record whose updates history was removed or emptied",
     const verify = await cli("verify.mjs", [
       "--tier",
       "test",
-      "--config",
-      config,
+      "--rpc-url",
+      RPC,
       "--records",
       records,
       "--bundle",
@@ -381,7 +380,7 @@ test("--address refuses another owner, other code, and no code", async () => {
     await serve(FIXTURE_BUNDLE),
   ]);
   assert.equal(owner.status, 1);
-  assert.match(owner.out, new RegExp(`owned by ${OTHER}, not the configured deployer`));
+  assert.match(owner.out, new RegExp(`owned by ${OTHER}, not the deployer \\(--from\\)`));
 
   const odd = "0x000000000000000000000000000000000000c0de";
   await rpcCall("anvil_setCode", [odd, "0x600160005260206000f3"]);
@@ -469,8 +468,10 @@ test("private iteration leaves git status clean: the working record and every ru
     "test",
     "--bundle",
     second,
-    "--config",
-    config,
+    "--rpc-url",
+    RPC,
+    "--from",
+    DEPLOYER,
     "--records",
     inState,
     "--posted",

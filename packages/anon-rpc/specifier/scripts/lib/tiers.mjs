@@ -1,15 +1,12 @@
-// Deployment tiers and their local configuration.
+// Deployment tiers and the inputs a public tier deploys with.
 //
 // A tier fixes which chain a deploy may reach; that mapping lives here, in
-// code, so a config file cannot redefine what `test` means. Everything else
-// chain-facing for a public tier (RPC URL, keystore name, signer address,
-// resolver URLs, Pages project) comes from the untracked deploy.local.json,
-// which is never committed: resolver URLs become public on-chain at deploy
-// time, but they are kept out of the code.
+// code, so no input can redefine what `test` means. Everything else
+// chain-facing for a public tier (RPC URL, signer address, keystore name,
+// resolver URLs) is an input, as a flag or from the environment: the tools
+// hold no deployment's values. Resolver URLs become public on-chain at deploy.
 
-import { existsSync, readFileSync } from "node:fs";
 import { contentPath } from "./digest.mjs";
-import { LOCAL_CONFIG } from "./paths.mjs";
 import { CliError } from "./proc.mjs";
 
 /**
@@ -59,74 +56,52 @@ export function assertChain(tier, chainId) {
 }
 
 /**
- * @typedef {object} TierConfig
+ * @typedef {object} PublicInputs
  * @property {string} rpcUrl
- * @property {string} account      Foundry keystore name, resolved in Foundry's default keystore directory
- * @property {string} deployer     the address that keystore signs as
- * @property {string[]} resolvers  URL templates; `{path}` becomes <hash[0:2]>/<hash[2:]>
- * @property {{ project: string }} [pages]
+ * @property {string} deployer    the address the keystore signs as, or a rehearsal stand-in
+ * @property {string} [account]   Foundry keystore name, resolved in Foundry's default keystore directory
+ * @property {string[]} resolvers entries or templates; `{path}` becomes <hash[0:2]>/<hash[2:]>
  */
 
 const ADDRESS = /^0x[0-9a-fA-F]{40}$/;
 
+/** A comma-separated environment list (`RESOLVER_URLS`), trimmed, empty entries dropped. */
+export const envList = (/** @type {string | undefined} */ v) =>
+  (v ?? "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+
 /**
- * Read one tier's section of the local config, checking its shape. Values are
- * never printed by this module.
+ * Check one public tier's inputs. Values are never printed by this module, and
+ * an unfilled template value (one still holding `<`) counts as missing.
  * @param {Tier} tier
- * @param {string} [file]
- * @param {{ resolvers?: boolean }} [need] resolvers: false when the caller supplies its own
- *   (a dry run or rehearsal with --resolver), so the configured list may still be a placeholder
- * @returns {TierConfig}
+ * @param {{ rpcUrl?: string, deployer?: string, account?: string, resolvers: string[] }} given
+ * @param {{ broadcast?: boolean }} [opts] a broadcast also needs the keystore, and pins only `https:` entries
+ * @returns {PublicInputs}
  */
-export function loadTierConfig(
-  tier,
-  file = LOCAL_CONFIG,
-  { resolvers: needResolvers = true } = {},
-) {
-  if (!existsSync(file))
-    throw new CliError(
-      `${file} not found: copy deploy.local.example.json to deploy.local.json and fill in the ${tier.name} section`,
-    );
-  let all;
-  try {
-    all = JSON.parse(readFileSync(file, "utf8"));
-  } catch (error) {
-    throw new CliError(`${file}: ${error instanceof Error ? error.message : error}`);
-  }
-  const section = all?.[tier.name];
-  if (section === undefined || section === null || typeof section !== "object")
-    throw new CliError(`${file} has no "${tier.name}" section`);
-  /** @param {string} key */
-  const need = (key) => {
-    const v = section[key];
+export function publicInputs(tier, given, { broadcast = false } = {}) {
+  /** @param {string | undefined} v @param {string} what */
+  const need = (v, what) => {
     if (typeof v !== "string" || v === "" || v.includes("<"))
-      throw new CliError(`${file}: ${tier.name}.${key} is not set`);
+      throw new CliError(`tier ${tier.name} needs ${what}`);
     return v;
   };
-  const rpcUrl = need("rpcUrl");
-  const account = need("account");
-  const deployer = need("deployer");
-  if (!ADDRESS.test(deployer))
-    throw new CliError(`${file}: ${tier.name}.deployer is not an address`);
-  const resolvers = needResolvers ? section.resolvers : [];
-  if (needResolvers && (!Array.isArray(resolvers) || resolvers.length === 0))
-    throw new CliError(`${file}: ${tier.name}.resolvers must be a non-empty list`);
-  for (const r of resolvers) {
-    if (typeof r === "string" && r.includes("<"))
-      throw new CliError(`${file}: ${tier.name}.resolvers still holds a placeholder`);
-    if (typeof r !== "string" || !r.includes("{path}"))
-      throw new CliError(`${file}: every ${tier.name}.resolvers entry must contain {path}`);
-    if (!r.startsWith("https://"))
-      throw new CliError(`${file}: ${tier.name}.resolvers entries must be https: URLs`);
+  const rpcUrl = need(given.rpcUrl, "--rpc-url (or RPC_URL)");
+  const deployer = need(given.deployer, "--from (or ETH_FROM): the address its keystore signs as");
+  if (!ADDRESS.test(deployer)) throw new CliError(`tier ${tier.name}: --from is not an address`);
+  const account = broadcast
+    ? need(given.account, "--account (or ETH_KEYSTORE_ACCOUNT): the Foundry keystore to sign with")
+    : given.account;
+  if (given.resolvers.length === 0)
+    throw new CliError(`tier ${tier.name} needs --resolver (or RESOLVER_URLS), at least one`);
+  for (const r of given.resolvers) {
+    if (r.includes("<"))
+      throw new CliError(`tier ${tier.name}: a resolver still holds a placeholder`);
+    if (broadcast && !r.startsWith("https://"))
+      throw new CliError(`tier ${tier.name}: a broadcast pins https: resolvers only`);
   }
-  const project = section.pages?.project;
-  return {
-    rpcUrl,
-    account,
-    deployer,
-    resolvers,
-    ...(typeof project === "string" && project !== "" ? { pages: { project } } : {}),
-  };
+  return { rpcUrl, deployer, ...(account ? { account } : {}), resolvers: given.resolvers };
 }
 
 /**

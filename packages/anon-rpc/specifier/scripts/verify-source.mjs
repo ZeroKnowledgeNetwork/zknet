@@ -6,20 +6,17 @@
 // `verify` is the harness's check that the bundle resolves.
 //
 // Usage:
-//   node scripts/verify-source.mjs --tier test|prod [--address <addr>] [--config <file>] [--records <dir>] [--posted <dir>] [--dry-run]
+//   node scripts/verify-source.mjs --tier test|prod --rpc-url <url> [--address <addr>] [--records <dir>] [--posted <dir>] [--dry-run]
+//
+// The RPC URL is --rpc-url or RPC_URL.
 
 import { spawnSync } from "node:child_process";
 import { parseArgs } from "node:util";
-import {
-  LOCAL_CONFIG,
-  POSTED_RECORDS_DIR,
-  PROJECT_DIR,
-  WORKING_RECORDS_DIR,
-} from "./lib/paths.mjs";
+import { POSTED_RECORDS_DIR, PROJECT_DIR, WORKING_RECORDS_DIR } from "./lib/paths.mjs";
 import { CliError, foundry, isMain, runMain } from "./lib/proc.mjs";
 import { findRecord } from "./lib/record.mjs";
 import { chainId } from "./lib/rpc.mjs";
-import { assertChain, banner, loadTierConfig, tierOf } from "./lib/tiers.mjs";
+import { assertChain, banner, tierOf } from "./lib/tiers.mjs";
 
 /**
  * @param {string} address
@@ -47,7 +44,7 @@ async function main(argv) {
     options: {
       tier: { type: "string" },
       address: { type: "string" },
-      config: { type: "string", default: LOCAL_CONFIG },
+      "rpc-url": { type: "string" },
       records: { type: "string", default: WORKING_RECORDS_DIR },
       posted: { type: "string", default: POSTED_RECORDS_DIR },
       "dry-run": { type: "boolean", default: false },
@@ -56,9 +53,8 @@ async function main(argv) {
   const tier = tierOf(values.tier);
   if (!tier.public) throw new CliError("verify-source is for the public tiers (test, prod)");
   console.log(banner(tier));
-  const { rpcUrl } = loadTierConfig(tier, /** @type {string} */ (values.config), {
-    resolvers: false,
-  });
+  const rpcUrl = values["rpc-url"] || process.env.RPC_URL;
+  if (!rpcUrl) throw new CliError(`tier ${tier.name} needs --rpc-url (or RPC_URL)`);
   assertChain(tier, await chainId(rpcUrl));
   const address =
     values.address ??

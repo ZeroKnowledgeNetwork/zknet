@@ -13,8 +13,16 @@ Foundry (`forge`, `cast`, `anvil`) and Node built-ins only — no npm dependenci
 `src/WorkerSpecifier.sol` is EF's reference contract, vendored byte for byte (see `NOTICE`), and
 compiles to the same runtime code as EF's mainnet deployments (`test/ReferenceBytecode.t.sol`).
 It is **owner-updatable**: one stable address tracks worker versions, so the owner key is the
-supply chain of every host pinned to it. `renounceOwnership()` freezes it. A harness trusts only
-`workerHash()`; resolvers are advisory, and any bytes hashing to the pin are equally good.
+supply chain of every host pinned to it. The owner can repoint the address at any bundle and
+resolver list with `setWorker`, hand ownership on with `transferOwnership`, and freeze the current
+contents for good with `renounceOwnership()`. Every update emits `WorkerUpdated`, and `owner()`
+names who can make the next one. A harness trusts only `workerHash()`; resolvers are advisory, and
+any bytes hashing to the pin are equally good.
+
+Today the owner is a single testnet key, `zknet-test-deployer`, held by the ZKNetwork developers,
+on the `test` tier (Ethereum Sepolia). Planned before `prod` (Ethereum mainnet): ownership moves
+to a multisig behind a delay, so each update is visible on chain for a set time before wallets
+load it. A transfer of ownership keeps the address.
 
 ## The bundle
 

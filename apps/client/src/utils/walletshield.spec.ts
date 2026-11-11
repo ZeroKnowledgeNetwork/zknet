@@ -63,7 +63,11 @@ describe("walletshield spawn", () => {
     const logLevel = { ...shipped.plugins.zknet, ...config.plugins.zknet }.walletshieldLogLevel;
     const v = validators(spawnScopes(enabledCapabilities(config)));
     expect(v.logLevel.test(logLevel)).toBe(true);
-    for (const listen of ["127.0.0.1:7070", ":7070", shipped.plugins.zknet.defaultWalletshieldListenAddress]) {
+    for (const listen of [
+      "127.0.0.1:7070",
+      ":7070",
+      shipped.plugins.zknet.defaultWalletshieldListenAddress,
+    ]) {
       expect(v.listen.test(listen)).toBe(true);
     }
   });

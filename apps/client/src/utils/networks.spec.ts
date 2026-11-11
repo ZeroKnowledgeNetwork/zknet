@@ -67,7 +67,11 @@ describe("network list presentation", () => {
 
   // which network is the default is decided in Rust (Listing::default_network)
   it("fills in the default only when nothing is chosen", () => {
-    const live = listing([row("devnet-2", "available"), row("devnet-1", "ready")], null, "devnet-2");
+    const live = listing(
+      [row("devnet-2", "available"), row("devnet-1", "ready")],
+      null,
+      "devnet-2",
+    );
     expect(autoFillId(live, "")).toBe("devnet-2");
     expect(autoFillId(live, "typed")).toBeNull();
     expect(autoFillId(listing([row("old", "unpublished")]), "")).toBeNull();

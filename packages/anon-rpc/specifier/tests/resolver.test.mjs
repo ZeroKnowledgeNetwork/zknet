@@ -7,6 +7,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "nod
 import { createServer, request } from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { gzipSync } from "node:zlib";
 import { after, before, test } from "node:test";
 import { contentPath } from "../scripts/lib/digest.mjs";
 import { keccak256Hex } from "../scripts/lib/keccak.mjs";
@@ -158,4 +159,33 @@ test("checkResolver admits it, and rejects other bytes, errors and redirects", a
   const kps = await checkResolver("kps:203.0.113.10:15005:uEiB/keccak/19/4f", hash);
   assert.equal(kps.ok, true);
   assert.match(kps.detail, /not fetched here/);
+});
+
+test("checkResolver asks an https-style host for identity, and refuses a body coded anyway", async () => {
+  // A static host that compresses when the client offers it (raw.githubusercontent.com does):
+  // Node's fetch offers gzip by default, so only an explicit identity request sees the bytes as stored.
+  /** @param {boolean} always */
+  const host = (always) =>
+    createServer((req, res) => {
+      const offered = String(req.headers["accept-encoding"] ?? "");
+      if (always || /gzip/.test(offered))
+        res.writeHead(200, { "content-encoding": "gzip" }).end(gzipSync(bundle));
+      else res.writeHead(200).end(bundle);
+    });
+  for (const [always, ok] of [
+    [false, true],
+    [true, false],
+  ]) {
+    const server = host(always);
+    await new Promise((resolve) => server.listen(0, "127.0.0.1", () => resolve(undefined)));
+    const address = server.address();
+    assert.ok(address !== null && typeof address === "object");
+    const check = await checkResolver(
+      `http://127.0.0.1:${address.port}/keccak/${contentPath(hash)}`,
+      hash,
+    );
+    server.close();
+    assert.equal(check.ok, ok, check.detail);
+    if (!ok) assert.equal(check.detail, "unexpected content-encoding gzip");
+  }
 });

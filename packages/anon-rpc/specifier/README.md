@@ -13,8 +13,16 @@ Foundry (`forge`, `cast`, `anvil`) and Node built-ins only — no npm dependenci
 `src/WorkerSpecifier.sol` is EF's reference contract, vendored byte for byte (see `NOTICE`), and
 compiles to the same runtime code as EF's mainnet deployments (`test/ReferenceBytecode.t.sol`).
 It is **owner-updatable**: one stable address tracks worker versions, so the owner key is the
-supply chain of every host pinned to it. `renounceOwnership()` freezes it. A harness trusts only
-`workerHash()`; resolvers are advisory, and any bytes hashing to the pin are equally good.
+supply chain of every host pinned to it. The owner can repoint the address at any bundle and
+resolver list with `setWorker`, hand ownership on with `transferOwnership`, and freeze the current
+contents for good with `renounceOwnership()`. Every update emits `WorkerUpdated`, and `owner()`
+names who can make the next one. A harness trusts only `workerHash()`; resolvers are advisory, and
+any bytes hashing to the pin are equally good.
+
+Today the owner is a single testnet key, `zknet-test-deployer`, held by the ZKNetwork developers,
+on the `test` tier (Ethereum Sepolia). Planned before `prod` (Ethereum mainnet): ownership moves
+to a multisig behind a delay, so each update is visible on chain for a set time before wallets
+load it. A transfer of ownership keeps the address.
 
 ## The bundle
 
@@ -36,8 +44,7 @@ to it automatically).
 | `resolver-put`                     | copies the bundle into the store at its content address and prints its URL                        |
 | `resolver-start` / `resolver-stop` | the resolver in the background                                                                    |
 | `anvil-start` / `anvil-stop`       | a local chain on `127.0.0.1:8545` in the background                                               |
-| `preflight`                        | the deploy gate (see [Deploy tiers](#deploy-tiers)); `deploy` and `publish` depend on it          |
-| `publish`                          | puts the bundle where the tier's resolvers serve it from                                          |
+| `preflight`                        | the deploy gate (see [Deploy tiers](#deploy-tiers)); `deploy` depends on it                       |
 | `deploy`                           | deploys the specifier (idempotent), prints its address                                            |
 | `verify`                           | reads the specifier back and boot-resolves it as a harness does                                   |
 | `verify-source`                    | verifies the deployed source on Sourcify (`test` and `prod`)                                      |
@@ -47,7 +54,7 @@ to it automatically).
 Arguments after the target reach the script, e.g.
 `nx run anon-rpc-specifier:hash --bundle=fixtures/keccak/19/4f04…`.
 
-`preflight`, `publish`, `deploy` and `verify` take a tier as their Nx configuration —
+`preflight`, `deploy`, `verify` and `verify-source` take a tier as their Nx configuration —
 `deploy:dev` (the default), `deploy:test`, `deploy:prod`. The configuration is a tier, never a
 verb: `test` the target runs tests, `deploy:test` deploys to the test tier.
 
@@ -81,7 +88,8 @@ and `kps:` entries.
 
 ### Deploying
 
-`deploy` hashes the bundle, checks that every `http(s)` resolver serves those exact bytes, then
+`deploy` hashes the bundle, checks that every `http(s)` resolver serves those exact bytes (asked
+for uncoded, `Accept-Encoding: identity`), then
 deploys and reads `workerHash()` / `workerResolvers()` back. The record of the deployment is
 `.state/deployments/<chainId>.json`. Re-running with the same bundle and resolvers is a no-op; with
 different ones it refuses unless given `--update` (owner `setWorker` on the same address) or
@@ -113,8 +121,7 @@ default configuration for a name it does not know, so a mistyped tier (`deploy:m
 
 ### The gate
 
-`deploy` and `publish` depend on `preflight`, so nothing reaches a chain or a resolver unless the
-gate passes. Its cached half is the same for every tier: this project's `compile`, `test`,
+`deploy` depends on `preflight`, so nothing reaches a chain unless the gate passes. Its cached half is the same for every tier: this project's `compile`, `test`,
 `fmt-check` and `lint`, the worker's and transport's `lint`, `typecheck` and `test` (their vitest
 configs set `watch: false`, so the gate never waits on a watcher), and the worker build. On top,
 `scripts/preflight.mjs --tier` adds:
@@ -128,34 +135,25 @@ configs set `watch: false`, so the gate never waits on a watcher), and the worke
 It writes what it proved to `.state/preflight/<tier>.json`; a public-tier `deploy` refuses a
 bundle, or a `HEAD`, that the proof does not name.
 
-### Local config (never committed)
+### Public-tier inputs
 
-A public tier takes its chain-facing values from `deploy.local.json` in this directory, ignored by
-git; `deploy.local.example.json` is the template:
+A public tier has no defaults: the tools hold no deployment's values, so each is a flag or comes
+from the environment.
 
-```jsonc
-{
-  "test": {
-    "rpcUrl": "https://ethereum-sepolia-rpc.publicnode.com",
-    "account": "<keystore name>", // Foundry's default keystore directory
-    "deployer": "0x…", // the address that keystore signs as; cast refuses a mismatch
-    "resolvers": ["https://<pages project>.pages.dev/keccak/{path}"],
-    "pages": { "project": "<pages project>" },
-  },
-}
-```
+| Input                                | Needed by                           | What it is                                                               |
+| ------------------------------------ | ----------------------------------- | ------------------------------------------------------------------------ |
+| `--rpc-url` / `RPC_URL`              | `deploy`, `verify`, `verify-source` | an endpoint of the tier's chain (it may carry an API key; never printed) |
+| `--from` / `ETH_FROM`                | `deploy`                            | the address the keystore signs as; cast refuses a mismatch               |
+| `--account` / `ETH_KEYSTORE_ACCOUNT` | `deploy --broadcast`                | a keystore name in Foundry's default keystore directory                  |
+| `--resolver` / `RESOLVER_URLS`       | `deploy`                            | repeatable / comma-separated; `{path}` becomes `<hash[0:2]>/<hash[2:]>`  |
 
-`{path}` becomes `<hash[0:2]>/<hash[2:]>`. Resolvers are a list, in order; public tiers accept
-`https:` entries only. The resolver URLs become public on-chain at deploy; they are kept out of
-the code, not secret.
+A broadcast pins `https:` entries only. A dry run or a rehearsal may name a local `http:` resolver
+instead. A value still holding a `<placeholder>` counts as missing. The resolver URLs become public
+on-chain at deploy.
 
-### A `test` cycle
-
-From the repository root:
+### Dry run, rehearsal, broadcast
 
 ```sh
-nx run anon-rpc-specifier:publish:test           # gate, then stage .state/publish/test; prints the wrangler line
-wrangler pages deploy packages/anon-rpc/specifier/.state/publish/test --project-name <pages project> --branch main
 nx run anon-rpc-specifier:deploy:test --rehearse  # gate, then the whole deploy on a local fork of Sepolia
 nx run anon-rpc-specifier:deploy:test             # gate, then a dry run: chain check, resolver check, plan
 nx run anon-rpc-specifier:deploy:test --broadcast # one keystore password prompt; writes .state/records/test.json
@@ -163,24 +161,25 @@ nx run anon-rpc-specifier:verify:test             # boot-resolve from Sepolia th
 nx run anon-rpc-specifier:verify-source:test      # Sourcify, no API key
 ```
 
-A redeploy of a new bundle is the same lines with `--update` on the `deploy` steps: `setWorker` on
-the recorded address, which only its owner can call. `--address <addr>` points any of them at
-another existing specifier instead (see [Records](#records)).
+each with the inputs above. A new bundle on an existing specifier is the same with `--update` on
+the `deploy` steps: `setWorker` on the recorded address, which only its owner can call.
+`--address <addr>` points any of them at another existing specifier instead (see
+[Records](#records)).
 
-- **`publish`** stages a cumulative static site: every bundle ever staged for the tier stays at
-  `keccak/<hash[0:2]>/<hash[2:]>`, because a Pages deploy replaces the whole site and older pins may
-  still be fetched. `_headers` serves them as `application/octet-stream` with `no-transform`, so
-  Cloudflare does not compress them (a resolver must answer without `Content-Encoding`), plus
-  immutable caching and CORS. It never runs `wrangler`.
-- **`--rehearse`** starts anvil on a fork of the tier's chain, impersonates the configured
-  deployer (no key), deploys or updates, reads back, boot-resolves through the fork, and reports
-  gas, cost and whether the deployer's real balance covers it. It writes the would-be record to
-  `.state/rehearse/<tier>.json` and sends nothing to the real chain. `--resolver <url>` and
-  `--deployer <addr>` override the config for a rehearsal (a local resolver before Pages is live; a
-  stand-in signer before the keystore exists).
+- **`--rehearse`** starts anvil on a fork of the tier's chain, impersonates the deployer (no key),
+  deploys or updates, reads back, boot-resolves through the fork, and reports gas, cost and whether
+  the deployer's real balance covers it. It writes the would-be record to
+  `.state/rehearse/<tier>.json` and sends nothing to the real chain. `--deployer <addr>` stands in
+  for `--from` in a rehearsal (a signer before the keystore exists).
 - **`--broadcast`** signs with `--account <name> --from <deployer>`: Foundry asks for the password on
   the terminal, once per transaction; the scripts never see it. A broadcast always checks its
-  resolvers and pins exactly the configured ones.
+  resolvers.
+
+Where the bundle is hosted is up to the deployer: any `https:` host that serves the exact bytes at
+a resolver URL will do (the local resolver's `put` lays out a content-addressed store,
+`node scripts/resolver.mjs put --store <dir>`). An `https:` resolver may compress, since
+Anon-RPC SPEC v0.3.2 §4.1 is a plain GET that a browser decodes; `deploy`'s check asks for the
+bytes uncoded.
 
 ### Records
 
@@ -213,7 +212,7 @@ different contract than the working one. Writes always go to the working record;
 `deployments/`.
 
 `--address` adopts an existing specifier without a record: it must hold the EF reference code and
-be owned by the configured deployer, and changing what it pins still needs `--update`. The working
+be owned by the deployer (`--from`), and changing what it pins still needs `--update`. The working
 record that results has no `creation` (the chain has it; nothing here needs it). This is also how
 to switch contracts: `--address` once with `--broadcast`, and the working record names it from then
 on.
@@ -236,20 +235,6 @@ on.
 A record never holds a URL; writing one fails. `updates` is informational and meant to be curated
 by hand before posting: prune test noise, keep what matters. No tooling reads it. Everything works
 from the top-level fields, with `updates` missing or empty.
-
-### What a complete redeploy updates
-
-1. **The resolver-hosted bundle** — `publish:<tier>` and the `wrangler pages deploy` upload; later,
-   any other resolver in the list (e.g. a `keccak` branch on `raw.githubusercontent.com`).
-2. **The specifier on chain** — `deploy:<tier> --broadcast` (`--update` for a new bundle).
-3. **The posted record** — `deployments/<tier>.json`, copied from the working record, curated,
-   committed — only when the deployment is for public consumption.
-4. **Source verification** — `verify-source:<tier>`, once per new contract.
-5. **ZKNet's entry in upstream anon-rpc `adopters.json5`** — `specifier` and `chainId` of the
-   live address, by pull request against that file, when the address changes (a `setWorker` keeps
-   it).
-6. **The exit's network routes** — only if the worker should reach a network the exit does not yet
-   route (`rpc_proxy_config.toml`).
 
 ## Reproducibility
 

@@ -30,14 +30,8 @@ export const WORKING_RECORDS_DIR = join(STATE_DIR, "records");
 /** Posted records of the public tiers (committed by hand): deployments/<tier>.json. */
 export const POSTED_RECORDS_DIR = join(PROJECT_DIR, "deployments");
 
-/** Untracked per-machine config of the public tiers (see deploy.local.example.json). */
-export const LOCAL_CONFIG = join(PROJECT_DIR, "deploy.local.json");
-
 /** What preflight proved, per tier: the bundle hash and the commit it reproduces from. */
 export const PREFLIGHT_DIR = join(STATE_DIR, "preflight");
-
-/** Staged Cloudflare Pages sites, per tier, cumulative. */
-export const PUBLISH_DIR = join(STATE_DIR, "publish");
 
 /** Build outputs of this project (gitignored by the workspace's dist rule). */
 export const DIST_DIR = join(PROJECT_DIR, "dist");

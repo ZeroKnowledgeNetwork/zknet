@@ -2,6 +2,7 @@ use tauri::Manager;
 
 mod config;
 mod network;
+mod walletshield;
 mod ws_server;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -76,6 +77,7 @@ pub fn run() {
             network::network_fetch,
             network::networks_list,
             network::platform,
+            walletshield::walletshield_spawn,
             ws_server::api_reply,
         ])
         .run(tauri::generate_context!())

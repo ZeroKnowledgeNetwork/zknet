@@ -10,7 +10,6 @@ import {
   autoFillId,
   fetchNetwork,
   getWalletshieldListenAddress,
-  getZKNetClientCfg,
   listNetworks,
 } from "../utils";
 import { walletshieldSpawn } from "../utils/walletshield";
@@ -68,7 +67,7 @@ export function Networks() {
     }
   }
 
-  // nothing chosen yet: fill in the newest live network, the list's top row
+  // nothing chosen yet: fill in the default network
   useEffect(() => {
     const id = autoFillId(networks, networkId);
     if (id) setNetworkId(id);
@@ -93,8 +92,6 @@ export function Networks() {
   }
 
   async function clientStart() {
-    const { walletshieldLogLevel } = await getZKNetClientCfg();
-
     ////////////////////////////////////////////////////////////////////////
     // make the network ready at its own source (zknet_client_core::network::prepare)
     ////////////////////////////////////////////////////////////////////////
@@ -136,7 +133,7 @@ export function Networks() {
     setMessage("info", "Starting network client...");
     const cmd = "walletshield";
     const wla = await getWalletshieldListenAddress();
-    const { scope, args } = walletshieldSpawn(wla, walletshieldLogLevel);
+    const { scope, args } = await walletshieldSpawn(wla);
     const command = Command.create(scope, args, {
       cwd: dirNetwork,
       env: {

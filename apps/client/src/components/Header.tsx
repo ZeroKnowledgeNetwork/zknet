@@ -56,7 +56,7 @@ export function Header() {
         <SideBar />
       </div>
       <div className="navbar-center">
-        <span className="text-2xl font-bold">Zero Knowledge Network</span>
+        <img src="/brand/ZKNetwork-letters-full.svg" alt="ZKNetwork" className="h-5 w-auto" />
       </div>
       <div className="navbar-end"></div>
     </div>

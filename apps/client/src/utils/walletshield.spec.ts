@@ -1,6 +1,5 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { walletshieldSpawn } from "./walletshield";
 
 const tauri = join(import.meta.dirname, "../../src-tauri");
 const readJson = (file: string) => JSON.parse(readFileSync(join(tauri, file), "utf8"));
@@ -40,26 +39,37 @@ const spawnScopes = (capabilities: Capability[]) =>
         : [],
     );
 
-// The argv tauri-plugin-shell 2.x actually executes (`Scope::_prepare`): the
-// first scope with a matching name wins, and argv follows its template.
-const resolveArgv = (scopes: SpawnScope[], name: string, args: string[]) => {
-  const scope = scopes.find((s) => s.name === name);
-  if (!scope) throw new Error(`no shell scope named ${name}`);
-  return scope.args.map((arg, i) => {
-    if (typeof arg === "string") return arg;
-    if (!new RegExp(arg.validator).test(args[i] ?? "")) throw new Error(`argument ${i} rejected`);
-    return args[i];
-  });
+// The arguments are built in Rust (zknet_client_core::walletshield); the
+// desktop's walletshield.rs tests that they fit this scope's template, listen
+// address then log level. Here: the values the config supplies pass its
+// validators, as tauri-plugin-shell 2.x checks them (`Scope::_prepare`: the
+// first scope with a matching name wins).
+const SCOPE = "walletshield-listen";
+
+const validators = (scopes: SpawnScope[]) => {
+  const scope = scopes.find((s) => s.name === SCOPE);
+  if (!scope) throw new Error(`no shell scope named ${SCOPE}`);
+  const [listen, logLevel] = scope.args
+    .filter((a): a is { validator: string } => typeof a !== "string")
+    .map((a) => new RegExp(`^${a.validator}$`));
+  return { listen, logLevel };
 };
 
 describe("walletshield spawn", () => {
   it.each([
     ["production", shipped],
     ["dev-local", devLocal],
-  ])("%s executes exactly the arguments the client passes", (_, config) => {
+  ])("%s spawns with values its scope accepts", (_, config) => {
     const logLevel = { ...shipped.plugins.zknet, ...config.plugins.zknet }.walletshieldLogLevel;
-    const { scope, args } = walletshieldSpawn("127.0.0.1:7070", logLevel);
-    expect(resolveArgv(spawnScopes(enabledCapabilities(config)), scope, args)).toEqual(args);
+    const v = validators(spawnScopes(enabledCapabilities(config)));
+    expect(v.logLevel.test(logLevel)).toBe(true);
+    for (const listen of [
+      "127.0.0.1:7070",
+      ":7070",
+      shipped.plugins.zknet.defaultWalletshieldListenAddress,
+    ]) {
+      expect(v.listen.test(listen)).toBe(true);
+    }
   });
 
   it("runs shipped clients at INFO and the dev-local app at DEBUG", () => {
@@ -68,13 +78,11 @@ describe("walletshield spawn", () => {
   });
 
   it.each(["TRACE", "info", "INFO -thin", ""])("rejects the log level %j", (logLevel) => {
-    const { scope, args } = walletshieldSpawn(":7070", logLevel);
-    expect(() => resolveArgv(spawnScopes(enabledCapabilities()), scope, args)).toThrow("rejected");
+    expect(validators(spawnScopes(enabledCapabilities())).logLevel.test(logLevel)).toBe(false);
   });
 
   // WalletShield picks full or thin mode from the network's config.
   it("never passes -thin, in any build", () => {
-    expect(walletshieldSpawn(":7070", "INFO").args).not.toContain("-thin");
     for (const config of [undefined, devLocal]) {
       const templates = spawnScopes(enabledCapabilities(config)).flatMap((s) => s.args);
       expect(templates).not.toContain("-thin");

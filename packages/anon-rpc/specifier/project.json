@@ -157,27 +157,6 @@
         "cwd": "{projectRoot}"
       }
     },
-    "publish": {
-      "executor": "nx:run-commands",
-      "cache": false,
-      "dependsOn": ["preflight"],
-      "defaultConfiguration": "dev",
-      "options": {
-        "command": "node scripts/publish.mjs --tier dev",
-        "cwd": "{projectRoot}"
-      },
-      "configurations": {
-        "dev": {
-          "command": "node scripts/publish.mjs --tier dev"
-        },
-        "test": {
-          "command": "node scripts/publish.mjs --tier test"
-        },
-        "prod": {
-          "command": "node scripts/publish.mjs --tier prod"
-        }
-      }
-    },
     "deploy": {
       "executor": "nx:run-commands",
       "cache": false,

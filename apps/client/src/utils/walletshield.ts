@@ -1,11 +1,8 @@
-// The shell plugin resolves a spawn by the first capability scope whose name
-// matches, then builds argv from that scope's argument template: arguments
-// beyond the template are dropped silently. The argv here must match the
-// `walletshield-listen` scope in the capabilities. WalletShield picks its mode
-// (full or thin) from the network's config, so no argument chooses it.
-export const WALLETSHIELD_SCOPE = "walletshield-listen";
+import { invoke } from "@tauri-apps/api/core";
 
-export const walletshieldSpawn = (listenAddress: string, logLevel: string) => ({
-  scope: WALLETSHIELD_SCOPE,
-  args: ["-listen", listenAddress, "-config", "client.toml", "-log_level", logLevel],
-});
+// WalletShield's spawn, built in Rust (zknet_client_core::walletshield): the shell
+// capability scope to spawn it under and its arguments, at the configured log level.
+export type WalletshieldSpawn = { scope: string; args: string[] };
+
+export const walletshieldSpawn = (listenAddress: string): Promise<WalletshieldSpawn> =>
+  invoke<WalletshieldSpawn>("walletshield_spawn", { listenAddress });

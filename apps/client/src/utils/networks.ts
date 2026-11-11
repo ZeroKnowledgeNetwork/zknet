@@ -21,6 +21,7 @@ export type Listing = {
   launchLabel: string | null; // null for the built-in source
   networks: NetworkRow[]; // published at the launch source first, then elsewhere; newest first
   unreachable: SourceError[]; // known sources whose index couldn't be read
+  defaultId: string | null; // the network to connect to when none is named (Listing::default_network)
 };
 
 export type Prepared = {
@@ -34,12 +35,13 @@ export const isLive = (n: NetworkRow) => n.status === "ready" || n.status === "a
 
 type Badge = { label: string; className: string; dot: string };
 
-// daisyUI 5 classes. In the zkn-dark theme `accent` is the green and `success`
-// is blue, so live is accent; soft info/neutral badges are illegible on base-200.
+// daisyUI 5 classes. The zknet theme paints accent, info, success and warning all
+// in the Accent Green, so live is accent and cached takes the Support Green
+// (secondary) to stay apart from it; soft neutral badges are illegible on base-200.
 export const BADGES: Record<Status, Badge> = {
   ready: { label: "Ready", className: "badge-soft badge-accent", dot: "status-accent" },
   available: { label: "Available", className: "badge-soft badge-accent", dot: "status-accent" },
-  cached: { label: "Cached", className: "badge-soft badge-warning", dot: "status-warning" },
+  cached: { label: "Cached", className: "badge-soft badge-secondary", dot: "status-secondary" },
   unpublished: { label: "Unpublished", className: "badge-ghost", dot: "status-error" },
 };
 
@@ -74,9 +76,9 @@ export const showsSource = (l: Listing) => l.networks.some((n) => n.sourceLabel 
 // Whether any known source publishes a network now
 export const anyListed = (l: Listing) => l.networks.some(isLive);
 
-// The network to fill in: the top row when it is live and nothing is chosen
+// The network to fill in: the default, when nothing is chosen
 export const autoFillId = (l: Listing, chosen: string): string | null =>
-  chosen === "" && l.networks.length > 0 && isLive(l.networks[0]) ? l.networks[0].id : null;
+  chosen === "" ? l.defaultId : null;
 
 // The full created time in the user's locale, for the CREATED tooltip
 export const createdTitle = (n: NetworkRow, locale?: string) =>

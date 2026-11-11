@@ -8,7 +8,7 @@
 //                           [--from <addr>] [--account <name> | --keystore <path>] [--password-file <path>]
 //                           [--deployments <dir>] [--update] [--fresh] [--dry-run] [--skip-resolver-check]
 //   public tiers add:       [--broadcast] [--rehearse [--deployer <addr>] [--fork-port N]]
-//                           [--address <addr>] [--config <file>] [--records <dir>] [--posted <dir>]
+//                           [--address <addr>] [--records <dir>] [--posted <dir>]
 //                           [--preflight <dir>] [--rehearse-record <file>]
 //
 // Without --tier (how e2e and demo-up call it) every chain-facing value is an
@@ -30,8 +30,11 @@
 //
 // --tier dev is the same, refusing any chain but 31337. A public tier (test,
 // prod) instead:
-//   - takes the RPC URL, keystore name, signer address and resolver templates
-//     from the untracked deploy.local.json, and refuses a chain other than its own;
+//   - has no defaults: --rpc-url (RPC_URL), --from (ETH_FROM, the address the
+//     keystore signs as) and --resolver (RESOLVER_URLS; `{path}` templates
+//     expand to the bundle's content path) are required, and --account
+//     (ETH_KEYSTORE_ACCOUNT) too for a broadcast; it refuses a chain other than
+//     its own, and a broadcast pins https: resolvers only;
 //   - refuses a bundle its preflight has not proven at the current HEAD;
 //   - is a dry run unless --broadcast. With --broadcast it signs with the
 //     keystore through Foundry's own password prompt: one prompt per
@@ -41,8 +44,8 @@
 //     working record, after a broadcast passes read-back. Posting it (copying
 //     it to deployments/ and committing) is the operator's step;
 //   - --address <addr> targets an existing specifier instead of the record's:
-//     it must hold the EF reference code and be owned by the configured
-//     deployer, and the record that results is the working one;
+//     it must hold the EF reference code and be owned by the deployer
+//     (--from), and the record that results is the working one;
 //   --rehearse runs the whole deploy on a local anvil fork of the tier's chain,
 //     impersonating the deployer: no key, nothing sent to the real chain. It
 //     reports gas, read-back and boot-resolve, and writes its would-be record
@@ -58,7 +61,6 @@ import {
   DEFAULT_RESOLVER_PORT,
   DEFAULT_RPC_URL,
   DEPLOYMENTS_DIR,
-  LOCAL_CONFIG,
   POSTED_RECORDS_DIR,
   PROJECT_DIR,
   PREFLIGHT_DIR,
@@ -76,7 +78,14 @@ import {
 import { keccak256Hex } from "./lib/keccak.mjs";
 import { answers, chainId as getChainId, code, rpc } from "./lib/rpc.mjs";
 import { checkResolver, readSpecifier, REFERENCE_CODEHASH, sameList } from "./lib/specifier.mjs";
-import { assertChain, banner, expandResolvers, loadTierConfig, tierOf } from "./lib/tiers.mjs";
+import {
+  assertChain,
+  banner,
+  envList,
+  expandResolvers,
+  publicInputs,
+  tierOf,
+} from "./lib/tiers.mjs";
 import { readProof } from "./preflight.mjs";
 import { resolverUrl } from "./resolver.mjs";
 import { verifySpecifier } from "./verify.mjs";
@@ -293,7 +302,6 @@ async function main(argv) {
       rehearse: { type: "boolean", default: false },
       deployer: { type: "string" },
       "fork-port": { type: "string", default: "8549" },
-      config: { type: "string", default: LOCAL_CONFIG },
       records: { type: "string", default: WORKING_RECORDS_DIR },
       posted: { type: "string", default: POSTED_RECORDS_DIR },
       address: { type: "string" },
@@ -399,36 +407,38 @@ async function localChain(tier, values) {
 }
 
 /**
- * test and prod: config from deploy.local.json, gated on preflight, dry run
- * unless --broadcast, or a rehearsal on a fork.
+ * test and prod: inputs from flags or the environment, gated on preflight, dry
+ * run unless --broadcast, or a rehearsal on a fork.
  * @param {import('./lib/tiers.mjs').Tier} tier
  * @param {Record<string, any>} values
  */
 async function publicTier(tier, values) {
-  if (values.account || values.keystore || values["password-file"] || values.from)
+  if (values.keystore || values["password-file"])
     throw new CliError(
-      `tier ${tier.name} signs as deploy.local.json says, with an interactive password prompt; drop --account/--keystore/--password-file/--from`,
+      `tier ${tier.name} signs with a named keystore (--account) and its interactive password prompt; drop --keystore/--password-file`,
     );
   if (values.broadcast && values.rehearse)
     throw new CliError("--broadcast and --rehearse are exclusive");
-  if (values["rpc-url"])
-    throw new CliError(`tier ${tier.name} takes its RPC URL from deploy.local.json`);
-  if (values.broadcast && values.resolver.length > 0)
-    throw new CliError(
-      "--resolver overrides are for dry runs and rehearsals; a broadcast pins the configured resolvers",
-    );
   if (values.broadcast && values["skip-resolver-check"])
     throw new CliError("a broadcast always checks its resolvers");
   if (values.deployer && !values.rehearse)
     throw new CliError("--deployer is a rehearsal stand-in only");
 
-  const config = loadTierConfig(tier, values.config, { resolvers: values.resolver.length === 0 });
-  const deployer = values.deployer ?? config.deployer;
+  const config = publicInputs(
+    tier,
+    {
+      rpcUrl: values["rpc-url"] || process.env.RPC_URL,
+      deployer: values.deployer ?? values.from,
+      account: values.account || process.env.ETH_KEYSTORE_ACCOUNT,
+      resolvers: values.resolver.length > 0 ? values.resolver : envList(process.env.RESOLVER_URLS),
+    },
+    { broadcast: values.broadcast },
+  );
+  const deployer = config.deployer;
   const bundle = values.bundle;
   const digest = await digestFile(bundle);
   const workerHash = digest.keccak256;
-  const resolvers =
-    values.resolver.length > 0 ? values.resolver : expandResolvers(config.resolvers, workerHash);
+  const resolvers = expandResolvers(config.resolvers, workerHash);
 
   // The gate: a public tier deploys only a bundle its preflight proved at this commit.
   const proof = readProof(tier.name, values.preflight);
@@ -517,7 +527,7 @@ async function publicTier(tier, values) {
   const outcome = await deploySpecifier({
     ...common,
     rpcUrl: config.rpcUrl,
-    signer: ["--account", config.account, "--from", deployer],
+    signer: ["--account", config.account ?? "", "--from", deployer],
     dryRun,
     sign: runSigning,
     hint: ` (nx run anon-rpc-specifier:deploy:${tier.name} --update${common.hint})`,
@@ -590,7 +600,7 @@ export function nextRecord(tier, chainId, outcome, record, bundle, workerHash, o
 
 /**
  * An --address must be a specifier this deployer can update: the EF reference
- * code, owned by the configured deployer.
+ * code, owned by the deployer (--from).
  * @param {string} rpcUrl
  * @param {string} address
  * @param {string} deployer
@@ -612,7 +622,7 @@ async function checkTarget(rpcUrl, address, deployer) {
   );
   if (spec.owner.toLowerCase() !== deployer.toLowerCase())
     throw new CliError(
-      `--address ${address} is owned by ${spec.owner}, not the configured deployer ${deployer}`,
+      `--address ${address} is owned by ${spec.owner}, not the deployer (--from) ${deployer}`,
     );
   return address;
 }

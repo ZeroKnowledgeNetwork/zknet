@@ -6,11 +6,12 @@
 //
 // Usage:
 //   node scripts/verify.mjs [--tier dev|test|prod] [--address <addr>] [--rpc-url <url>]
-//                           [--bundle <path>] [--deployments <dir>] [--config <file>] [--records <dir>] [--posted <dir>]
+//                           [--bundle <path>] [--deployments <dir>] [--records <dir>] [--posted <dir>]
 //
 // Without --address, the address comes from the record: <deployments>/<chainId>.json
 // locally, for a public tier the working record .state/records/<tier>.json, else the
-// posted deployments/<tier>.json (its RPC URL comes from deploy.local.json). A tier refuses an endpoint on another chain.
+// posted deployments/<tier>.json. A public tier has no default RPC URL: --rpc-url or RPC_URL.
+// A tier refuses an endpoint on another chain.
 // Exits 1 unless at least one resolver admits the bundle and none serves
 // other bytes.
 
@@ -19,7 +20,6 @@ import { digestFile } from "./lib/digest.mjs";
 import {
   DEFAULT_RPC_URL,
   DEPLOYMENTS_DIR,
-  LOCAL_CONFIG,
   POSTED_RECORDS_DIR,
   WORKING_RECORDS_DIR,
 } from "./lib/paths.mjs";
@@ -27,7 +27,7 @@ import { CliError, isMain, runMain } from "./lib/proc.mjs";
 import { findRecord } from "./lib/record.mjs";
 import { chainId } from "./lib/rpc.mjs";
 import { checkResolver, readSpecifier, REFERENCE_CODEHASH } from "./lib/specifier.mjs";
-import { assertChain, banner, loadTierConfig, tierOf } from "./lib/tiers.mjs";
+import { assertChain, banner, tierOf } from "./lib/tiers.mjs";
 import { readDeployment } from "./deploy.mjs";
 
 /**
@@ -82,7 +82,6 @@ async function main(argv) {
       "rpc-url": { type: "string" },
       bundle: { type: "string" },
       deployments: { type: "string", default: DEPLOYMENTS_DIR },
-      config: { type: "string", default: LOCAL_CONFIG },
       records: { type: "string", default: WORKING_RECORDS_DIR },
       posted: { type: "string", default: POSTED_RECORDS_DIR },
     },
@@ -90,11 +89,9 @@ async function main(argv) {
   const tier = values.tier === undefined ? undefined : tierOf(values.tier);
   if (tier) console.log(banner(tier));
 
-  let rpcUrl = values["rpc-url"] || process.env.RPC_URL || DEFAULT_RPC_URL;
-  if (tier?.public && !values["rpc-url"])
-    rpcUrl = loadTierConfig(tier, /** @type {string} */ (values.config), {
-      resolvers: false,
-    }).rpcUrl;
+  const given = values["rpc-url"] || process.env.RPC_URL;
+  if (tier?.public && !given) throw new CliError(`tier ${tier.name} needs --rpc-url (or RPC_URL)`);
+  const rpcUrl = given || DEFAULT_RPC_URL;
   const id = await chainId(rpcUrl);
   if (tier) assertChain(tier, id);
 

@@ -35,6 +35,8 @@ pub const INDEX_SCHEMA: u32 = 1;
 pub const DEFAULT_SOURCE: &str = "https://dist.zknet.io/networks";
 
 const INDEX_FILE: &str = "networks.json";
+/// A network's WalletShield config, in its directory.
+pub const CLIENT_TOML: &str = "client.toml";
 const ORIGIN_FILE: &str = "origin.json";
 const PART_SUFFIX: &str = ".part";
 const PROGRESS_INTERVAL: Duration = Duration::from_millis(100);
@@ -134,7 +136,7 @@ impl Asset {
     /// The file name under `<networks_dir>/<network_id>/`.
     pub fn local_name(self, platform: &Platform) -> String {
         match self {
-            Asset::ClientToml => "client.toml".into(),
+            Asset::ClientToml => CLIENT_TOML.into(),
             Asset::ServicesJson => "services.json".into(),
             Asset::Walletshield if platform.is_windows() => "walletshield.exe".into(),
             Asset::Walletshield => "walletshield".into(),
@@ -351,8 +353,9 @@ pub struct SourceError {
     pub error: String,
 }
 
-#[derive(Clone, Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
+/// Serialized with its [`Listing::default_network`] as `defaultId`, so the
+/// desktop takes the rule from here rather than repeating it.
+#[derive(Clone, Debug)]
 pub struct Listing {
     /// The source the client was launched with (data: the full URL).
     pub launch_source: String,
@@ -371,6 +374,42 @@ impl Listing {
         self.unreachable
             .iter()
             .any(|e| e.source == self.launch_source)
+    }
+
+    /// The network to connect to when none is named: the top row, if it is
+    /// published now. That is the newest live network at the launch source,
+    /// else the newest live one elsewhere; never a cached or unpublished copy.
+    pub fn default_network(&self) -> Option<&NetworkEntry> {
+        self.networks.first().filter(|n| n.status.is_live())
+    }
+}
+
+impl Serialize for Listing {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        #[derive(Serialize)]
+        #[serde(rename_all = "camelCase")]
+        struct Wire<'a> {
+            launch_source: &'a str,
+            launch_label: &'a Option<String>,
+            networks: &'a [NetworkEntry],
+            unreachable: &'a [SourceError],
+            default_id: Option<&'a NetworkId>,
+        }
+        // exhaustive, so a new field can't be left out of the wire
+        let Listing {
+            launch_source,
+            launch_label,
+            networks,
+            unreachable,
+        } = self;
+        Wire {
+            launch_source,
+            launch_label,
+            networks,
+            unreachable,
+            default_id: self.default_network().map(|n| &n.id),
+        }
+        .serialize(serializer)
     }
 }
 
@@ -1450,6 +1489,76 @@ mod tests {
             reason: "HTTP 500".into(),
         };
         assert_eq!(index.to_string(), "invalid network index: HTTP 500");
+    }
+
+    fn entry(id: &str, status: Status, source: &str) -> NetworkEntry {
+        NetworkEntry {
+            id: NetworkId::parse(id).unwrap(),
+            status,
+            entry: None,
+            source: source.into(),
+            source_label: source_label(source),
+            created_ago: None,
+        }
+    }
+
+    fn listing_of(networks: Vec<NetworkEntry>) -> Listing {
+        Listing {
+            launch_source: DEFAULT_SOURCE.into(),
+            launch_label: None,
+            networks,
+            unreachable: vec![],
+        }
+    }
+
+    #[test]
+    fn the_default_network_is_the_top_row_when_it_is_live() {
+        let other = "http://127.0.0.1:8765";
+        let default_id = |l: &Listing| l.default_network().map(|n| n.id.to_string());
+        for status in [Status::Available, Status::Ready] {
+            let l = listing_of(vec![
+                entry("devnet-2", status, DEFAULT_SOURCE),
+                entry("devnet-1", Status::Ready, DEFAULT_SOURCE),
+            ]);
+            assert_eq!(default_id(&l).as_deref(), Some("devnet-2"));
+        }
+        // nothing live at the launch source: the newest live one elsewhere
+        let l = listing_of(vec![
+            entry("dev-local", Status::Available, other),
+            entry("old", Status::Unpublished, DEFAULT_SOURCE),
+        ]);
+        assert_eq!(default_id(&l).as_deref(), Some("dev-local"));
+        // a copy that isn't published now is never chosen for the user
+        for status in [Status::Cached, Status::Unpublished] {
+            let l = listing_of(vec![entry("old", status, DEFAULT_SOURCE)]);
+            assert_eq!(default_id(&l), None, "{status:?}");
+        }
+        assert_eq!(default_id(&listing_of(vec![])), None);
+    }
+
+    #[test]
+    fn a_listing_serializes_its_default_for_the_desktop() {
+        let l = listing_of(vec![entry("devnet-2", Status::Available, DEFAULT_SOURCE)]);
+        let json = serde_json::to_value(&l).unwrap();
+        assert_eq!(
+            json,
+            serde_json::json!({
+                "launchSource": DEFAULT_SOURCE,
+                "launchLabel": null,
+                "networks": [{
+                    "id": "devnet-2",
+                    "status": "available",
+                    "entry": null,
+                    "source": DEFAULT_SOURCE,
+                    "sourceLabel": null,
+                    "createdAgo": null,
+                }],
+                "unreachable": [],
+                "defaultId": "devnet-2",
+            })
+        );
+        let none = serde_json::to_value(listing_of(vec![])).unwrap();
+        assert_eq!(none["defaultId"], serde_json::Value::Null);
     }
 
     #[test]

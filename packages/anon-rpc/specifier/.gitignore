@@ -3,5 +3,5 @@ out/
 cache/
 # local loop: pid files, logs, resolver store, deployment records, reproducibility outputs
 .state/
-# per-machine deploy config: RPC URLs, keystore names, resolver URLs
+# a per-machine config file: the tools read none (a public tier takes flags or env), so never commit one
 *.local.json

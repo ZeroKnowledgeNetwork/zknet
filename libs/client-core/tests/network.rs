@@ -677,6 +677,12 @@ async fn every_network_is_judged_at_its_own_source() {
     assert_eq!(x.source_label.as_deref(), bb.strip_prefix("http://"));
     assert!(x.created_ago.as_deref().unwrap().ends_with(" ago"));
     assert_eq!(listing.launch_label.as_deref(), a.strip_prefix("http://"));
+    // the default is the newest network published at the launch source
+    assert_eq!(listing.default_network().unwrap().id.as_str(), "devnet-2");
+    assert_eq!(
+        serde_json::to_value(&listing).unwrap()["defaultId"],
+        "devnet-2"
+    );
 }
 
 #[tokio::test]
@@ -712,6 +718,8 @@ async fn an_unreachable_source_leaves_its_networks_cached() {
         let listing = list(&http_client().unwrap(), &layout).await;
         assert!(listing.launch_unreachable());
         assert_eq!(listing.networks[0].status, Status::Cached);
+        // a copy whose source can't be read is never the default
+        assert!(listing.default_network().is_none());
     }
 }
 

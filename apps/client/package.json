@@ -9,6 +9,8 @@
     "tauri": "tauri"
   },
   "dependencies": {
+    "@fontsource-variable/orbitron": "^5.3.0",
+    "@fontsource-variable/roboto": "^5.3.0",
     "@tauri-apps/api": "^2.12.1",
     "@tauri-apps/plugin-clipboard-manager": "^2.4.1",
     "@tauri-apps/plugin-fs": "^2.6.0",

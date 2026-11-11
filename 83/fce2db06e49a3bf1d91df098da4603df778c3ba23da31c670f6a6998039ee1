@@ -1,0 +1,580 @@
+"use strict";
+(() => {
+  // ../transport/src/lib/errors.ts
+  var TransportError = class extends Error {
+    name;
+    code;
+    constructor(code, name, message, options) {
+      super(message, options);
+      this.code = code;
+      this.name = name;
+    }
+    toJSON() {
+      return { code: this.code, name: this.name, message: this.message };
+    }
+  };
+  var ZKNET_ERROR_REASONS = {
+    "mix-timeout": { code: "timeout", name: "MixTimeout" },
+    "exit-refused": { code: "permission-denied", name: "ExitRefused" },
+    "upstream-unreachable": { code: "network-error", name: "UpstreamUnreachable" },
+    "too-large": { code: "too-large", name: "TooLarge" },
+    "bad-reply": { code: "protocol-error", name: "BadReply" },
+    "exit-busy": { code: "queue-full", name: "ExitBusy" },
+    "provider-selection-off": { code: "permission-denied", name: "ExitRefused" }
+  };
+  function zknetError(reason, message) {
+    const known = Object.hasOwn(ZKNET_ERROR_REASONS, reason) ? ZKNET_ERROR_REASONS[reason] : void 0;
+    const { code, name } = known ?? { code: "protocol-error", name: "UnexpectedReply" };
+    return new TransportError(code, name, message ? `${reason}: ${message}` : reason);
+  }
+
+  // ../transport/src/lib/targets.ts
+  var TARGET_CIDRS = {
+    loopback: ["127.0.0.0/8", "::1/128"],
+    lan: [
+      "10.0.0.0/8",
+      "172.16.0.0/12",
+      "192.168.0.0/16",
+      "169.254.0.0/16",
+      // IPv4 link-local
+      "fc00::/7",
+      // IPv6 unique local
+      "fe80::/10"
+      // IPv6 link-local
+    ]
+  };
+  var TARGET_HOSTNAMES = {
+    loopback: ["localhost"],
+    lan: [".local"]
+    // mDNS, e.g. a ZKNet device on the LAN
+  };
+  var TARGET_SCHEMES = {
+    walletshield: ["http:", "https:"],
+    kpclientd: ["ws:", "wss:"]
+  };
+  function classifyTarget(url) {
+    const host = url.hostname.toLowerCase().replace(/^\[|\]$/g, "");
+    const ip = parseIp(host);
+    for (const cls of ["loopback", "lan"]) {
+      if (ip) {
+        if (TARGET_CIDRS[cls].some((cidr) => inCidr(ip, cidr))) return cls;
+      } else if (TARGET_HOSTNAMES[cls].some((name) => name.startsWith(".") ? host.endsWith(name) : host === name)) {
+        return cls;
+      }
+    }
+    return void 0;
+  }
+  function inCidr(ip, cidr) {
+    const [base, bitsText] = cidr.split("/");
+    const net = parseIp(base);
+    if (!net || net.v !== ip.v) return false;
+    const bits = Number(bitsText);
+    for (let i = 0; i < bits; i++) {
+      const mask = 128 >> i % 8;
+      if ((ip.bytes[i >> 3] & mask) !== (net.bytes[i >> 3] & mask)) return false;
+    }
+    return true;
+  }
+  function parseIp(text) {
+    const v4 = parseIpv4(text);
+    if (v4) return { v: 4, bytes: v4 };
+    if (!text.includes(":")) return void 0;
+    const halves = text.split("::");
+    if (halves.length > 2) return void 0;
+    const words = (part) => {
+      if (part === "") return [];
+      const out = [];
+      for (const group of part.split(":")) {
+        const tail2 = parseIpv4(group);
+        if (tail2) out.push(tail2[0] << 8 | tail2[1], tail2[2] << 8 | tail2[3]);
+        else if (/^[0-9a-f]{1,4}$/.test(group)) out.push(parseInt(group, 16));
+        else return void 0;
+      }
+      return out;
+    };
+    const head = words(halves[0]);
+    const tail = halves.length === 2 ? words(halves[1]) : [];
+    if (!head || !tail) return void 0;
+    const fill = 8 - head.length - tail.length;
+    if (halves.length === 2 ? fill < 1 : fill !== 0) return void 0;
+    const all = [...head, ...Array.from({ length: fill }, () => 0), ...tail];
+    const bytes = new Uint8Array(16);
+    all.forEach((w, i) => {
+      bytes[2 * i] = w >> 8;
+      bytes[2 * i + 1] = w & 255;
+    });
+    if (all.slice(0, 5).every((w) => w === 0) && all[5] === 65535) return { v: 4, bytes: bytes.slice(12) };
+    return { v: 6, bytes };
+  }
+  function parseIpv4(text) {
+    const parts = text.split(".");
+    if (parts.length !== 4 || !parts.every((p) => /^\d{1,3}$/.test(p) && Number(p) <= 255)) return void 0;
+    return Uint8Array.from(parts.map(Number));
+  }
+
+  // ../transport/src/lib/walletshield.ts
+  var DEFAULT_WALLETSHIELD_URL = "http://127.0.0.1:7070";
+  var UPSTREAM_HEADERS = ["content-type", "retry-after"];
+  var ZKNET_ERROR_HEADER = "zknet-error";
+  var USER_URL_PATH = "/_/url";
+  var URL_HEADER = "zknet-url";
+  var HEALTH_PATH = "/_/health";
+  var EXIT_PROBE_PATH = "/_/probe/0";
+  var DEFAULT_TIMEOUT_MS = 3e4;
+  var WalletShieldTransport = class {
+    peer = "walletshield";
+    target;
+    #base;
+    #timeoutMs;
+    #fetch;
+    #secure;
+    #protocol;
+    #closed = new AbortController();
+    /** Throws a TransportError (`unsupported` / `TargetRefused`) for a remote or malformed URL. */
+    constructor(opts = {}) {
+      const raw = opts.url ?? DEFAULT_WALLETSHIELD_URL;
+      let url;
+      try {
+        url = new URL(raw);
+      } catch {
+        throw refused("the WalletShield URL is not a URL");
+      }
+      if (!TARGET_SCHEMES.walletshield.includes(url.protocol)) {
+        throw refused(`WalletShield URL scheme must be one of ${TARGET_SCHEMES.walletshield.join(" ")}`);
+      }
+      if (url.username || url.password || url.search || url.hash) {
+        throw refused("the WalletShield URL must not carry credentials, a query or a fragment");
+      }
+      const target = classifyTarget(url);
+      if (!target) throw refused("the WalletShield URL is not a loopback or local-network address");
+      this.target = target;
+      this.#protocol = url.protocol;
+      this.#base = url.href.replace(/\/+$/, "");
+      const timeoutMs = opts.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+      if (!(Number.isFinite(timeoutMs) && timeoutMs > 0)) throw refused("timeoutMs must be a positive number");
+      this.#timeoutMs = timeoutMs;
+      this.#fetch = opts.fetch ?? globalThis.fetch.bind(globalThis);
+      this.#secure = opts.isSecureContext ?? globalThis.isSecureContext === true;
+    }
+    /** True when the browser is expected to block this target as mixed content (an `http:` LAN peer from a secure context). */
+    get mixedContentPredicted() {
+      return this.#secure && this.#protocol === "http:" && this.target === "lan";
+    }
+    async request(req, opts = {}) {
+      const [path, headers] = req.url !== void 0 ? [USER_URL_PATH, { "content-type": req.contentType, [URL_HEADER]: req.url }] : [`/${req.network.replace(/^\/+/, "")}`, { "content-type": req.contentType }];
+      return this.#exchange(path, {
+        method: "POST",
+        headers,
+        // A copy over exactly the request bytes: `fetch` reads a view's whole buffer otherwise.
+        body: req.body.slice()
+      }, opts.signal, async (res) => {
+        const body = new Uint8Array(await res.arrayBuffer());
+        const headers2 = [];
+        res.headers.forEach((value, name) => {
+          if (UPSTREAM_HEADERS.includes(name.toLowerCase())) headers2.push([name.toLowerCase(), value]);
+        });
+        return { status: res.status, headers: headers2, body };
+      });
+    }
+    async probe(opts = {}) {
+      const started = Date.now();
+      const done = (r) => ({ ...r, ms: Date.now() - started });
+      let peerVersion;
+      try {
+        peerVersion = await this.#exchange(HEALTH_PATH, { method: "GET" }, opts.signal, async (res) => {
+          const json = await res.json().catch(() => void 0);
+          return res.status === 200 && typeof json?.version === "string" ? json.version : void 0;
+        });
+      } catch (e) {
+        const error = shape(e);
+        if (error.name === "PeerUnreachable" && await this.#answersOpaquely(opts.signal)) {
+          return done({ reach: "peer", error: { code: "permission-denied", name: "CorsRejected", message: "WalletShield answered, but its reply is not readable from this origin (CORS)" } });
+        }
+        if (MARKED.has(error.name)) return done({ reach: "peer", error });
+        return done({ reach: "none", error });
+      }
+      if ((opts.depth ?? "peer") === "peer") return done({ reach: "peer", peerVersion });
+      try {
+        await this.#exchange(EXIT_PROBE_PATH, { method: "POST", headers: { "content-type": "application/json" }, body: "" }, opts.signal, async (res) => {
+          await res.arrayBuffer();
+        });
+        return done({ reach: "exit", peerVersion });
+      } catch (e) {
+        const error = shape(e);
+        if (MARKED.has(error.name) && error.name !== "MixTimeout" && error.name !== "TooLarge") return done({ reach: "exit", peerVersion });
+        return done({ reach: "peer", peerVersion, error });
+      }
+    }
+    async close() {
+      this.#closed.abort();
+      this.#closed = new AbortController();
+    }
+    /**
+     * One HTTP exchange with WalletShield under the caller's signal, the
+     * deadline and `close()`. A `ZKNet-Error` reply rejects; `read` consumes
+     * every other reply.
+     *
+     * No `targetAddressSpace`: Chromium needs it only for a public host name
+     * that resolves to a local address, which targets.ts refuses, and it
+     * refuses any fetch naming one once that fetch goes through a browser proxy.
+     */
+    async #exchange(path, init, signal, read) {
+      if (signal?.aborted) throw aborted();
+      const deadline = AbortSignal.timeout(this.#timeoutMs);
+      const closed = this.#closed.signal;
+      const combined = AbortSignal.any([deadline, closed, ...signal ? [signal] : []]);
+      const why = () => signal?.aborted ? aborted() : closed.aborted ? new TransportError("closed", "Closed", "the transport was closed") : deadline.aborted ? new TransportError("timeout", "Deadline", `no reply from WalletShield within ${this.#timeoutMs} ms`) : void 0;
+      try {
+        const res = await this.#fetch(`${this.#base}${path}`, {
+          ...init,
+          credentials: "omit",
+          cache: "no-store",
+          // A provider's 3xx is relayed as the reply. Under Fetch's `error` mode
+          // any 3xx is a network error, and under `manual` an opaque status 0,
+          // so neither can carry it. WalletShield never relays `Location`, so
+          // `follow` returns the 3xx as it is; a reply that was redirected
+          // anyway did not come from WalletShield and is refused below.
+          redirect: "follow",
+          signal: combined
+        });
+        if (res.redirected) throw new TransportError("protocol-error", "UnexpectedReply", "the peer redirected the request; WalletShield never does");
+        const reason = res.headers.get(ZKNET_ERROR_HEADER);
+        if (reason !== null) throw zknetError(reason.trim(), await errorMessage(res));
+        return await read(res);
+      } catch (e) {
+        if (e instanceof TransportError) throw e;
+        throw why() ?? this.#networkFailure(e);
+      }
+    }
+    /**
+     * Name a `fetch` that failed before a readable reply. From inside the
+     * harness's frame the browser shows one `TypeError` for every cause — the
+     * peer not running, Local Network Access not delegated or not granted —
+     * and `permissions.query` there reads `denied` even when access works, so
+     * those stay one name. Only a mixed-content block is predictable.
+     */
+    #networkFailure(cause) {
+      if (this.mixedContentPredicted) {
+        return new TransportError("unsupported", "MixedContentBlocked", "the browser blocks an http: local-network peer from a secure context (mixed content)", { cause });
+      }
+      return new TransportError(
+        "network-error",
+        "PeerUnreachable",
+        "WalletShield did not answer: it is not running at the configured address, or the browser blocked local network access (not delegated by the host, or not granted)",
+        { cause }
+      );
+    }
+    /** Whether anything answers the health path when CORS is taken out of the picture. */
+    async #answersOpaquely(signal) {
+      try {
+        await this.#fetch(`${this.#base}${HEALTH_PATH}`, {
+          method: "GET",
+          mode: "no-cors",
+          credentials: "omit",
+          cache: "no-store",
+          signal: AbortSignal.any([AbortSignal.timeout(this.#timeoutMs), this.#closed.signal, ...signal ? [signal] : []])
+        });
+        return true;
+      } catch {
+        return false;
+      }
+    }
+  };
+  var MARKED = /* @__PURE__ */ new Set(["MixTimeout", "ExitRefused", "ExitBusy", "UpstreamUnreachable", "BadReply", "TooLarge", "UnexpectedReply"]);
+  function refused(message) {
+    return new TransportError("unsupported", "TargetRefused", message);
+  }
+  function aborted() {
+    return new TransportError("cancelled", "AbortError", "the request was aborted");
+  }
+  function shape(e) {
+    if (e instanceof TransportError) return e.toJSON();
+    return { code: "internal-error", name: "UnexpectedReply", message: e instanceof Error ? e.message : String(e) };
+  }
+  async function errorMessage(res) {
+    try {
+      const json = await res.json();
+      return typeof json?.error?.message === "string" ? json.error.message : void 0;
+    } catch {
+      return void 0;
+    }
+  }
+
+  // src/lib/log.ts
+  var LOG_LEVELS = ["debug", "info", "warn", "error"];
+  var LOG_SOURCE = "zknet-worker";
+  function createLogger(api, level = "info") {
+    let min = LOG_LEVELS.indexOf(level);
+    const emit = (entryLevel, event, fields) => {
+      if (api === void 0 || LOG_LEVELS.indexOf(entryLevel) < min) return;
+      const args = [LOG_SOURCE, event];
+      if (fields !== void 0) args.push(sanitize(fields));
+      try {
+        api[entryLevel](...args);
+      } catch {
+      }
+    };
+    return {
+      debug: (event, fields) => emit("debug", event, fields),
+      info: (event, fields) => emit("info", event, fields),
+      warn: (event, fields) => emit("warn", event, fields),
+      error: (event, fields) => emit("error", event, fields),
+      setLevel: (next) => {
+        min = LOG_LEVELS.indexOf(next);
+      }
+    };
+  }
+  var URL_RE = /\b[a-z][a-z0-9+.-]*:\/\/[^\s"'<>]*/giu;
+  var IPV4_RE = /\b\d{1,3}(?:\.\d{1,3}){3}(?::\d+)?\b/gu;
+  var LONG_HEX_RE = /\b(?:0x)?[0-9a-fA-F]{32,}\b/gu;
+  var CONTROL_RE = /[\u0000-\u001f\u007f]/gu;
+  var MAX_LOGGED_TEXT = 300;
+  function redact(text) {
+    const cleaned = text.replace(URL_RE, "<url>").replace(IPV4_RE, "<addr>").replace(LONG_HEX_RE, "<hex>").replace(CONTROL_RE, " ");
+    return cleaned.length <= MAX_LOGGED_TEXT ? cleaned : `${cleaned.slice(0, MAX_LOGGED_TEXT)}…`;
+  }
+  function sanitize(fields) {
+    const out = {};
+    for (const [key, value] of Object.entries(fields)) {
+      if (value !== void 0) out[key] = typeof value === "string" ? redact(value) : value;
+    }
+    return out;
+  }
+
+  // src/lib/config.ts
+  var DEFAULT_CONFIG = {
+    walletshield: DEFAULT_WALLETSHIELD_URL,
+    timeoutMs: DEFAULT_TIMEOUT_MS,
+    logLevel: "info"
+  };
+  var ConfigError = class extends Error {
+    code = "bad-config";
+  };
+  function resolveConfig(raw) {
+    if (raw === void 0 || raw === null) return { ...DEFAULT_CONFIG };
+    if (typeof raw !== "object" || Array.isArray(raw)) throw new ConfigError("config must be an object");
+    const cfg = raw;
+    for (const key of Object.keys(cfg)) {
+      if (!Object.hasOwn(DEFAULT_CONFIG, key)) throw new ConfigError(`unknown config key "${key}"`);
+    }
+    const out = { ...DEFAULT_CONFIG };
+    if (cfg.walletshield !== void 0) {
+      if (typeof cfg.walletshield !== "string") throw new ConfigError("walletshield must be a URL string");
+      out.walletshield = cfg.walletshield;
+    }
+    if (cfg.timeoutMs !== void 0) {
+      if (typeof cfg.timeoutMs !== "number" || !Number.isFinite(cfg.timeoutMs) || cfg.timeoutMs <= 0) {
+        throw new ConfigError("timeoutMs must be a positive number");
+      }
+      out.timeoutMs = cfg.timeoutMs;
+    }
+    if (cfg.logLevel !== void 0) {
+      if (!LOG_LEVELS.includes(cfg.logLevel)) throw new ConfigError(`logLevel must be one of ${LOG_LEVELS.join(", ")}`);
+      out.logLevel = cfg.logLevel;
+    }
+    return out;
+  }
+
+  // src/lib/limits.ts
+  var MAX_REQUEST_BODY_BYTES = 128 * 1024;
+  var MAX_URL_LENGTH = 2 * 1024;
+
+  // src/lib/core.ts
+  var NETWORK_RE = /^[A-Za-z0-9-][A-Za-z0-9._-]*(\/[A-Za-z0-9_-][A-Za-z0-9._-]*)*$/;
+  function route(rawUrl, method, config) {
+    const refuse = (message, reason = "url") => ({ code: "unsupported", reason, message });
+    if (method.toUpperCase() !== "POST") return refuse("this worker serves JSON-RPC POST only", "method");
+    if (rawUrl.length > MAX_URL_LENGTH) return { code: "too-large", reason: "url", message: `the URL is longer than ${MAX_URL_LENGTH} characters` };
+    let url;
+    try {
+      url = new URL(rawUrl);
+    } catch {
+      return refuse("the URL must be absolute: a provider https URL, or a WalletShield network URL");
+    }
+    if (url.hash || url.username || url.password) return refuse("the URL must not carry a fragment or credentials");
+    const walletshield = new URL(config.walletshield).origin;
+    if (url.origin === walletshield) {
+      const network = url.pathname.slice(1);
+      if (url.search || !NETWORK_RE.test(network)) return refuse(`not a WalletShield network path: ${url.pathname}`);
+      return { network };
+    }
+    if (classifyTarget(url)) return refuse(`a local URL that is not the configured WalletShield (${walletshield}); set config.walletshield`);
+    if (url.protocol !== "https:") return refuse("a provider URL must be https");
+    return { url: url.href };
+  }
+  function isRefusal(r) {
+    return "reason" in r;
+  }
+  var FAILED_CODES = { badConfig: "bad-config", unsupportedPlatform: "unsupported-platform" };
+  var PROBE_COOLDOWN_MS = 1e4;
+  var WorkerCallError = class extends Error {
+    name;
+    code;
+    constructor(code, name, message) {
+      super(message);
+      this.code = code;
+      this.name = name;
+    }
+  };
+  async function runWorker(api, deps) {
+    const now = deps.now ?? Date.now;
+    const log = createLogger(api.log);
+    log.info("boot.start", { version: deps.version });
+    const fail = (code, message) => {
+      log.error("worker.failed", { code, reason: message });
+      api.signalFailed({ code, message });
+    };
+    if (typeof fetch !== "function" || typeof AbortSignal?.any !== "function" || typeof AbortSignal.timeout !== "function") {
+      fail(FAILED_CODES.unsupportedPlatform, "this worker needs fetch, AbortSignal.any and AbortSignal.timeout");
+      return;
+    }
+    let config;
+    let transport;
+    try {
+      config = resolveConfig(api.config);
+      log.setLevel(config.logLevel);
+      transport = (deps.createTransport ?? defaultTransport)(config);
+    } catch (e) {
+      if (e instanceof ConfigError || e instanceof TransportError && e.name === "TargetRefused") {
+        fail(FAILED_CODES.badConfig, e.message);
+        return;
+      }
+      throw e;
+    }
+    log.info("boot.config", {
+      peer: transport.peer,
+      target: transport instanceof WalletShieldTransport ? transport.target : void 0,
+      timeoutMs: config.timeoutMs
+    });
+    api.signalReady();
+    log.info("ready");
+    const diagnose = probeLogger(transport, log, now);
+    void diagnose(true);
+    for (let seq = 1; ; seq++) {
+      let call;
+      try {
+        call = await api.acceptCall();
+      } catch (e) {
+        log.error("accept.failed", { reason: redact(describe(e)) });
+        await transport.close();
+        return;
+      }
+      if (call.kind !== "fetch") {
+        log.debug("call.ignored", { kind: String(call.kind).slice(0, 32) });
+        continue;
+      }
+      try {
+        call.respond(handle(call, seq, config, transport, log, diagnose, now));
+      } catch (e) {
+        log.error("respond.failed", { seq, reason: redact(describe(e)) });
+      }
+    }
+  }
+  function defaultTransport(config) {
+    return new WalletShieldTransport({ url: config.walletshield, timeoutMs: config.timeoutMs });
+  }
+  async function handle(call, seq, config, transport, log, diagnose, now) {
+    const started = now();
+    const init = call.requestInit ?? {};
+    const target = route(call.url, init.method ?? "GET", config);
+    if (isRefusal(target)) return refused2(log, seq, target);
+    const kind = target.url === void 0 ? "network" : "url";
+    const failed = (e) => {
+      const error = e instanceof TransportError || e instanceof WorkerCallError ? e : init.signal?.aborted ? aborted2() : internal(e);
+      log.warn("call.failed", { seq, route: kind, code: error.code, name: error.name, ms: now() - started });
+      if (e instanceof TransportError && (error.code === "network-error" || error.code === "permission-denied" || error.code === "unsupported")) void diagnose();
+      return error;
+    };
+    let body;
+    try {
+      body = await readAll(init.body, init.signal);
+    } catch (e) {
+      throw failed(e);
+    }
+    if (body === void 0) return refused2(log, seq, { code: "too-large", reason: "size", message: `the request body is larger than ${MAX_REQUEST_BODY_BYTES} bytes` });
+    try {
+      const res = await transport.request({ ...target, body, contentType: header(init, "content-type") ?? "application/json" }, { signal: init.signal });
+      if (init.redirect === "error" && res.status >= 300 && res.status < 400) {
+        throw new WorkerCallError("network-error", "RedirectRefused", `the provider answered with a redirect (${res.status})`);
+      }
+      log.debug("call.done", { seq, ms: now() - started, route: kind, outcome: "ok", status: res.status, bytesOut: body.byteLength, bytesIn: res.body.byteLength });
+      return { status: res.status, headers: res.headers, body: res.body, url: call.url };
+    } catch (e) {
+      throw failed(e);
+    }
+  }
+  function refused2(log, seq, r) {
+    log.warn("call.refused", { seq, reason: r.reason });
+    throw new WorkerCallError(r.code, r.code === "too-large" ? "TooLarge" : "UnsupportedRequest", r.message);
+  }
+  function header(init, name) {
+    return init.headers?.find(([k]) => k.toLowerCase() === name)?.[1];
+  }
+  function probeLogger(transport, log, now) {
+    let running = false;
+    let last = -Infinity;
+    return async (force = false) => {
+      if (running || !force && now() - last < PROBE_COOLDOWN_MS) return;
+      running = true;
+      if (!force) last = now();
+      try {
+        const r = await transport.probe();
+        const fields = { reach: r.reach, ms: r.ms, version: r.peerVersion, code: r.error?.code, name: r.error?.name };
+        if (r.error) log.warn("probe", fields);
+        else log.info("probe", fields);
+      } catch (e) {
+        log.warn("probe", { reach: "none", reason: redact(describe(e)) });
+      } finally {
+        running = false;
+      }
+    };
+  }
+  async function readAll(body, signal) {
+    if (body === void 0) return new Uint8Array(0);
+    if (body instanceof Uint8Array) return body.byteLength > MAX_REQUEST_BODY_BYTES ? void 0 : body;
+    const chunks = [];
+    let total = 0;
+    const reader = body.getReader();
+    const onAbort = () => void reader.cancel().catch(() => {
+    });
+    signal?.addEventListener("abort", onAbort, { once: true });
+    try {
+      for (; ; ) {
+        if (signal?.aborted) throw aborted2();
+        const { value, done } = await reader.read();
+        if (done) break;
+        chunks.push(value);
+        total += value.byteLength;
+        if (total > MAX_REQUEST_BODY_BYTES) {
+          void reader.cancel().catch(() => {
+          });
+          return void 0;
+        }
+      }
+    } finally {
+      signal?.removeEventListener("abort", onAbort);
+    }
+    if (signal?.aborted) throw aborted2();
+    const out = new Uint8Array(total);
+    let off = 0;
+    for (const c of chunks) {
+      out.set(c, off);
+      off += c.byteLength;
+    }
+    return out;
+  }
+  function aborted2() {
+    return new TransportError("cancelled", "AbortError", "the request was aborted");
+  }
+  function internal(e) {
+    return new WorkerCallError("internal-error", "InternalError", redact(describe(e)));
+  }
+  function describe(e) {
+    return e instanceof Error ? `${e.name}: ${e.message}` : String(e);
+  }
+
+  // src/worker.ts
+  runWorker(anonRpcWorker, { version: "0.0.1" }).catch((e) => {
+    anonRpcWorker.signalFailed({ code: "internal-error", message: e instanceof Error ? e.message : String(e) });
+  });
+})();

@@ -1,0 +1,4 @@
+# Every object on this branch is named for the keccak256 of its exact bytes, so
+# nothing here may be transformed on the way in or out: -text turns off
+# end-of-line conversion, which would rewrite them on a core.autocrlf checkout.
+* -text

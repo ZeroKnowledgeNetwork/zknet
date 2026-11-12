@@ -223,7 +223,7 @@ export function Networks() {
         ) : (
           <>
             <p className="text-lg font-bold">Connected Network: {networkConnected}</p>
-            <button onClick={disconnect} className="btn btn-secondary">
+            <button onClick={disconnect} className="btn btn-neutral">
               Disconnect
             </button>
           </>

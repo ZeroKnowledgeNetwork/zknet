@@ -197,8 +197,8 @@ Invoke-WebRequest -OutFile zknet.exe ${a.url}
     ...(verify ? [verify] : []),
     `install -m 0755 ${a.name} ~/.local/bin/zknet`,
     "",
-    "zknet list                 # the mix networks you can join",
-    "zknet connect <network-id> # download its assets and connect",
+    "zknet connect [network-id] # connect; no id: the newest network",
+    "zknet list                 # the networks you can name instead",
   ].join("\n");
 }
 
@@ -252,8 +252,8 @@ const STEPS: [string, ReactNode][] = [
   [
     "Connect",
     <>
-      Pick a mix network in the client and connect, or run{" "}
-      <code>zknet connect &lt;network-id&gt;</code>.
+      Pick a mix network in the client and connect, or run <code>zknet connect</code>: it connects
+      to the newest network and names it. Add a <code>[network-id]</code> to choose another.
     </>,
   ],
   [

@@ -85,8 +85,8 @@ function DesktopDownload({ releases, platform, onPick }: Loaded & { onPick: (os:
   return (
     <div className="card bg-base-200 border border-base-300">
       <div className="card-body gap-4">
-        <div className="flex items-center justify-between gap-2 text-sm opacity-80">
-          <span>
+        <div className="flex items-center justify-between gap-2 text-sm">
+          <span className="opacity-80">
             Detected: <strong>{detected}</strong>
           </span>
           <div className="join" role="group" aria-label="Choose a platform">
@@ -94,7 +94,7 @@ function DesktopDownload({ releases, platform, onPick }: Loaded & { onPick: (os:
               <button
                 key={os}
                 type="button"
-                className={`btn btn-xs join-item ${platform?.os === os ? "btn-secondary" : "btn-ghost"}`}
+                className={`btn btn-xs join-item ${platform?.os === os ? "btn-primary" : "btn-ghost"}`}
                 aria-pressed={platform?.os === os}
                 onClick={() => onPick(os)}
               >

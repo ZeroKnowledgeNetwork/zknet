@@ -1,4 +1,4 @@
-import { IconArrowPath } from "./icons";
+import { IconArrowPath, IconStatus } from "./icons";
 import {
   BADGES,
   Listing,
@@ -24,12 +24,12 @@ function StatusBadge({ row }: { row: NetworkRow }) {
   );
 }
 
-// The reload button rests with the network-id input's subdued outline (daisyUI's
-// --input-color: base-content at 20%) and brightens on hover. `!` is needed:
+// The reload button rests with the network-id input's outline (the theme's
+// --input-color: base-content at 45%) and brightens on hover. `!` is needed:
 // Tailwind declares its utilities layer before daisyUI's, so .btn's own border
 // would otherwise win.
 export const RELOAD_BUTTON =
-  "btn btn-sm btn-square btn-ghost border-base-content/20! hover:border-base-content/70! hover:bg-base-300!";
+  "btn btn-sm btn-square btn-ghost border-base-content/45! hover:border-base-content/70! hover:bg-base-300!";
 
 export function NetworkTable(props: {
   listing: Listing;
@@ -66,6 +66,7 @@ export function NetworkTable(props: {
           className="alert alert-soft alert-warning mx-3 mb-2 py-2 text-sm"
           title={e.error}
         >
+          <IconStatus kind="warning" />
           {unreachableText(e)}
         </div>
       ))}

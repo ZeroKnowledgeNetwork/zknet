@@ -3,7 +3,7 @@ import { useStore } from "../store";
 import { writeText } from "@tauri-apps/plugin-clipboard-manager";
 import * as log from "@tauri-apps/plugin-log";
 import { NetworkServices, getWalletshieldListenAddress, readNetworkAssetFile } from "../utils";
-import { IconClipboard } from "./icons";
+import { IconClipboard, IconStatus } from "./icons";
 
 export function RPCEndpoints() {
   const [includeTestnets, setIncludeTestnets] = useState(true);
@@ -54,7 +54,8 @@ export function RPCEndpoints() {
   if (!networkConnected) {
     return (
       <div className="p-4 flex justify-center">
-        <div className="alert alert-warning shadow-lg">
+        <div className="alert alert-info shadow-lg">
+          <IconStatus kind="info" />
           <span>Connect to a network to see its supported RPC endpoints.</span>
         </div>
       </div>

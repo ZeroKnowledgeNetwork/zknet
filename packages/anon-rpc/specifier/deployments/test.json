@@ -1,0 +1,20 @@
+{
+  "tier": "test",
+  "chainId": 11155111,
+  "address": "0xB44249a3b4f3C8713688A8b7FC8694F61eeB84BF",
+  "codehash": "0xc4c54384a9c1f1201ef3711a7ed7ba20e078a432e85ecc4f8b14927587cc7b5f",
+  "owner": "0x761c0fEC86209B20dA95d929CE9eEeB784cDD71F",
+  "creation": {
+    "tx": "0x69cca9fd1dec28fb108c1335e28140c4330fced76c5ca040c4ffcf4054cce9a6",
+    "block": 12115091
+  },
+  "workerHash": "0x560a82b56ae9415d2b03919abfdb32f4eab5e553794a88bee839219dc95a3847",
+  "bundle": {
+    "file": "zknet-anon-rpc-worker.js",
+    "bytes": 16430,
+    "gitCommit": "01d1cf34c4b3cb025384eff9b877a9577fffc779",
+    "dirty": false
+  },
+  "contract": "WorkerSpecifier",
+  "updates": []
+}

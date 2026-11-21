@@ -112,6 +112,12 @@ async function client(
   await page.waitForSelector("table", { timeout: 8000 });
   await page.evaluate(() => document.fonts.ready);
   if (act) await act(page);
+  // the startup update check's "Up to date" box hides itself after 3 s; the
+  // guide shows the client at rest, without it
+  if (scenario === "guide")
+    await page.waitForFunction(() => !document.body.innerText.includes("Up to date."), null, {
+      timeout: 8000,
+    });
   await shoot(page, `client-${view}`);
   await page.close();
   srv.close();

@@ -1,0 +1,19 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "out-tsc/ui-shots",
+    "tsBuildInfoFile": "out-tsc/ui-shots/tsconfig.tsbuildinfo",
+    "emitDeclarationOnly": true,
+    "allowImportingTsExtensions": true,
+    "erasableSyntaxOnly": true,
+    "verbatimModuleSyntax": true,
+    "lib": ["es2022", "dom", "dom.iterable"],
+    "types": ["node"]
+  },
+  "include": ["src/**/*.ts"],
+  "references": [
+    {
+      "path": "../../apps/client"
+    }
+  ]
+}

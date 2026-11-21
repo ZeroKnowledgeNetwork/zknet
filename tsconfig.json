@@ -23,6 +23,9 @@
     },
     {
       "path": "./apps/downloads"
+    },
+    {
+      "path": "./packages/ui-shots"
     }
   ]
 }

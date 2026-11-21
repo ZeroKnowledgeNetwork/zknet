@@ -10,7 +10,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { parseArgs, parseEnv } from "node:util";
 import { chromium, type Browser, type Page } from "@playwright/test";
-import { backend, installBackend, type Mode } from "./fixture.ts";
+import { backend, installBackend, type Mode, type Scenario } from "./fixture.ts";
 import { grade, markdown, type Measured } from "./grade.ts";
 import { focusProbe, measure, type FocusRow, type Row } from "./measure.ts";
 import { serve } from "./serve.ts";
@@ -98,10 +98,15 @@ async function tabAll(page: Page, key: string) {
   focusRows[key] = out;
 }
 
-async function client(view: string, mode: Mode, act?: (p: Page) => Promise<unknown>) {
+async function client(
+  view: string,
+  mode: Mode,
+  act?: (p: Page) => Promise<unknown>,
+  scenario: Scenario = "audit",
+) {
   const srv = await serve(clientDist);
   const page = await browser.newPage({ viewport: CLIENT_VIEWPORT, colorScheme: "dark" });
-  await page.addInitScript(installBackend, backend(mode));
+  await page.addInitScript(installBackend, backend(mode, scenario));
   page.on("pageerror", (e) => console.error(`[${view}] pageerror`, e.message));
   await page.goto(srv.url);
   await page.waitForSelector("table", { timeout: 8000 });
@@ -157,6 +162,32 @@ await client("focus", "normal", async (p) => {
   await p.keyboard.press("Tab");
 });
 
+// The quickstart guide's frames: a first run against the live network, as shipped
+await client("guide-networks", "normal", undefined, "guide");
+// the connected logo pulses; the frame holds it midway, as a person would catch it
+await client(
+  "guide-connected",
+  "normal",
+  async (p) => {
+    await connect(p);
+    await p.addStyleTag({
+      content: ".pulsing { animation: none; filter: drop-shadow(0 0 1em #28d628); }",
+    });
+  },
+  "guide",
+);
+await client(
+  "guide-walletshield",
+  "normal",
+  async (p) => {
+    await connect(p);
+    await nav(p, "WalletShield");
+    await p.click("td:has-text('/ethereum')");
+    await p.mouse.move(CLIENT_VIEWPORT.width - 1, CLIENT_VIEWPORT.height - 1);
+  },
+  "guide",
+);
+
 // The downloads page, served as its real origin: the release host answers CORS
 // for that origin only, and the build's CSP applies
 {
@@ -166,6 +197,12 @@ await client("focus", "normal", async (p) => {
     ["downloads", "/", { width: 1280, height: 900 }],
     ["downloads-mobile", "/", { width: 390, height: 844 }],
   ];
+  // the quickstart guide, once the build has it (an unknown path would serve the downloads page)
+  if (fs.existsSync(path.join(downloadsDist, "quickstart/index.html")))
+    pages.push(
+      ["quickstart", "/quickstart/", { width: 1280, height: 900 }],
+      ["quickstart-mobile", "/quickstart/", { width: 390, height: 844 }],
+    );
   for (const [view, at, viewport] of pages) {
     const page = await browser.newPage({ viewport, colorScheme: "dark" });
     page.on("console", (m) => {

@@ -18,7 +18,7 @@ export type Allow = { view: RegExp; kind: Kind; el: RegExp; why: string };
 // Failures the walker reports that a person doesn't see
 export const ALLOW: Allow[] = [
   {
-    view: /^client-walletshield/,
+    view: /^client-(guide-)?walletshield/,
     kind: "non-text",
     el: /input\.tab$/,
     why: "the WalletShield tab is a radio input whose label and underline are ::after/::before, which the walker can't see",

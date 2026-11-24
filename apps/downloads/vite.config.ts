@@ -1,4 +1,5 @@
 /// <reference types='vitest' />
+import { resolve } from "node:path";
 import { defineConfig, loadEnv, type Plugin } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
@@ -50,6 +51,15 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [react(), tailwindcss(), headers((env.VITE_DOWNLOADS_BASE ?? "").trim())],
     server: { port: 3003 },
+    // one HTML entry per page; Pages serves quickstart/index.html at /quickstart/
+    build: {
+      rolldownOptions: {
+        input: {
+          main: resolve(import.meta.dirname, "index.html"),
+          quickstart: resolve(import.meta.dirname, "quickstart/index.html"),
+        },
+      },
+    },
     test: {
       name: "@zknet/downloads",
       watch: false,

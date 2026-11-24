@@ -10,6 +10,17 @@ pnpm nx run downloads:build        # snapshot, then dist/: the whole site
 pnpm nx run-many -t test,typecheck,lint -p downloads
 ```
 
+## Pages
+
+| path           | entry                   | what                                                                |
+| -------------- | ----------------------- | ------------------------------------------------------------------- |
+| `/`            | `index.html`            | the downloads, for the visitor's platform                           |
+| `/quickstart/` | `quickstart/index.html` | install, connect, point a wallet at WalletShield; the CLI's way too |
+
+Each page is an HTML entry in `vite.config.ts`; Pages serves `quickstart/index.html` at `/quickstart/`, under the
+same `_headers`. The quickstart's client screenshots are in `public/quickstart/`: `ui-shots`' `guide-*` views
+(`packages/ui-shots`), copied in when the client or the live network changes.
+
 ## Settings
 
 `.env` beside this file (git-ignored; start from `.env.example`). Vite reads it at build time and every value ends

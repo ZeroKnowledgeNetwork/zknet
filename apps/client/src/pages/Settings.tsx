@@ -58,7 +58,7 @@ export function Settings() {
         </fieldset>
         <div className="flex w-full h-full gap-4 p-4">
           <div className="tooltip flex-1" data-tip="Restore Defaults">
-            <button type="button" className="btn btn-secondary w-full" onClick={handleReset}>
+            <button type="button" className="btn btn-neutral w-full" onClick={handleReset}>
               Reset
             </button>
           </div>

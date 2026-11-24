@@ -9,7 +9,9 @@
 /* The three brand greens (the brand guide's palette) in their
    roles: Core = surfaces, Support = secondary balance, Accent = interaction.
    The guide defines no neutrals, so surfaces 200/300 are mixed from the greens
-   and text is plain white, the guide's observed lettering, not a brand token. */
+   and text is plain white, the guide's observed lettering, not a brand token.
+   Info, warning and error are the guide's UI extension (semantic colors), not
+   greens: green means go, so success alone keeps the Accent Green. */
 @plugin "daisyui/theme" {
   name: "zknet";
   default: true;
@@ -27,13 +29,13 @@
   --color-accent-content: #050b01;
   --color-neutral: color-mix(in oklab, #050b01 70%, #218b21);
   --color-neutral-content: #ffffff;
-  --color-info: #28d628;
+  --color-info: #5aa9ff;
   --color-info-content: #050b01;
   --color-success: #28d628;
   --color-success-content: #050b01;
-  --color-warning: #28d628;
+  --color-warning: #ffdc4c;
   --color-warning-content: #050b01;
-  --color-error: #ff6b6b;
+  --color-error: #ff6e9b;
   --color-error-content: #050b01;
   --radius-selector: 0.25rem;
   --radius-field: 0.25rem;
@@ -41,6 +43,13 @@
   --border: 1px;
   --depth: 0;
   --noise: 0;
+}
+
+/* daisyUI outlines fields at base-content 20%, 1.8:1 on Core: too faint to
+   find the field by (WCAG 1.4.11 asks 3:1). Its focus and invalid states keep
+   their own colors. */
+.input:not(:focus, :focus-within, :user-invalid) {
+  --input-color: color-mix(in oklab, var(--color-base-content) 45%, #0000);
 }
 
 /* daisyUI paints buttons, badges and alerts with an inline data: SVG noise

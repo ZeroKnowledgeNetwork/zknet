@@ -3,30 +3,9 @@ import { config } from "./config.ts";
 import { detectPlatform, OS_LABEL, type OS, type Platform } from "./detect.ts";
 import { assetsFor, mb, type Asset, type Downloads, type Releases } from "./manifest.ts";
 import { loadReleases } from "./releases.ts";
+import { Code, Footer, Header, Link } from "./ui.tsx";
 
 const DESKTOP_OS: OS[] = ["windows", "macos", "linux"];
-
-// A link whose URL is empty is not shown
-const Link = ({
-  href,
-  className = "link",
-  children,
-}: {
-  href: string;
-  className?: string;
-  children: ReactNode;
-}) =>
-  href ? (
-    <a className={className} href={href}>
-      {children}
-    </a>
-  ) : null;
-
-const Code = ({ children }: { children: string }) => (
-  <pre className="bg-base-300 rounded-box p-4 overflow-x-auto text-sm leading-relaxed">
-    <code>{children}</code>
-  </pre>
-);
 
 const KIND_LABEL: Record<Asset["kind"], string> = {
   dmg: "Disk image (.dmg)",
@@ -47,32 +26,6 @@ const howToInstall = (a: Asset) =>
     rpm: `sudo dnf install ./${a.name}`,
   })[a.kind as string] ?? "";
 
-function Header() {
-  return (
-    <header className="navbar max-w-6xl mx-auto px-4 py-6 gap-4">
-      <a href="/" className="flex items-center gap-4 flex-1" aria-label="ZKNetwork">
-        <img src="/brand/logo.svg" alt="" className="h-10 w-10" />
-        <img
-          src="/brand/ZKNetwork-letters-full.svg"
-          alt="ZKNetwork"
-          className="h-4 sm:h-5 w-auto"
-        />
-      </a>
-      <nav className="hidden sm:flex gap-1 text-sm">
-        <Link className="btn btn-ghost btn-sm" href={config.docsUrl}>
-          Docs
-        </Link>
-        <Link className="btn btn-ghost btn-sm" href={config.sourceUrl}>
-          Source
-        </Link>
-        <Link className="btn btn-ghost btn-sm" href={config.releasesUrl}>
-          All releases
-        </Link>
-      </nav>
-    </header>
-  );
-}
-
 type Loaded = { releases: Releases | null; platform: Platform | null };
 
 function DesktopDownload({ releases, platform, onPick }: Loaded & { onPick: (os: OS) => void }) {
@@ -85,8 +38,8 @@ function DesktopDownload({ releases, platform, onPick }: Loaded & { onPick: (os:
   return (
     <div className="card bg-base-200 border border-base-300">
       <div className="card-body gap-4">
-        <div className="flex items-center justify-between gap-2 text-sm opacity-80">
-          <span>
+        <div className="flex items-center justify-between gap-2 text-sm">
+          <span className="opacity-80">
             Detected: <strong>{detected}</strong>
           </span>
           <div className="join" role="group" aria-label="Choose a platform">
@@ -94,7 +47,7 @@ function DesktopDownload({ releases, platform, onPick }: Loaded & { onPick: (os:
               <button
                 key={os}
                 type="button"
-                className={`btn btn-xs join-item ${platform?.os === os ? "btn-secondary" : "btn-ghost"}`}
+                className={`btn btn-xs join-item ${platform?.os === os ? "btn-primary" : "btn-ghost"}`}
                 aria-pressed={platform?.os === os}
                 onClick={() => onPick(os)}
               >
@@ -197,8 +150,8 @@ Invoke-WebRequest -OutFile zknet.exe ${a.url}
     ...(verify ? [verify] : []),
     `install -m 0755 ${a.name} ~/.local/bin/zknet`,
     "",
-    "zknet list                 # the mix networks you can join",
-    "zknet connect <network-id> # download its assets and connect",
+    "zknet connect [network-id] # connect; no id: the newest network",
+    "zknet list                 # the networks you can name instead",
   ].join("\n");
 }
 
@@ -252,8 +205,8 @@ const STEPS: [string, ReactNode][] = [
   [
     "Connect",
     <>
-      Pick a mix network in the client and connect, or run{" "}
-      <code>zknet connect &lt;network-id&gt;</code>.
+      Pick a mix network in the client and connect, or run <code>zknet connect</code>: it connects
+      to the newest network and names it. Add a <code>[network-id]</code> to choose another.
     </>,
   ],
   [
@@ -290,7 +243,13 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-base-100 text-base-content font-sans">
-      <Header />
+      <Header
+        nav={[
+          ["Docs", config.docsUrl],
+          ["Source", config.sourceUrl],
+          ["All releases", config.releasesUrl],
+        ]}
+      />
 
       <main>
         <section className="max-w-6xl mx-auto px-4 pt-6 pb-12 grid lg:grid-cols-[1.2fr_1fr] gap-10 items-start">
@@ -374,12 +333,7 @@ export default function App() {
         </section>
       </main>
 
-      <footer className="border-t border-base-300">
-        <div className="max-w-6xl mx-auto px-4 py-8 text-sm opacity-70 flex flex-col sm:flex-row gap-2 justify-between">
-          <p>This page sets no cookies and runs no analytics.</p>
-          <p>AGPL-3.0</p>
-        </div>
-      </footer>
+      <Footer />
     </div>
   );
 }

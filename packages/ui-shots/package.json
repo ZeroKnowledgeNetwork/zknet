@@ -1,0 +1,11 @@
+{
+  "name": "@zknet/ui-shots",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Screenshots and an effective-contrast check of the desktop client and the downloads page, from their production builds: the client under a mocked Tauri backend, the downloads page on its real origin and CSP.",
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "devDependencies": {
+    "@playwright/test": "1.64.1"
+  }
+}
